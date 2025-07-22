@@ -78,6 +78,33 @@ Make sure to deploy the output of `npm run build`
 │   └── server/    # Server-side code
 ```
 
+## 📁 Folder Structure
+
+```
+app/
+  components/   # Reusable UI components (buttons, cards, etc.)
+  pages/        # Top-level pages/views (Home, Dashboard, etc.)
+  services/     # API calls and data-fetching logic
+  mock/         # Mock/sample data for development
+  routes/       # Route definitions and route-based components
+  welcome/      # Welcome page assets (logos, etc.)
+  app.css       # Global styles
+  root.tsx      # Main app entry/root component
+  routes.ts     # Route configuration
+public/         # Static assets (favicon, etc.)
+```
+
+- `components/`: Place for all reusable UI components.
+- `pages/`: Main pages/views for each route.
+- `services/`: API service layer (mocked for now).
+- `mock/`: Sample/mock data for development before backend integration.
+- `routes/`: Route definitions and route-based components.
+- `welcome/`: Assets for the welcome page (logos, etc.).
+- `app.css`: Global CSS (Tailwind, etc.).
+- `root.tsx`: Main app entry/root component.
+- `routes.ts`: Route configuration.
+- `public/`: Static assets (favicon, etc.).
+
 ## Styling
 
 This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
