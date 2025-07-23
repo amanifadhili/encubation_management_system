@@ -1,17 +1,21 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login, user } = useAuth();
+
+  if (user) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    // Mock authentication logic
-    if (email === "user@example.com" && password === "password123") {
+    const success = login(email, password);
+    if (success) {
       navigate("/dashboard");
     } else {
       setError("Invalid email or password");

@@ -1,0 +1,309 @@
+import React, { useState } from "react";
+import { mentors as mockMentors, incubators } from "../mock/sampleData";
+import { useToast } from "../components/Layout";
+import { useAuth } from "../context/AuthContext";
+import Table, { TableColumn } from "../components/Table";
+import Modal from "../components/Modal";
+import Pagination from "../components/Pagination";
+import SearchBar from "../components/SearchBar";
+import RoleGuard from "../components/RoleGuard";
+
+const defaultForm = {
+  id: null,
+  name: "",
+  expertise: "",
+  email: "",
+  phone: "",
+};
+
+const PAGE_SIZE = 5;
+
+const MentorManagement = () => {
+  const { user } = useAuth();
+  const [mentors, setMentors] = useState([...mockMentors]);
+  const [showModal, setShowModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [form, setForm] = useState({ ...defaultForm });
+  const [isEdit, setIsEdit] = useState(false);
+  const [assignMentorId, setAssignMentorId] = useState(null);
+  const [assignTeams, setAssignTeams] = useState([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const showToast = useToast();
+
+  // Only managers can modify
+  const canModify = user && user.role === "manager";
+
+  // Filtered and paginated data
+  const filtered = mentors.filter(
+    (mentor) =>
+      mentor.name.toLowerCase().includes(search.toLowerCase()) ||
+      mentor.expertise.toLowerCase().includes(search.toLowerCase()) ||
+      mentor.email.toLowerCase().includes(search.toLowerCase())
+  );
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const openAddModal = () => {
+    setForm({ ...defaultForm });
+    setIsEdit(false);
+    setShowModal(true);
+  };
+
+  const openEditModal = (mentor) => {
+    setForm({ ...mentor });
+    setIsEdit(true);
+    setShowModal(true);
+  };
+
+  const openAssignModal = (mentor) => {
+    setAssignMentorId(mentor.id);
+    setAssignTeams(mentor.assignedTeams || []);
+    setShowAssignModal(true);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name || !form.expertise || !form.email) {
+      showToast("Please fill all required fields.", "error");
+      return;
+    }
+    if (isEdit) {
+      setMentors((prev) =>
+        prev.map((m) => (m.id === form.id ? { ...m, ...form } : m))
+      );
+      showToast("Mentor updated!", "success");
+    } else {
+      setMentors((prev) => [
+        ...prev,
+        {
+          ...form,
+          id: Date.now(),
+          assignedTeams: [],
+        },
+      ]);
+      showToast("Mentor added!", "success");
+    }
+    setShowModal(false);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this mentor?")) {
+      setMentors((prev) => prev.filter((m) => m.id !== id));
+      showToast("Mentor deleted!", "success");
+    }
+  };
+
+  // Assign Teams Modal logic
+  const handleTeamToggle = (teamId) => {
+    setAssignTeams((prev) =>
+      prev.includes(teamId)
+        ? prev.filter((id) => id !== teamId)
+        : [...prev, teamId]
+    );
+  };
+
+  const handleAssignSubmit = (e) => {
+    e.preventDefault();
+    setMentors((prev) =>
+      prev.map((m) =>
+        m.id === assignMentorId ? { ...m, assignedTeams: assignTeams } : m
+      )
+    );
+    setShowAssignModal(false);
+    showToast("Teams assigned!", "success");
+  };
+
+  // Table columns
+  const columns: TableColumn<typeof mentors[0]>[] = [
+    { key: "name", label: "Name", className: "font-semibold text-blue-800" },
+    { key: "expertise", label: "Expertise", className: "text-blue-700" },
+    { key: "email", label: "Email", className: "text-blue-700" },
+    { key: "phone", label: "Phone", className: "text-blue-700" },
+    {
+      key: "assignedTeams",
+      label: "Assigned Teams",
+      render: row =>
+        row.assignedTeams && row.assignedTeams.length > 0
+          ? row.assignedTeams.map(
+              (id) => incubators.find((t) => t.id === id)?.name || id
+            ).join(", ")
+          : "-",
+      className: "text-blue-700"
+    },
+  ];
+
+  return (
+    <div className="p-2 sm:p-4 md:p-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-blue-900">Mentor Management</h1>
+        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full sm:w-auto">
+          <SearchBar
+            value={search}
+            onChange={v => { setSearch(v); setPage(1); }}
+            placeholder="Search by name, expertise, or email..."
+          />
+          <RoleGuard allowed={["manager"]}>
+            <button
+              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
+              onClick={openAddModal}
+            >
+              + Add Mentor
+            </button>
+          </RoleGuard>
+        </div>
+      </div>
+      {!canModify && (
+        <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded text-sm sm:text-base">
+          You do not have permission to add, edit, delete, or assign teams. You can only view the list.
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-lg shadow-lg bg-white">
+        <div className="min-w-[600px]">
+          <Table
+            columns={columns}
+            data={paginated}
+            actions={canModify ? (row) => (
+              <>
+                <button
+                  className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded font-semibold shadow hover:from-yellow-500 hover:to-yellow-600 transition"
+                  onClick={() => openEditModal(row)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded font-semibold shadow hover:from-blue-600 hover:to-blue-800 transition"
+                  onClick={() => openAssignModal(row)}
+                >
+                  Assign Teams
+                </button>
+                <button
+                  className="px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded font-semibold shadow hover:from-red-600 hover:to-red-700 transition"
+                  onClick={() => handleDelete(row.id)}
+                >
+                  Delete
+                </button>
+              </>
+            ) : undefined}
+            emptyMessage="No mentors found."
+          />
+        </div>
+      </div>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      <Modal
+        title={isEdit ? "Edit Mentor" : "Add Mentor"}
+        open={showModal && canModify}
+        onClose={() => setShowModal(false)}
+        actions={
+          <>
+            <button
+              type="button"
+              className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
+              onClick={() => setShowModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="mentor-form"
+              className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
+            >
+              {isEdit ? "Save Changes" : "Add Mentor"}
+            </button>
+          </>
+        }
+      >
+        <form id="mentor-form" onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Name *</label>
+            <input
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Expertise *</label>
+            <input
+              name="expertise"
+              value={form.expertise}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Email *</label>
+            <input
+              name="email"
+              type="email"
+              value={form.email}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Phone</label>
+            <input
+              name="phone"
+              value={form.phone}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+            />
+          </div>
+        </form>
+      </Modal>
+      <Modal
+        title="Assign Teams"
+        open={showAssignModal && canModify}
+        onClose={() => setShowAssignModal(false)}
+        actions={
+          <>
+            <button
+              type="button"
+              className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
+              onClick={() => setShowAssignModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="assign-form"
+              className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
+            >
+              Save Assignments
+            </button>
+          </>
+        }
+      >
+        <form id="assign-form" onSubmit={handleAssignSubmit}>
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Select teams to assign to this mentor:</label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {incubators.map((team) => (
+                <label key={team.id} className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={assignTeams.includes(team.id)}
+                    onChange={() => handleTeamToggle(team.id)}
+                  />
+                  <span className="text-blue-800 text-sm">{team.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+};
+
+export default MentorManagement; 

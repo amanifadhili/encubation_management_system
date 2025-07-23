@@ -1,7 +1,10 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Landing = () => {
+  const { user } = useAuth();
+  if (user) return <Navigate to="/dashboard" replace />;
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-blue-200">
       <header className="flex items-center justify-between px-8 py-6 bg-white shadow">
