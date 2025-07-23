@@ -178,7 +178,10 @@ const MentorManagement = () => {
                     onClick={() => openEditModal(row)}
                     aria-label="Edit"
                   >
-                    <span className="material-icons">edit</span>
+                    {/* Pencil SVG */}
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                      <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+                    </svg>
                   </button>
                 </Tooltip>
                 <Tooltip label="Assign">
@@ -187,7 +190,10 @@ const MentorManagement = () => {
                     onClick={() => openAssignModal(row)}
                     aria-label="Assign"
                   >
-                    <span className="material-icons">add</span>
+                    {/* Plus SVG */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
                   </button>
                 </Tooltip>
                 <Tooltip label="Delete">
@@ -196,7 +202,10 @@ const MentorManagement = () => {
                     onClick={() => handleDelete(row.id)}
                     aria-label="Delete"
                   >
-                    <span className="material-icons">delete</span>
+                    {/* Trash SVG */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </Tooltip>
               </div>
