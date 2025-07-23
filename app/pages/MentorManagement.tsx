@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { mentors as mockMentors, incubators } from "../mock/sampleData";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import Table, { TableColumn } from "../components/Table";
+import Table from "../components/Table";
+import type { TableColumn } from "../components/Table";
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 import RoleGuard from "../components/RoleGuard";
+import Tooltip from "../components/Tooltip";
 
 const defaultForm = {
-  id: null,
+  id: 0, // was null, now always a number
   name: "",
   expertise: "",
   email: "",
@@ -32,7 +34,7 @@ const MentorManagement = () => {
   const showToast = useToast();
 
   // Only managers can modify
-  const canModify = user && user.role === "manager";
+  const canModify = Boolean(user && user.role === "manager");
 
   // Filtered and paginated data
   const filtered = mentors.filter(
@@ -50,24 +52,24 @@ const MentorManagement = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (mentor) => {
+  const openEditModal = (mentor: typeof mockMentors[0]) => {
     setForm({ ...mentor });
     setIsEdit(true);
     setShowModal(true);
   };
 
-  const openAssignModal = (mentor) => {
+  const openAssignModal = (mentor: typeof mockMentors[0]) => {
     setAssignMentorId(mentor.id);
     setAssignTeams(mentor.assignedTeams || []);
     setShowAssignModal(true);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.name || !form.expertise || !form.email) {
       showToast("Please fill all required fields.", "error");
@@ -83,7 +85,7 @@ const MentorManagement = () => {
         ...prev,
         {
           ...form,
-          id: Date.now(),
+          id: Math.max(0, ...prev.map((m) => m.id)) + 1,
           assignedTeams: [],
         },
       ]);
@@ -92,7 +94,7 @@ const MentorManagement = () => {
     setShowModal(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: number) => {
     if (window.confirm("Are you sure you want to delete this mentor?")) {
       setMentors((prev) => prev.filter((m) => m.id !== id));
       showToast("Mentor deleted!", "success");
@@ -169,32 +171,53 @@ const MentorManagement = () => {
             columns={columns}
             data={paginated}
             actions={canModify ? (row) => (
-              <>
-                <button
-                  className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded font-semibold shadow hover:from-yellow-500 hover:to-yellow-600 transition"
-                  onClick={() => openEditModal(row)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded font-semibold shadow hover:from-blue-600 hover:to-blue-800 transition"
-                  onClick={() => openAssignModal(row)}
-                >
-                  Assign Teams
-                </button>
-                <button
-                  className="px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded font-semibold shadow hover:from-red-600 hover:to-red-700 transition"
-                  onClick={() => handleDelete(row.id)}
-                >
-                  Delete
-                </button>
-              </>
+              <div className="flex gap-2">
+                <Tooltip label="Edit">
+                  <button
+                    className="p-2 rounded-full hover:bg-blue-100 text-blue-700"
+                    onClick={() => openEditModal(row)}
+                    aria-label="Edit"
+                  >
+                    <span className="material-icons">edit</span>
+                  </button>
+                </Tooltip>
+                <Tooltip label="Assign">
+                  <button
+                    className="p-2 rounded-full hover:bg-green-100 text-green-700"
+                    onClick={() => openAssignModal(row)}
+                    aria-label="Assign"
+                  >
+                    <span className="material-icons">add</span>
+                  </button>
+                </Tooltip>
+                <Tooltip label="Delete">
+                  <button
+                    className="p-2 rounded-full hover:bg-red-100 text-red-700"
+                    onClick={() => handleDelete(row.id)}
+                    aria-label="Delete"
+                  >
+                    <span className="material-icons">delete</span>
+                  </button>
+                </Tooltip>
+              </div>
             ) : undefined}
             emptyMessage="No mentors found."
           />
         </div>
       </div>
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      {/* Fallback message for no permission and no data */}
+      {!canModify && paginated.length === 0 && (
+        <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-900 rounded text-center text-base font-semibold shadow">
+          No mentors are available to view at this time. Please contact your manager for access or check back later.
+        </div>
+      )}
+      {/* Fallback message for all users if no data at all */}
+      {canModify && paginated.length === 0 && (
+        <div className="mt-8 p-6 bg-blue-50 border-l-4 border-blue-400 text-blue-900 rounded text-center text-base font-semibold shadow">
+          No mentors found. Start by adding a new mentor!
+        </div>
+      )}
       <Modal
         title={isEdit ? "Edit Mentor" : "Add Mentor"}
         open={showModal && canModify}

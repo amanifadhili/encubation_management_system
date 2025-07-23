@@ -2,15 +2,17 @@ import React, { useState } from "react";
 import { incubators as mockIncubators, mentors } from "../mock/sampleData";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import Table, { TableColumn } from "../components/Table";
+import Table from "../components/Table";
+import type { TableColumn } from "../components/Table";
 import Modal from "../components/Modal";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 import StatusBadge from "../components/StatusBadge";
 import RoleGuard from "../components/RoleGuard";
+import Tooltip from "../components/Tooltip";
 
 const defaultForm = {
-  id: null,
+  id: 0, // was null, now always a number
   name: "",
   project: "",
   members: [""],
@@ -43,7 +45,7 @@ const IncubatorManagement = () => {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Only managers can modify
-  const canModify = user && user.role === "manager";
+  const canModify = Boolean(user && user.role === "manager");
 
   const openAddModal = () => {
     setForm({ ...defaultForm, members: [""] });
@@ -52,19 +54,19 @@ const IncubatorManagement = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (team) => {
+  const openEditModal = (team: typeof mockIncubators[0]) => {
     setForm({ ...team, file: null });
     setFileName("");
     setIsEdit(true);
     setShowModal(true);
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleMemberChange = (idx, value) => {
+  const handleMemberChange = (idx: number, value: string) => {
     setForm((prev) => {
       const members = [...prev.members];
       members[idx] = value;
@@ -76,20 +78,20 @@ const IncubatorManagement = () => {
     setForm((prev) => ({ ...prev, members: [...prev.members, ""] }));
   };
 
-  const removeMember = (idx) => {
+  const removeMember = (idx: number) => {
     setForm((prev) => {
       const members = prev.members.filter((_, i) => i !== idx);
       return { ...prev, members };
     });
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setForm((prev) => ({ ...prev, file }));
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : undefined;
+    setForm((prev) => ({ ...prev, file: null })); // always set to null for SSR safety
     setFileName(file ? file.name : "");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.name || !form.project || !form.mentor) {
       showToast("Please fill all required fields.", "error");
@@ -98,7 +100,7 @@ const IncubatorManagement = () => {
     if (isEdit) {
       setIncubators((prev) =>
         prev.map((team) =>
-          team.id === form.id ? { ...form, file: undefined } : team
+          team.id === form.id ? { ...form, file: null } : team
         )
       );
       showToast("Team updated!", "success");
@@ -107,8 +109,8 @@ const IncubatorManagement = () => {
         ...prev,
         {
           ...form,
-          id: Date.now(),
-          file: undefined,
+          id: Math.max(0, ...prev.map((team) => team.id)) + 1,
+          file: null,
         },
       ]);
       showToast("Team added!", "success");
@@ -116,7 +118,7 @@ const IncubatorManagement = () => {
     setShowModal(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id: number) => {
     if (window.confirm("Are you sure you want to delete this team?")) {
       setIncubators((prev) => prev.filter((team) => team.id !== id));
       showToast("Team deleted!", "success");
@@ -163,26 +165,44 @@ const IncubatorManagement = () => {
             columns={columns}
             data={paginated}
             actions={canModify ? (row) => (
-              <>
-                <button
-                  className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded font-semibold shadow hover:from-yellow-500 hover:to-yellow-600 transition"
-                  onClick={() => openEditModal(row)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded font-semibold shadow hover:from-red-600 hover:to-red-700 transition"
-                  onClick={() => handleDelete(row.id)}
-                >
-                  Delete
-                </button>
-              </>
+              <div className="flex gap-2">
+                <Tooltip label="Edit">
+                  <button
+                    className="p-2 rounded-full hover:bg-blue-100 text-blue-700"
+                    onClick={() => openEditModal(row)}
+                    aria-label="Edit"
+                  >
+                    <span className="material-icons">edit</span>
+                  </button>
+                </Tooltip>
+                <Tooltip label="Delete">
+                  <button
+                    className="p-2 rounded-full hover:bg-red-100 text-red-700"
+                    onClick={() => handleDelete(row.id)}
+                    aria-label="Delete"
+                  >
+                    <span className="material-icons">delete</span>
+                  </button>
+                </Tooltip>
+              </div>
             ) : undefined}
             emptyMessage="No teams found."
           />
         </div>
       </div>
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+      {/* Fallback message for no permission and no data */}
+      {!canModify && paginated.length === 0 && (
+        <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-900 rounded text-center text-base font-semibold shadow">
+          No teams are available to view at this time. Please contact your manager for access or check back later.
+        </div>
+      )}
+      {/* Fallback message for all users if no data at all */}
+      {canModify && paginated.length === 0 && (
+        <div className="mt-8 p-6 bg-blue-50 border-l-4 border-blue-400 text-blue-900 rounded text-center text-base font-semibold shadow">
+          No teams found. Start by adding a new incubator team!
+        </div>
+      )}
       <Modal
         title={isEdit ? "Edit Incubator/Team" : "Add Incubator/Team"}
         open={showModal && canModify}

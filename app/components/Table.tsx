@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export interface TableColumn<T> {
   key: keyof T | string;
@@ -14,6 +14,27 @@ interface TableProps<T> {
   emptyMessage?: string;
   className?: string;
 }
+
+// Tooltip component for icon actions
+const Tooltip: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="relative inline-block"
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      onFocus={() => setVisible(true)}
+      onBlur={() => setVisible(false)}
+      tabIndex={-1}
+    >
+      {children}
+      {visible && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-900 text-white text-xs shadow z-50 whitespace-nowrap">
+          {label}
+        </span>
+      )}
+    </span>
+  );
+};
 
 function Table<T extends { id: number | string }>({ columns, data, actions, emptyMessage = "No data found.", className = "" }: TableProps<T>) {
   return (

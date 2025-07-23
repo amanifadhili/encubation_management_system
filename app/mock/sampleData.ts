@@ -58,7 +58,8 @@ export const mentors = [
     email: "green@university.edu",
     phone: "234-567-8901",
   },
-];
+  // Add a fallback to ensure all mentors have assignedTeams
+].map(m => ({ ...m, assignedTeams: Array.isArray(m.assignedTeams) ? m.assignedTeams : [] }));
 
 // Managers
 export const managers = [
