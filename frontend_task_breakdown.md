@@ -65,13 +65,13 @@
 - View mentor assignments
 
 ### 6.3. Request Handling
-- Incubator: Submit requests (tools, facilities, mentorship)
-- Manager: Approve/decline requests
-- Request status tracking/history
+- Incubator: Submit requests (tools, facilities, mentorship) ✅ In Progress
+- Manager: Approve/decline requests ✅ In Progress
+- Request status tracking/history ✅ In Progress
 
-### 6.4. Messaging System
+### 6.4.Messaging System
 - Real-time chat UI (mocked with sample messages)
-- Inbox/history views
+- Inbox/history views 
 
 ### 6.5. Calendar & Scheduling
 - Event/meeting list and calendar view
@@ -151,6 +151,18 @@
 | 5.1  | Set up mock data files/objects for each module | ✅ Completed |
 | 5.2  | Create placeholder pages for all modules   | ✅ Completed |
 | 6    | Module-by-Module Development              | ⬜️ Pending  |
+| 6.1  | Incubator & Project Management            | ⬜️ Pending  |
+| 6.2  | Mentor Management                          | ⬜️ Pending  |
+| 6.3  | Request Handling Module                   | ✅ In Progress |
+| 6.4  | Messaging System                            | ⬜️ Pending  |
+| 6.5  | Calendar & Scheduling                       | ⬜️ Pending  |
+| 6.6  | Stock Management                            | ⬜️ Pending  |
+| 6.7  | Reports & PDF Export                        | ⬜️ Pending  |
+| 6.8  | Announcement Board                         | ⬜️ Pending  |
+| 6.9  | Evaluation Module                           | ⬜️ Pending  |
+| 6.10 | Audit Trail                                 | ⬜️ Pending  |
+| 6.11 | Notification System                         | ⬜️ Pending  |
+| 6.12 | Dashboard & Analytics                       | ⬜️ Pending  |
 | 7    | Reusable Components & Utilities           | ⬜️ Pending  |
 | 8    | Testing & Polish                          | ⬜️ Pending  |
 | 9    | Backend Integration                       | ⬜️ Pending  |

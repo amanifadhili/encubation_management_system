@@ -8,8 +8,8 @@ export const mockUsers = [
   },
   {
     role: 'manager',
-    name: 'Bob Manager',    email: 'manager@example.com',
-
+    name: 'Bob Manager',    
+    email: 'manager@example.com',
     password: 'password123',
   },
   {

@@ -14,7 +14,7 @@ export const incubators = [
     id: 2,
     name: "GreenMinds",
     project: "Eco-Friendly Packaging",
-    members: ["David", "Eva"],
+    members: ["Dave", "Eva"],
     mentor: "Prof. Green",
     status: "Pending"
   },
