@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { announcements as mockAnnouncements } from "../mock/sampleData";
+import Modal from "../components/Modal";
+import Button from "../components/Button";
 
 const Announcements = () => {
   const { user } = useAuth();
@@ -105,66 +107,67 @@ const Announcements = () => {
           )}
         </div>
         {/* Add/Edit Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">{editIdx !== null ? "Edit Announcement" : "Post Announcement"}</h2>
-              <form onSubmit={handleSave}>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Title</label>
-                  <input
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={form.title}
-                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Content</label>
-                  <textarea
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={form.content}
-                    onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                    rows={5}
-                    required
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                    onClick={() => setShowModal(false)}
-                    type="button"
-                  >Cancel</button>
-                  <button
-                    className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                    type="submit"
-                  >Save</button>
-                </div>
-              </form>
+        <Modal
+          title={editIdx !== null ? "Edit Announcement" : "Post Announcement"}
+          open={showModal}
+          onClose={() => { setShowModal(false); setEditIdx(null); }}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          <form onSubmit={handleSave}>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Title</label>
+              <input
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                required
+              />
             </div>
-          </div>
-        )}
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Content</label>
+              <textarea
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={form.content}
+                onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                rows={5}
+                required
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setEditIdx(null); }}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Save
+              </Button>
+            </div>
+          </form>
+        </Modal>
         {/* Delete Confirmation Modal */}
-        {deleteIdx !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-red-700">Delete Announcement</h2>
+        <Modal
+          title="Delete Announcement"
+          open={deleteIdx !== null}
+          onClose={cancelDelete}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          {deleteIdx !== null && (
+            <>
               <div className="mb-6 text-blue-900">Are you sure you want to delete <span className="font-semibold">{announcements[deleteIdx].title}</span>? This action cannot be undone.</div>
               <div className="flex gap-2 justify-end">
-                <button
-                  className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                  onClick={cancelDelete}
-                  type="button"
-                >Cancel</button>
-                <button
-                  className="px-4 py-2 bg-red-600 text-white rounded font-semibold hover:bg-red-700"
-                  onClick={confirmDelete}
-                  type="button"
-                >Delete</button>
+                <Button variant="secondary" type="button" onClick={cancelDelete}>
+                  Cancel
+                </Button>
+                <Button variant="danger" type="button" onClick={confirmDelete}>
+                  Delete
+                </Button>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </Modal>
       </div>
     </div>
   );

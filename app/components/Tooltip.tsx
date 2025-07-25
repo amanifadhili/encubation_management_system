@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 
-interface TooltipProps {
+/**
+ * Reusable Tooltip component for icon/action tooltips.
+ * @param {object} props
+ * @param {string} props.label - Tooltip text
+ * @param {React.ReactNode} props.children - The element to wrap
+ */
+export interface TooltipProps {
   label: string;
   children: React.ReactNode;
 }

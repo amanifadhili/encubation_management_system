@@ -9,6 +9,7 @@ import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 import RoleGuard from "../components/RoleGuard";
 import Tooltip from "../components/Tooltip";
+import Button from "../components/Button";
 
 const defaultForm = {
   id: 0, // was null, now always a number
@@ -233,22 +234,16 @@ const MentorManagement = () => {
         onClose={() => setShowModal(false)}
         actions={
           <>
-            <button
-              type="button"
-              className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-              onClick={() => setShowModal(false)}
-            >
+            <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              form="mentor-form"
-              className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
-            >
+            </Button>
+            <Button type="submit" form="mentor-form">
               {isEdit ? "Save Changes" : "Add Mentor"}
-            </button>
+            </Button>
           </>
         }
+        role="dialog"
+        aria-modal="true"
       >
         <form id="mentor-form" onSubmit={handleSubmit}>
           <div className="mb-4">
@@ -299,22 +294,16 @@ const MentorManagement = () => {
         onClose={() => setShowAssignModal(false)}
         actions={
           <>
-            <button
-              type="button"
-              className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-              onClick={() => setShowAssignModal(false)}
-            >
+            <Button variant="secondary" type="button" onClick={() => setShowAssignModal(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              form="assign-form"
-              className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
-            >
+            </Button>
+            <Button type="submit" form="assign-form">
               Save Assignments
-            </button>
+            </Button>
           </>
         }
+        role="dialog"
+        aria-modal="true"
       >
         <form id="assign-form" onSubmit={handleAssignSubmit}>
           <div className="mb-4">

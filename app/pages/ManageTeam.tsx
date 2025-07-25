@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { incubators as mockIncubators } from "../mock/sampleData";
 import { useToast } from "../components/Layout";
+import Modal from "../components/Modal";
+import Button from "../components/Button";
 
 const ManageTeam = () => {
   const { user } = useAuth();
@@ -209,88 +211,80 @@ const ManageTeam = () => {
             </table>
           </div>
           {/* Add member modal */}
-          {showAddModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-              <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-                <h2 className="text-lg font-bold mb-4 text-blue-900">Add New Member</h2>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Name</label>
-                  <input
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={addForm.name}
-                    onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-                    disabled={loading}
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Email</label>
-                  <input
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={addForm.email}
-                    onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
-                    disabled={loading}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                    onClick={() => setShowAddModal(false)}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                    onClick={handleAddMember}
-                    disabled={loading}
-                  >
-                    Add Member
-                  </button>
-                </div>
-              </div>
+          <Modal
+            title="Add New Member"
+            open={showAddModal}
+            onClose={() => setShowAddModal(false)}
+            actions={null}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Name</label>
+              <input
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={addForm.name}
+                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                disabled={loading}
+              />
             </div>
-          )}
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Email</label>
+              <input
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={addForm.email}
+                onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                disabled={loading}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" type="button" onClick={() => setShowAddModal(false)} disabled={loading}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleAddMember} disabled={loading}>
+                Add Member
+              </Button>
+            </div>
+          </Modal>
           {/* Remove confirmation dialog */}
-          {removingIdx !== null && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-              <div className="bg-white rounded shadow-lg p-6 w-full max-w-sm">
-                <h2 className="text-lg font-bold mb-4 text-red-700">Remove Member</h2>
+          <Modal
+            title="Remove Member"
+            open={removingIdx !== null}
+            onClose={() => setRemovingIdx(null)}
+            actions={null}
+            role="dialog"
+            aria-modal="true"
+          >
+            {removingIdx !== null && (
+              <>
                 <div className="mb-4 text-blue-900">Are you sure you want to remove <span className="font-semibold">{members[removingIdx].name}</span> from your team?</div>
                 <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                    onClick={() => setRemovingIdx(null)}
-                    disabled={loading}
-                  >
+                  <Button variant="secondary" type="button" onClick={() => setRemovingIdx(null)} disabled={loading}>
                     Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-red-700 text-white rounded font-semibold hover:bg-red-800"
-                    onClick={() => handleRemoveMember(removingIdx)}
-                    disabled={loading}
-                  >
+                  </Button>
+                  <Button variant="danger" type="button" onClick={() => handleRemoveMember(removingIdx)} disabled={loading}>
                     Remove
-                  </button>
+                  </Button>
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </Modal>
           {/* Add member button */}
           <div className="mt-6 flex justify-end">
-            <button
+            <Button
               className="px-6 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
               onClick={() => setShowAddModal(true)}
               disabled={loading}
             >
               + Add Member
-            </button>
-            <button
+            </Button>
+            <Button
               className="ml-4 px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700"
               onClick={handleSave}
               disabled={loading}
             >
               Save Changes
-            </button>
+            </Button>
           </div>
           {loading && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10"><div className="bg-white p-4 rounded shadow text-blue-700 font-bold">Saving...</div></div>}
         </div>

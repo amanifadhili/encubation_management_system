@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
+import Modal from "../components/Modal";
+import Button from "../components/Button";
 
 // Mocked available materials (would be managed by manager in real app)
 const initialMaterials = [
@@ -181,106 +183,95 @@ const MaterialPage = () => {
           </div>
         </div>
         {/* Request Material Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">Request New Material</h2>
-              <form onSubmit={handleRequestMaterial}>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Material</label>
-                  <select
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={modalForm.materialId}
-                    onChange={e => setModalForm(f => ({ ...f, materialId: e.target.value }))}
-                    required
-                  >
-                    <option value="">Select material...</option>
-                    {materials.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Quantity</label>
-                  <input
-                    type="number"
-                    min={1}
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={modalForm.quantity}
-                    onChange={e => setModalForm(f => ({ ...f, quantity: Number(e.target.value) }))}
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Note (optional)</label>
-                  <textarea
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={modalForm.note}
-                    onChange={e => setModalForm(f => ({ ...f, note: e.target.value }))}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                    onClick={() => setShowModal(false)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                    type="submit"
-                    disabled={isSubmitting}
-                  >
-                    Submit Request
-                  </button>
-                </div>
-              </form>
+        <Modal
+          title="Request New Material"
+          open={showModal}
+          onClose={() => setShowModal(false)}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          <form onSubmit={handleRequestMaterial}>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Material</label>
+              <select
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={modalForm.materialId}
+                onChange={e => setModalForm(f => ({ ...f, materialId: e.target.value }))}
+                required
+              >
+                <option value="">Select material...</option>
+                {materials.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
             </div>
-          </div>
-        )}
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Quantity</label>
+              <input
+                type="number"
+                min={1}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={modalForm.quantity}
+                onChange={e => setModalForm(f => ({ ...f, quantity: Number(e.target.value) }))}
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Note (optional)</label>
+              <textarea
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={modalForm.note}
+                onChange={e => setModalForm(f => ({ ...f, note: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                Submit Request
+              </Button>
+            </div>
+          </form>
+        </Modal>
         {/* Add Material Modal (Manager) */}
-        {showAddMaterial && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">Add New Material</h2>
-              <form onSubmit={handleAddMaterial}>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Material Name</label>
-                  <input
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={addMaterialForm.name}
-                    onChange={e => setAddMaterialForm(f => ({ ...f, name: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Description</label>
-                  <textarea
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={addMaterialForm.description}
-                    onChange={e => setAddMaterialForm(f => ({ ...f, description: e.target.value }))}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                    onClick={() => setShowAddMaterial(false)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                    type="submit"
-                  >
-                    Add Material
-                  </button>
-                </div>
-              </form>
+        <Modal
+          title="Add New Material"
+          open={showAddMaterial}
+          onClose={() => setShowAddMaterial(false)}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          <form onSubmit={handleAddMaterial}>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Material Name</label>
+              <input
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={addMaterialForm.name}
+                onChange={e => setAddMaterialForm(f => ({ ...f, name: e.target.value }))}
+                required
+              />
             </div>
-          </div>
-        )}
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Description</label>
+              <textarea
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={addMaterialForm.description}
+                onChange={e => setAddMaterialForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" type="button" onClick={() => setShowAddMaterial(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Material
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </div>
     </div>
   );

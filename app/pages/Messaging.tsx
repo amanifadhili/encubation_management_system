@@ -5,6 +5,8 @@ import { mockUsers } from "../mock/credentials";
 import { useAuth } from "../context/AuthContext";
 import clsx from "clsx";
 import { incubators, mentors } from "../mock/sampleData";
+import Modal from "../components/Modal";
+import Button from "../components/Button";
 
 
 // Role-based color map
@@ -493,43 +495,36 @@ const Messaging = () => {
           )}
         </div>
         {/* New DM Modal */}
-        {showNewDM && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">Start New Message</h2>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold text-blue-800">Select user to message</label>
-                <select
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                  value={dmTarget}
-                  onChange={e => setDMTarget(e.target.value)}
-                >
-                  <option value="">Select...</option>
-                  {getDMUsers().map(u => (
-                    <option key={u.name} value={u.name}>{u.name} ({u.role})</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                  onClick={() => { setShowNewDM(false); setDMTarget(""); }}
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                  onClick={handleStartDM}
-                  disabled={!dmTarget}
-                  type="button"
-                >
-                  Start
-                </button>
-              </div>
-            </div>
+        <Modal
+          title="Start New Message"
+          open={showNewDM}
+          onClose={() => { setShowNewDM(false); setDMTarget(""); }}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Select user to message</label>
+            <select
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              value={dmTarget}
+              onChange={e => setDMTarget(e.target.value)}
+            >
+              <option value="">Select...</option>
+              {getDMUsers().map(u => (
+                <option key={u.name} value={u.name}>{u.name} ({u.role})</option>
+              ))}
+            </select>
           </div>
-        )}
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" type="button" onClick={() => { setShowNewDM(false); setDMTarget(""); }}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleStartDM} disabled={!dmTarget}>
+              Start
+            </Button>
+          </div>
+        </Modal>
       </aside>
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">

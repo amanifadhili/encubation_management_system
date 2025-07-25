@@ -2,51 +2,45 @@ import React, { useState, createContext, useContext } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Toast from './Toast';
+import { notifications as mockNotifications } from '../mock/sampleData';
 
 const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   director: [
     { name: 'Dashboard', to: '/dashboard' },
     { name: 'Reports', to: '/reports' },
-    { name: 'Analytics', to: '/analytics' },
-    { name: 'Audit Trail', to: '/audit' },
-    { name: 'Evaluations', to: '/evaluations' },
+    { name: 'Projects', to: '/projects' },
     { name: 'Mentors', to: '/mentors' },
     { name: 'Incubators', to: '/incubators' },
     { name: 'Inventory', to: '/inventory' },
     { name: 'Announcements', to: '/announcements' },
-    { name: 'Notifications', to: '/notifications' },
     { name: 'Messaging', to: '/messaging' },
   ],
   manager: [
     { name: 'Dashboard', to: '/dashboard' },
     { name: 'Incubators', to: '/incubators' },
     { name: 'Mentors', to: '/mentors' },
+    { name: 'Projects', to: '/projects' },
     { name: 'Material', to: '/requests' },
     { name: 'Inventory', to: '/inventory' },
     { name: 'Announcements', to: '/announcements' },
-    { name: 'Evaluations', to: '/evaluations' },
-    { name: 'Audit Trail', to: '/audit' },
     { name: 'Notifications', to: '/notifications' },
     { name: 'Messaging', to: '/messaging' },
     { name: 'Reports', to: '/reports' },
-    { name: 'Analytics', to: '/analytics' },
   ],
   mentor: [
     { name: 'Dashboard', to: '/dashboard' },
     { name: 'Teams', to: '/incubators' },
-    { name: 'Evaluations', to: '/evaluations' },
+    { name: 'Projects', to: '/projects' },
     { name: 'Messaging', to: '/messaging' },
-    { name: 'Notifications', to: '/notifications' },
   ],
   incubator: [
     { name: 'Dashboard', to: '/dashboard' },
     { name: 'Manage Team', to: '/manage-team' },
-    { name: 'My Project', to: '/incubators' },
+    { name: 'Projects', to: '/projects' },
     { name: 'Mentor', to: '/mentors' },
     { name: 'Material', to: '/requests' },
     { name: 'Messaging', to: '/messaging' },
     { name: 'Announcements', to: '/announcements' },
-    { name: 'Evaluations', to: '/evaluations' },
     { name: 'Notifications', to: '/notifications' },
   ],
 };
@@ -82,6 +76,13 @@ export default function Layout() {
   React.useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  // Unread notification badge logic
+  let unreadCount = 0;
+  if (user) {
+    const userName = user.name || (user as any).teamName;
+    unreadCount = mockNotifications.filter(n => (n.user === userName) && !n.read).length;
+  }
 
   return (
     <ToastContext.Provider value={showToast}>
@@ -144,11 +145,12 @@ export default function Layout() {
               {user ? user.role.charAt(0).toUpperCase() + user.role.slice(1) + ' Dashboard' : 'Dashboard'}
             </div>
             <div className="flex items-center space-x-4">
-              {/* Placeholder for notifications */}
-              <button className="relative focus:outline-none">
+              {/* Notification bell clickable */}
+              <button className="relative focus:outline-none" onClick={() => navigate('/notifications')}>
                 <span className="material-icons text-blue-700">notifications</span>
-                {/* Notification badge (mock) */}
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">2</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">{unreadCount}</span>
+                )}
               </button>
               {/* User info */}
               {user && (

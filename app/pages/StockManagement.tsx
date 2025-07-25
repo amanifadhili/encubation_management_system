@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { incubators, tools as mockTools } from "../mock/sampleData";
+import Modal from "../components/Modal";
+import Button from "../components/Button";
 
 const StockManagement = () => {
   const { user } = useAuth();
@@ -203,108 +205,114 @@ const StockManagement = () => {
           </div>
         </div>
         {/* Add/Edit Modal */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">{editIdx !== null ? "Edit Item" : "Add New Item"}</h2>
-              <form onSubmit={handleSave}>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Name</label>
-                  <input
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Number in Stock</label>
-                  <input
-                    type="number"
-                    min={1}
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={form.total}
-                    onChange={e => setForm(f => ({ ...f, total: Number(e.target.value) }))}
-                    required
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-1 font-semibold text-blue-800">Availability Status</label>
-                  <select
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                    value={form.status}
-                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                  >
-                    <option value="available">Available</option>
-                    <option value="unavailable">Unavailable</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                    onClick={() => setShowModal(false)}
-                    type="button"
-                  >Cancel</button>
-                  <button
-                    className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                    type="submit"
-                  >Save</button>
-                </div>
-              </form>
+        <Modal
+          title={editIdx !== null ? "Edit Item" : "Add New Item"}
+          open={showModal}
+          onClose={() => { setShowModal(false); setEditIdx(null); }}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          <form onSubmit={handleSave}>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Name</label>
+              <input
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                required
+              />
             </div>
-          </div>
-        )}
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Number in Stock</label>
+              <input
+                type="number"
+                min={1}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={form.total}
+                onChange={e => setForm(f => ({ ...f, total: Number(e.target.value) }))}
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Availability Status</label>
+              <select
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                value={form.status}
+                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+              >
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setEditIdx(null); }}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Save
+              </Button>
+            </div>
+          </form>
+        </Modal>
         {/* Assign Modal */}
-        {assignIdx !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">Assign Item to Team</h2>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold text-blue-800">Select Team</label>
-                <select
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                  value={assignTeam}
-                  onChange={e => setAssignTeam(e.target.value)}
-                >
-                  <option value="">Select...</option>
-                  {incubators.map(t => (
-                    <option key={t.id} value={t.id}>{t.teamName}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold text-blue-800">Quantity to Assign</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={assignIdx !== null ? tools[assignIdx].total - tools[assignIdx].assigned.reduce((sum: number, a: any) => sum + a.quantity, 0) : 1}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                  value={assignQty}
-                  onChange={e => setAssignQty(Number(e.target.value))}
-                  required
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                  onClick={() => setAssignIdx(null)}
-                  type="button"
-                >Cancel</button>
-                <button
-                  className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-                  onClick={handleAssignSave}
-                  disabled={!assignTeam || assignQty < 1 || (assignIdx !== null && assignQty > tools[assignIdx].total - tools[assignIdx].assigned.reduce((sum: number, a: any) => sum + a.quantity, 0))}
-                  type="button"
-                >Assign</button>
-              </div>
-            </div>
+        <Modal
+          title="Assign Item to Team"
+          open={assignIdx !== null}
+          onClose={() => setAssignIdx(null)}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Select Team</label>
+            <select
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              value={assignTeam}
+              onChange={e => setAssignTeam(e.target.value)}
+            >
+              <option value="">Select...</option>
+              {incubators.map(t => (
+                <option key={t.id} value={t.id}>{t.teamName}</option>
+              ))}
+            </select>
           </div>
-        )}
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold text-blue-800">Quantity to Assign</label>
+            <input
+              type="number"
+              min={1}
+              max={assignIdx !== null ? tools[assignIdx].total - tools[assignIdx].assigned.reduce((sum: number, a: any) => sum + a.quantity, 0) : 1}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              value={assignQty}
+              onChange={e => setAssignQty(Number(e.target.value))}
+              required
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" type="button" onClick={() => setAssignIdx(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssignSave}
+              disabled={!assignTeam || assignQty < 1 || (assignIdx !== null && assignQty > tools[assignIdx].total - tools[assignIdx].assigned.reduce((sum: number, a: any) => sum + a.quantity, 0))}
+            >
+              Assign
+            </Button>
+          </div>
+        </Modal>
         {/* View More Modal */}
-        {viewIdx !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-blue-900">Teams Assigned: {tools[viewIdx].name}</h2>
+        <Modal
+          title={viewIdx !== null ? `Teams Assigned: ${tools[viewIdx].name}` : "Teams Assigned"}
+          open={viewIdx !== null}
+          onClose={() => setViewIdx(null)}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          {viewIdx !== null && (
+            <>
               {tools[viewIdx].assigned.length === 0 ? (
                 <div className="text-blue-400">No teams have this item assigned.</div>
               ) : (
@@ -316,10 +324,12 @@ const StockManagement = () => {
                         <span className="font-semibold text-blue-900">{team ? team.teamName : `Team #${a.teamId}`}</span>
                         <span className="text-blue-700">Qty: {a.quantity}</span>
                         {isManager && (
-                          <button
-                            className="ml-2 px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs"
+                          <Button
+                            variant="secondary"
+                            className="ml-2 text-xs"
+                            type="button"
                             onClick={() => handleUnassign(viewIdx, a.teamId)}
-                          >Unassign</button>
+                          >Unassign</Button>
                         )}
                       </li>
                     );
@@ -327,36 +337,36 @@ const StockManagement = () => {
                 </ul>
               )}
               <div className="flex gap-2 justify-end mt-6">
-                <button
-                  className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                  onClick={() => setViewIdx(null)}
-                  type="button"
-                >Close</button>
+                <Button variant="secondary" type="button" onClick={() => setViewIdx(null)}>
+                  Close
+                </Button>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </Modal>
         {/* Delete Confirmation Modal */}
-        {deleteIdx !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-4 text-red-700">Delete Item</h2>
+        <Modal
+          title="Delete Item"
+          open={deleteIdx !== null}
+          onClose={cancelDelete}
+          actions={null}
+          role="dialog"
+          aria-modal="true"
+        >
+          {deleteIdx !== null && (
+            <>
               <div className="mb-6 text-blue-900">Are you sure you want to delete <span className="font-semibold">{tools[deleteIdx].name}</span>? This action cannot be undone.</div>
               <div className="flex gap-2 justify-end">
-                <button
-                  className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
-                  onClick={cancelDelete}
-                  type="button"
-                >Cancel</button>
-                <button
-                  className="px-4 py-2 bg-red-600 text-white rounded font-semibold hover:bg-red-700"
-                  onClick={confirmDelete}
-                  type="button"
-                >Delete</button>
+                <Button variant="secondary" type="button" onClick={cancelDelete}>
+                  Cancel
+                </Button>
+                <Button variant="danger" type="button" onClick={confirmDelete}>
+                  Delete
+                </Button>
               </div>
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </Modal>
       </div>
     </div>
   );

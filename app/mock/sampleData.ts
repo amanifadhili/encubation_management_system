@@ -184,6 +184,31 @@ export const notifications = [
     message: "Your request for 3D Printer was approved.",
     read: false,
     date: "2024-06-01T12:00:00Z",
+    sender: "Ms. Johnson",
+  },
+  {
+    id: 2,
+    user: "InnovateX Team",
+    message: "Welcome to the program!",
+    read: false,
+    date: "2024-07-25T17:55:30Z",
+    sender: "Bob Manager",
+  },
+  {
+    id: 3,
+    user: "GreenMinds",
+    message: "Please submit your project report.",
+    read: false,
+    date: "2024-06-03T10:00:00Z",
+    sender: "Bob Manager",
+  },
+  {
+    id: 4,
+    user: "InnovateX Team",
+    message: "Reminder: Inventory audit this Friday.",
+    read: false,
+    date: "2024-06-04T11:00:00Z",
+    sender: "Bob Manager",
   },
 ];
 
