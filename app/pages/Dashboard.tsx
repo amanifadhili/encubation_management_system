@@ -87,21 +87,49 @@ const Dashboard = () => {
     );
   }
 
-  // Incubator Dashboard
+  // Incubator Dashboard (Team)
   if (user.role === "incubator") {
+    // Use teamId from user object
+    const teamId = (user as any).teamId;
+    const team = incubators.find(i => i.id === teamId);
     return (
       <div className="p-8 space-y-6">
-        <h1 className="text-2xl font-bold mb-4 text-blue-900">Incubator Dashboard</h1>
-        <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-4">
-          <div className="text-lg font-semibold text-white opacity-90">My Project</div>
-          <div className="mt-2 text-white">{incubators.find(i => i.members.includes(user.name.split(' ')[0]))?.project || "No project assigned."}</div>
-        </div>
-        <button
-          className="mt-6 px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-          onClick={() => showToast("Project updated!", "success")}
-        >
-          Update Project (Demo Toast)
-        </button>
+        <h1 className="text-2xl font-bold mb-4 text-blue-900">Team Dashboard</h1>
+        {team ? (
+          <>
+            <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-4">
+              <div className="text-lg font-semibold text-white opacity-90">Team Name</div>
+              <div className="text-2xl font-bold text-white mt-1">{team.teamName}</div>
+              <div className="mt-4 text-white">
+                <div><span className="font-semibold">Credentials (Email):</span> {team.credentials.email}</div>
+              </div>
+              <div className="mt-4 text-white">
+                <div className="font-semibold">Team Leader:</div>
+                <div>{team.teamLeader?.name ? `${team.teamLeader.name} (${team.teamLeader.email})` : <span className="italic text-blue-100">Not assigned yet.</span>}</div>
+              </div>
+              <div className="mt-4 text-white">
+                <div className="font-semibold mb-1">Members:</div>
+                {team.members.length === 0 ? (
+                  <div className="italic text-blue-100">No members yet. Add your team members below.</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {team.members.map((m, idx) => (
+                      <li key={idx}>{m.name} ({m.role}) - {m.email}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <button
+              className="mt-6 px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+              onClick={() => showToast("Manage Team coming soon!", "info")}
+            >
+              Manage Team
+            </button>
+          </>
+        ) : (
+          <div className="text-red-600 font-semibold">Team not found. Please contact your manager.</div>
+        )}
       </div>
     );
   }

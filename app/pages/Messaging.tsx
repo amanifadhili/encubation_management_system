@@ -4,6 +4,7 @@ import { conversations as mockConversations } from "../mock/messagingData";
 import { mockUsers } from "../mock/credentials";
 import { useAuth } from "../context/AuthContext";
 import clsx from "clsx";
+import { incubators, mentors } from "../mock/sampleData";
 
 
 // Role-based color map
@@ -170,7 +171,23 @@ function ContextMenu({
 
 const Messaging = () => {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState([...mockConversations]);
+  // Load conversations from localStorage or mock data
+  const getInitialConversations = () => {
+    const saved = localStorage.getItem("conversations");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [...mockConversations.filter(c => !c.name)];
+      }
+    }
+    return [...mockConversations.filter(c => !c.name)];
+  };
+  const [conversations, setConversations] = useState(getInitialConversations());
+  // Persist conversations to localStorage
+  useEffect(() => {
+    localStorage.setItem("conversations", JSON.stringify(conversations));
+  }, [conversations]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const chatEndRef = useRef(null);
@@ -183,6 +200,8 @@ const Messaging = () => {
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showNewDM, setShowNewDM] = useState(false);
+  const [dmTarget, setDMTarget] = useState("");
 
   // Handler to open menu (calculate position)
   const handleMenuOpen = (e: React.MouseEvent, idx: number) => {
@@ -241,11 +260,130 @@ const Messaging = () => {
     }
   };
 
-  // Filter conversations for this user
-  const userConvos = useMemo(() =>
-    conversations.filter(c => c.participants.includes(user?.name)),
-    [conversations, user]
-  );
+  // Helper: get DM-able users
+  const getDMUsers = () => {
+    if (!user) return [];
+    if (user.role === "mentor") {
+      // Mentors: assigned teams, directors, managers
+      const mentor = mentors.find(m => m.name === user.name);
+      if (!mentor) return [];
+      const teamNames = incubators.filter(t => mentor.assignedTeams.includes(t.id)).map(t => t.teamName);
+      const allowedRoles = ["director", "manager"];
+      const allowedNames = [
+        ...teamNames,
+        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name)
+      ];
+      return allowedNames.map(name => {
+        // Find role for display
+        const userObj = mockUsers.find(u => u.name === name);
+        const role = userObj ? userObj.role : (teamNames.includes(name) ? "incubator" : "unknown");
+        return { name, role };
+      });
+    }
+    if (user.role === "incubator") {
+      // Teams: assigned mentor(s), directors, managers, other teams
+      const team = incubators.find(t => t.teamName === (user as any).teamName);
+      if (!team) return [];
+      const mentorNames = mentors.filter(m => m.assignedTeams.includes(team.id)).map(m => m.name);
+      const allowedRoles = ["director", "manager"];
+      const allowedNames = [
+        ...mentorNames,
+        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name),
+        ...incubators.filter(t => t.teamName !== (user as any).teamName).map(t => t.teamName)
+      ];
+      return allowedNames.map(name => {
+        // Find role for display
+        const userObj = mockUsers.find(u => u.name === name);
+        const role = userObj ? userObj.role : (mentorNames.includes(name) ? "mentor" : "incubator");
+        return { name, role };
+      });
+    }
+    // Director/Manager: all teams (by teamName), all mentors, all directors/managers except self
+    const teamUsers = incubators.map(t => ({ name: t.teamName, role: "incubator" }));
+    const mentorUsers = mentors.map(m => ({ name: m.name, role: "mentor" }));
+    const adminUsers = mockUsers.filter(u => ["director", "manager"].includes(u.role) && u.name !== user.name).map(u => ({ name: u.name, role: u.role }));
+    return [...teamUsers, ...mentorUsers, ...adminUsers];
+  };
+
+  // Only show DMs in sidebar
+  const userConvos = useMemo(() => {
+    if (!user) return [];
+    if (user.role === "mentor") {
+      // Mentors: assigned teams, directors, managers
+      const mentor = mentors.find(m => m.name === user.name);
+      if (!mentor) return [];
+      const teamNames = incubators.filter(t => mentor.assignedTeams.includes(t.id)).map(t => t.teamName);
+      const allowedRoles = ["director", "manager"];
+      const allowedNames = [
+        ...teamNames,
+        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name)
+      ];
+      return conversations.filter(c =>
+        c.participants.length === 2 &&
+        c.participants.includes(user.name) &&
+        allowedNames.includes(c.participants.find((n: string) => n !== user.name) || "")
+      );
+    }
+    if (user.role === "incubator") {
+      // Teams: assigned mentor(s), directors, managers, other teams
+      const team = incubators.find(t => t.teamName === (user as any).teamName);
+      if (!team) return [];
+      const mentorNames = mentors.filter(m => m.assignedTeams.includes(team.id)).map(m => m.name);
+      const allowedRoles = ["director", "manager"];
+      const allowedNames = [
+        ...mentorNames,
+        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name),
+        ...incubators.filter(t => t.teamName !== (user as any).teamName).map(t => t.teamName)
+      ];
+      return conversations.filter(c => {
+        if (c.participants.length !== 2) return false;
+        const selfName = (user as any).teamName;
+        const other = c.participants.find((n: string) => n !== selfName) || "";
+        return c.participants.includes(selfName) && allowedNames.includes(other);
+      });
+    }
+    // Director/Manager: all DMs except self
+    return conversations.filter(c =>
+      c.participants.length === 2 &&
+      c.participants.includes(user.name) &&
+      c.participants.find((n: string) => n !== user.name)
+    );
+  }, [conversations, user]);
+
+  // New DM handler
+  const handleStartDM = () => {
+    if (!dmTarget) return;
+    // Check if DM already exists
+    let convo = conversations.find(c =>
+      (c.participants.includes((user as any).name) || c.participants.includes((user as any).teamName)) &&
+      c.participants.includes(dmTarget)
+    );
+    if (!convo) {
+      // For managers/directors, if dmTarget is a team, use teamName as participant
+      let selfName = (user as any).role === "incubator" ? (user as any).teamName : (user as any).name;
+      // If manager/director and dmTarget is a team, ensure teamName is used
+      const isTargetTeam = incubators.some(t => t.teamName === dmTarget);
+      if (["manager", "director"].includes((user as any).role) && isTargetTeam) {
+        convo = {
+          id: Math.max(0, ...conversations.map(c => c.id)) + 1,
+          name: null,
+          participants: [selfName, dmTarget],
+          messages: [],
+        };
+      } else {
+        convo = {
+          id: Math.max(0, ...conversations.map(c => c.id)) + 1,
+          name: null,
+          participants: [selfName, dmTarget],
+          messages: [],
+        };
+      }
+      setConversations(prev => [...prev, convo]);
+    }
+    setSelectedId(convo.id);
+    setShowNewDM(false);
+    setDMTarget("");
+  };
 
   // Select first conversation by default
   useEffect(() => {
@@ -310,18 +448,28 @@ const Messaging = () => {
     <div className="flex h-[80vh] bg-white rounded-lg shadow-lg overflow-hidden max-w-5xl mx-auto mt-8">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-50 border-r flex flex-col">
-        <div className="p-4 border-b text-xl font-extrabold text-blue-900">Inbox</div>
+        <div className="p-4 border-b text-xl font-extrabold text-blue-900 flex items-center justify-between">
+          Inbox
+          <button
+            className="ml-2 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-semibold"
+            onClick={() => setShowNewDM(true)}
+          >
+            + New Message
+          </button>
+        </div>
         <div className="flex-1 overflow-y-auto">
           {userConvos.length === 0 ? (
             <div className="p-8 text-gray-400 text-center">No conversations yet.</div>
           ) : (
             userConvos.map(c => {
-              // Show DM or group name
-              const otherNames = c.participants.filter((n: string) => n !== (user?.name || ""));
-              const label = c.name || otherNames.join(", ");
+              // Show DM name (other participant)
+              const selfName = user ? ((user as any).name || (user as any).teamName) : "";
+              const other = c.participants.find((n: string) => n !== selfName) || "";
+              // If other is a team, show team name
+              const label = other;
               // Unread: if last message not from user
               const lastMsg = c.messages[c.messages.length - 1];
-              const unread = lastMsg && lastMsg.sender !== user.name;
+              const unread = lastMsg && user && lastMsg.sender !== (user as any).name && lastMsg.sender !== (user as any).teamName;
               return (
                 <button
                   key={c.id}
@@ -331,7 +479,7 @@ const Messaging = () => {
                   )}
                   onClick={() => setSelectedId(c.id)}
                 >
-                  <Avatar {...getUserInfo(String(otherNames[0] !== undefined ? otherNames[0] : ""))} />
+                  <Avatar {...getUserInfo(String(label))} />
                   <div className="flex-1">
                     <div className="font-semibold text-blue-900 truncate">{label}</div>
                     <div className="text-xs text-gray-500 truncate">
@@ -344,6 +492,44 @@ const Messaging = () => {
             })
           )}
         </div>
+        {/* New DM Modal */}
+        {showNewDM && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+            <div className="bg-white rounded shadow-lg p-6 w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4 text-blue-900">Start New Message</h2>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold text-blue-800">Select user to message</label>
+                <select
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                  value={dmTarget}
+                  onChange={e => setDMTarget(e.target.value)}
+                >
+                  <option value="">Select...</option>
+                  {getDMUsers().map(u => (
+                    <option key={u.name} value={u.name}>{u.name} ({u.role})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  className="px-4 py-2 bg-gray-200 text-blue-700 rounded font-semibold hover:bg-gray-300"
+                  onClick={() => { setShowNewDM(false); setDMTarget(""); }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+                  onClick={handleStartDM}
+                  disabled={!dmTarget}
+                  type="button"
+                >
+                  Start
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </aside>
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">

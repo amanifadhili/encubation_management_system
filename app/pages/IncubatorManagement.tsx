@@ -11,34 +11,53 @@ import StatusBadge from "../components/StatusBadge";
 import RoleGuard from "../components/RoleGuard";
 import Tooltip from "../components/Tooltip";
 
-const defaultForm = {
-  id: 0, // was null, now always a number
-  name: "",
-  project: "",
-  members: [""],
+// 1. Define types for team and member
+interface TeamMember {
+  name: string;
+  email: string;
+  role: string;
+}
+interface Team {
+  id: number;
+  teamName: string;
+  credentials: { email: string; password: string };
+  teamLeader: { name: string; email: string; role: string };
+  members: TeamMember[];
+  mentor: string;
+  status: string;
+}
+
+const defaultForm: Team = {
+  id: 0,
+  teamName: "",
+  credentials: { email: "", password: "Team123" },
+  teamLeader: { name: "", email: "", role: "Team Leader" }, // will be set by team after login
+  members: [],
   mentor: "",
   status: "Active",
-  file: null,
 };
 
 const PAGE_SIZE = 5;
 
 const IncubatorManagement = () => {
   const { user } = useAuth();
-  const [incubators, setIncubators] = useState([...mockIncubators]);
+  const [incubators, setIncubators] = useState<Team[]>([...mockIncubators]);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ ...defaultForm });
+  const [form, setForm] = useState<Team>({ ...defaultForm });
   const [isEdit, setIsEdit] = useState(false);
-  const [fileName, setFileName] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const showToast = useToast();
 
+  // Add state for detail modal
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
   // Filtered and paginated data
   const filtered = incubators.filter(
     (team) =>
-      team.name.toLowerCase().includes(search.toLowerCase()) ||
-      team.project.toLowerCase().includes(search.toLowerCase()) ||
+      team.teamName.toLowerCase().includes(search.toLowerCase()) ||
+      team.teamLeader.name.toLowerCase().includes(search.toLowerCase()) ||
       team.mentor.toLowerCase().includes(search.toLowerCase())
   );
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -48,34 +67,37 @@ const IncubatorManagement = () => {
   const canModify = Boolean(user && user.role === "manager");
 
   const openAddModal = () => {
-    setForm({ ...defaultForm, members: [""] });
-    setFileName("");
-    setIsEdit(false);
+    setForm({ ...defaultForm, members: [] });
     setShowModal(true);
   };
 
-  const openEditModal = (team: typeof mockIncubators[0]) => {
-    setForm({ ...team, file: null });
-    setFileName("");
+  const openEditModal = (team: Team) => {
+    setForm({ ...team });
     setIsEdit(true);
     setShowModal(true);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === "credentialsEmail") {
+      setForm((prev) => ({ ...prev, credentials: { ...prev.credentials, email: value } }));
+    } else if (name === "credentialsPassword") {
+      setForm((prev) => ({ ...prev, credentials: { ...prev.credentials, password: value } }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  const handleMemberChange = (idx: number, value: string) => {
+  const handleMemberChange = (idx: number, field: keyof TeamMember, value: string) => {
     setForm((prev) => {
       const members = [...prev.members];
-      members[idx] = value;
+      members[idx] = { ...members[idx], [field]: value };
       return { ...prev, members };
     });
   };
 
   const addMember = () => {
-    setForm((prev) => ({ ...prev, members: [...prev.members, ""] }));
+    setForm((prev) => ({ ...prev, members: [...prev.members, { name: "", email: "", role: "Member" }] }));
   };
 
   const removeMember = (idx: number) => {
@@ -85,22 +107,16 @@ const IncubatorManagement = () => {
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files ? e.target.files[0] : undefined;
-    setForm((prev) => ({ ...prev, file: null })); // always set to null for SSR safety
-    setFileName(file ? file.name : "");
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.name || !form.project || !form.mentor) {
+    if (!form.teamName || !form.credentials.email || !form.credentials.password || !form.mentor) {
       showToast("Please fill all required fields.", "error");
       return;
     }
     if (isEdit) {
       setIncubators((prev) =>
         prev.map((team) =>
-          team.id === form.id ? { ...form, file: null } : team
+          team.id === form.id ? { ...form } : team
         )
       );
       showToast("Team updated!", "success");
@@ -110,7 +126,8 @@ const IncubatorManagement = () => {
         {
           ...form,
           id: Math.max(0, ...prev.map((team) => team.id)) + 1,
-          file: null,
+          members: [],
+          teamLeader: { name: "", email: "", role: "Team Leader" },
         },
       ]);
       showToast("Team added!", "success");
@@ -125,13 +142,40 @@ const IncubatorManagement = () => {
     }
   };
 
+  // Function to open detail modal
+  const openDetailModal = (team: Team) => {
+    setSelectedTeam(team);
+    setShowDetailModal(true);
+  };
+  const closeDetailModal = () => {
+    setSelectedTeam(null);
+    setShowDetailModal(false);
+  };
+
+  // Implement handleRemoveMember and handleAddMember functions to update the selectedTeam's members (with state update logic)
+  const handleRemoveMember = (idx: number) => {
+    setSelectedTeam((prev) => {
+      if (!prev) return prev;
+      const members = [...prev.members];
+      members.splice(idx, 1);
+      return { ...prev, members };
+    });
+  };
+
+  const handleAddMember = () => {
+    setSelectedTeam((prev) => {
+      if (!prev) return prev;
+      return { ...prev, members: [...prev.members, { name: "", email: "", role: "Member" }] };
+    });
+  };
+
   // Table columns
-  const columns: TableColumn<typeof incubators[0]>[] = [
-    { key: "name", label: "Name", className: "font-semibold text-blue-800" },
-    { key: "project", label: "Project", className: "text-blue-700" },
-    { key: "members", label: "Members", render: row => row.members.join(", "), className: "text-blue-700" },
+  const columns: TableColumn<Team>[] = [
+    { key: "teamName", label: "Team Name", className: "font-semibold text-blue-800" },
+    { key: "teamLeader", label: "Team Leader", render: (row) => row.teamLeader?.name || "-", className: "text-blue-700" },
+    { key: "members", label: "Members", render: (row) => row.members.length, className: "text-blue-700" },
     { key: "mentor", label: "Mentor", className: "text-blue-700" },
-    { key: "status", label: "Status", render: row => <StatusBadge status={row.status} /> },
+    { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} />, className: "" },
   ];
 
   return (
@@ -164,7 +208,7 @@ const IncubatorManagement = () => {
           <Table
             columns={columns}
             data={paginated}
-            actions={canModify ? (row) => (
+            actions={canModify ? (row: Team) => (
               <div className="flex gap-2">
                 <Tooltip label="Edit">
                   <button
@@ -187,6 +231,17 @@ const IncubatorManagement = () => {
                     {/* Trash SVG */}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </Tooltip>
+                <Tooltip label="View Details">
+                  <button
+                    className="p-2 rounded hover:bg-blue-200 text-blue-700"
+                    onClick={() => openDetailModal(row)}
+                    aria-label="View Team Details"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-700">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
                   </button>
                 </Tooltip>
@@ -236,49 +291,33 @@ const IncubatorManagement = () => {
           <div className="mb-4">
             <label className="block mb-1 font-semibold text-blue-800">Team Name *</label>
             <input
-              name="name"
-              value={form.name}
+              name="teamName"
+              value={form.teamName}
               onChange={handleChange}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               required
             />
           </div>
           <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Project *</label>
+            <label className="block mb-1 font-semibold text-blue-800">Credentials (Email *)</label>
             <input
-              name="project"
-              value={form.project}
+              name="credentialsEmail"
+              value={form.credentials.email}
               onChange={handleChange}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               required
             />
           </div>
           <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Members</label>
-            {form.members.map((member, idx) => (
-              <div key={idx} className="flex items-center mb-1 gap-2">
-                <input
-                  value={member}
-                  onChange={e => handleMemberChange(idx, e.target.value)}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                />
-                <button
-                  type="button"
-                  className="px-2 py-1 bg-red-200 text-red-700 rounded hover:bg-red-300"
-                  onClick={() => removeMember(idx)}
-                  disabled={form.members.length === 1}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="mt-1 px-2 py-1 bg-blue-200 text-blue-700 rounded hover:bg-blue-300"
-              onClick={addMember}
-            >
-              + Add Member
-            </button>
+            <label className="block mb-1 font-semibold text-blue-800">Credentials (Password *)</label>
+            <input
+              name="credentialsPassword"
+              type="text"
+              value={form.credentials.password}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              required
+            />
           </div>
           <div className="mb-4">
             <label className="block mb-1 font-semibold text-blue-800">Mentor *</label>
@@ -308,17 +347,52 @@ const IncubatorManagement = () => {
               <option value="Completed">Completed</option>
             </select>
           </div>
-          <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">File Upload (mocked)</label>
-            <input
-              type="file"
-              onChange={handleFileChange}
-              className="w-full"
-            />
-            {fileName && <div className="mt-1 text-sm text-blue-700">Selected: {fileName}</div>}
-          </div>
         </form>
       </Modal>
+
+      {/* Detail Modal for managing team members */}
+      {showDetailModal && selectedTeam && (
+        <Modal open={showDetailModal} onClose={closeDetailModal} title={`Team: ${selectedTeam.teamName}`}>
+          <div>
+            <div className="mb-4">
+              <div className="font-semibold text-blue-900">Team Leader:</div> <span className="text-gray-800">{selectedTeam.teamLeader?.name ? `${selectedTeam.teamLeader.name} (${selectedTeam.teamLeader.email})` : 'Not assigned yet.'}</span>
+            </div>
+            <div className="mb-4">
+              <div className="font-semibold mb-2 text-blue-900">Members:</div>
+              {selectedTeam.members.length === 0 ? (
+                <div className="text-gray-500 italic">No members yet. Team can add members after login.</div>
+              ) : (
+                <ul className="space-y-2">
+                  {selectedTeam.members.map((member, idx) => (
+                    <li key={idx} className="flex items-center gap-2 text-gray-800">
+                      <span>{member.name} ({member.role}) - {member.email}</span>
+                      {(user && user.role === "manager") || (user && user.role === "incubator" && 'teamId' in user && user.teamId === selectedTeam.id && member.role !== "Team Leader") ? (
+                        <button
+                          className="ml-2 p-1 rounded hover:bg-red-100 text-red-700"
+                          onClick={() => handleRemoveMember(idx)}
+                          aria-label="Remove Member"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {(user && user.role === "manager") || (user && user.role === "incubator" && 'teamId' in user && user.teamId === selectedTeam.id) ? (
+                <button
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  onClick={handleAddMember}
+                >
+                  Add Member
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

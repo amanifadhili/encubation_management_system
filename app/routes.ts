@@ -13,7 +13,6 @@ export default [
       route("/mentors", "pages/MentorManagement.tsx"),
       route("/requests", "pages/RequestHandling.tsx"),
       route("/messaging", "pages/Messaging.tsx"),
-      route("/calendar", "pages/Calendar.tsx"),
       route("/inventory", "pages/StockManagement.tsx"),
       route("/reports", "pages/Reports.tsx"),
       route("/announcements", "pages/Announcements.tsx"),
@@ -21,6 +20,7 @@ export default [
       route("/audit", "pages/AuditTrail.tsx"),
       route("/notifications", "pages/Notifications.tsx"),
       route("/analytics", "pages/Analytics.tsx"),
+      route("/manage-team", "pages/ManageTeam.tsx"),
     ]),
   ]),
 ] satisfies RouteConfig;

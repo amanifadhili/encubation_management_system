@@ -1,23 +1,34 @@
 // Sample mock data for development
 
-// Incubators/Teams
+// Refactored Incubators/Teams
 export const incubators = [
   {
     id: 1,
-    name: "InnovateX Team",
-    project: "Smart Campus Energy Saver",
-    members: ["Alice", "Bob", "Charlie"],
+    teamName: "InnovateX Team",
+    companyName: "InnovateX Solutions",
+    credentials: { email: "innovatex@teams.com", password: "team123" },
+    teamLeader: { name: "Alice", email: "alice@innovatex.com", role: "Team Leader" },
+    members: [
+      { name: "Alice", email: "alice@innovatex.com", role: "Team Leader" },
+      { name: "Bob", email: "bob@innovatex.com", role: "Developer" },
+      { name: "Charlie", email: "charlie@innovatex.com", role: "Designer" }
+    ],
     mentor: "Dr. Smith",
     status: "Active"
   },
   {
     id: 2,
-    name: "GreenMinds",
-    project: "Eco-Friendly Packaging",
-    members: ["Dave", "Eva"],
+    teamName: "GreenMinds",
+    companyName: "GreenMinds Ltd.",
+    credentials: { email: "greenminds@teams.com", password: "team456" },
+    teamLeader: { name: "Eva", email: "eva@greenminds.com", role: "Team Leader" },
+    members: [
+      { name: "Eva", email: "eva@greenminds.com", role: "Team Leader" },
+      { name: "Dave", email: "dave@greenminds.com", role: "Researcher" }
+    ],
     mentor: "Prof. Green",
     status: "Pending"
-  },
+  }
 ];
 
 // Projects
@@ -29,6 +40,7 @@ export const projects = [
     description: "IoT-based system to optimize campus energy usage.",
     status: "Active",
     files: ["proposal.pdf"],
+    category: "Technology",
   },
   {
     id: 2,
@@ -37,6 +49,7 @@ export const projects = [
     description: "Biodegradable packaging for campus cafeterias.",
     status: "Pending",
     files: [],
+    category: "Agriculture",
   },
 ];
 
@@ -99,16 +112,28 @@ export const tools = [
   {
     id: 1,
     name: "3D Printer",
-    available: true,
-    assignedTo: 1,
-    usageCount: 5,
+    total: 5,
+    assigned: [
+      { teamId: 1, quantity: 2 },
+      { teamId: 2, quantity: 1 },
+    ],
+    status: "available",
   },
   {
     id: 2,
-    name: "Laser Cutter",
-    available: false,
-    assignedTo: null,
-    usageCount: 8,
+    name: "Office Chair",
+    total: 10,
+    assigned: [
+      { teamId: 1, quantity: 3 },
+    ],
+    status: "available",
+  },
+  {
+    id: 3,
+    name: "Coffee Maker",
+    total: 2,
+    assigned: [],
+    status: "available",
   },
 ];
 

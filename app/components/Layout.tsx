@@ -15,20 +15,18 @@ const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
     { name: 'Inventory', to: '/inventory' },
     { name: 'Announcements', to: '/announcements' },
     { name: 'Notifications', to: '/notifications' },
-    { name: 'Calendar', to: '/calendar' },
     { name: 'Messaging', to: '/messaging' },
   ],
   manager: [
     { name: 'Dashboard', to: '/dashboard' },
     { name: 'Incubators', to: '/incubators' },
     { name: 'Mentors', to: '/mentors' },
-    { name: 'Requests', to: '/requests' },
+    { name: 'Material', to: '/requests' },
     { name: 'Inventory', to: '/inventory' },
     { name: 'Announcements', to: '/announcements' },
     { name: 'Evaluations', to: '/evaluations' },
     { name: 'Audit Trail', to: '/audit' },
     { name: 'Notifications', to: '/notifications' },
-    { name: 'Calendar', to: '/calendar' },
     { name: 'Messaging', to: '/messaging' },
     { name: 'Reports', to: '/reports' },
     { name: 'Analytics', to: '/analytics' },
@@ -38,17 +36,15 @@ const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
     { name: 'Teams', to: '/incubators' },
     { name: 'Evaluations', to: '/evaluations' },
     { name: 'Messaging', to: '/messaging' },
-    { name: 'Calendar', to: '/calendar' },
-    { name: 'Announcements', to: '/announcements' },
     { name: 'Notifications', to: '/notifications' },
   ],
   incubator: [
     { name: 'Dashboard', to: '/dashboard' },
+    { name: 'Manage Team', to: '/manage-team' },
     { name: 'My Project', to: '/incubators' },
     { name: 'Mentor', to: '/mentors' },
-    { name: 'Requests', to: '/requests' },
+    { name: 'Material', to: '/requests' },
     { name: 'Messaging', to: '/messaging' },
-    { name: 'Calendar', to: '/calendar' },
     { name: 'Announcements', to: '/announcements' },
     { name: 'Evaluations', to: '/evaluations' },
     { name: 'Notifications', to: '/notifications' },
@@ -155,10 +151,16 @@ export default function Layout() {
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">2</span>
               </button>
               {/* User info */}
-              {user && <span className="text-blue-800 font-semibold hidden sm:inline">{user.name}</span>}
-              {user && <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center font-bold text-blue-700">
-                {user.name[0]}
-              </div>}
+              {user && (
+                <span className="text-blue-800 font-semibold hidden sm:inline">
+                  {user.role === 'incubator' ? (user as any).teamName : user.name}
+                </span>
+              )}
+              {user && (
+                <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center font-bold text-blue-700">
+                  {(user.role === 'incubator' ? (user as any).teamName?.[0] : user.name?.[0]) || 'U'}
+                </div>
+              )}
               {/* Logout */}
               <button onClick={handleLogout} className="ml-2 px-3 py-1 bg-gray-200 text-blue-700 rounded hover:bg-gray-300 font-semibold">Logout</button>
             </div>
