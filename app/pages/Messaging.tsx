@@ -177,7 +177,7 @@ const Messaging = () => {
 
     try {
       const result = await createConversation({
-        participants: [user!.id, parseInt(dmTarget)] // Assuming dmTarget is user ID
+        participants: [user!.id, dmTarget] // Both are string user IDs
       });
 
       setConversations(prev => [...prev, result]);
@@ -232,9 +232,10 @@ const Messaging = () => {
           ) : (
             conversations.map(c => {
               // Show conversation name (other participant)
-              const otherParticipant = c.participants.find((p: string) => p !== user.id) || user.id;
+              const participants = c.participants || c.other_participants || [];
+              const otherParticipant = participants.find((p: string) => p !== user.id) || user.id;
               const label = `User ${otherParticipant}`; // In real app, get user name
-              const lastMsg = c.messages?.[c.messages.length - 1];
+              const lastMsg = c.latest_message || c.messages?.[c.messages.length - 1];
               return (
                 <button
                   key={c.id}
@@ -316,10 +317,11 @@ const Messaging = () => {
             ) : (
               <div className="flex flex-col gap-4">
                 {messages.map((msg, i) => {
-                  const isMe = msg.sender_id === user.id;
+                  const senderId = msg.sender?.id || msg.sender_id;
+                  const isMe = senderId === user.id;
                   return (
-                    <div key={i} className={clsx("flex items-end gap-2", isMe ? "justify-end" : "justify-start")}>
-                      {!isMe && <Avatar name={`User ${msg.sender_id}`} role="default" />}
+                    <div key={msg.id || i} className={clsx("flex items-end gap-2", isMe ? "justify-end" : "justify-start")}>
+                      {!isMe && <Avatar name={msg.sender?.name || `User ${senderId}`} role={msg.sender?.role || "default"} />}
                       <div>
                         <div className={clsx(
                           "px-4 py-2 rounded-lg shadow text-sm max-w-xs break-words",

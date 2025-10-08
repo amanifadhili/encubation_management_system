@@ -85,7 +85,7 @@ const Projects = () => {
   const loadTeams = async () => {
     try {
       const data = await getIncubators();
-      setTeams(data.map(team => ({ id: team.id, teamName: team.team_name })));
+      setTeams(data.map((team: any) => ({ id: team.id, teamName: team.team_name })));
     } catch (error) {
       console.error('Failed to load teams:', error);
       setTeams([]);

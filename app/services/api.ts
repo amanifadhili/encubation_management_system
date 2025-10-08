@@ -312,6 +312,11 @@ export async function getConversations() {
   return response.data.success ? response.data.data.conversations : response.data;
 }
 
+export async function getConversation(id: string) {
+  const response = await api.get(`/conversations/${id}`);
+  return response.data.success ? response.data.data.conversation : response.data;
+}
+
 export async function createConversation(data: any) {
   const response = await api.post('/conversations', data);
   return response.data;

@@ -79,9 +79,9 @@ const MentorManagement = () => {
   // Filtered and paginated data
   const filtered = mentors.filter(
     (mentor) =>
-      mentor.name.toLowerCase().includes(search.toLowerCase()) ||
-      mentor.expertise.toLowerCase().includes(search.toLowerCase()) ||
-      mentor.email.toLowerCase().includes(search.toLowerCase())
+      mentor.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      mentor.expertise?.toLowerCase().includes(search.toLowerCase()) ||
+      mentor.user?.email?.toLowerCase().includes(search.toLowerCase())
   );
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -92,15 +92,21 @@ const MentorManagement = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (mentor: typeof mockMentors[0]) => {
-    setForm({ ...mentor });
+  const openEditModal = (mentor: any) => {
+    setForm({
+      id: mentor.id,
+      name: mentor.user?.name || '',
+      expertise: mentor.expertise || '',
+      email: mentor.user?.email || '',
+      phone: mentor.phone || ''
+    });
     setIsEdit(true);
     setShowModal(true);
   };
 
-  const openAssignModal = (mentor: typeof mockMentors[0]) => {
+  const openAssignModal = (mentor: any) => {
     setAssignMentorId(mentor.id);
-    setAssignTeams(mentor.assignedTeams || []);
+    setAssignTeams(mentor.mentor_assignments?.map((assignment: any) => assignment.team_id) || []);
     setShowAssignModal(true);
   };
 
@@ -124,7 +130,13 @@ const MentorManagement = () => {
           email: form.email,
           phone: form.phone
         });
-        setMentors(prev => prev.map(m => m.id === form.id ? { ...m, ...form } : m));
+        // Update the mentor in the list with the new data
+        setMentors(prev => prev.map(m => m.id === form.id ? {
+          ...m,
+          user: { ...m.user, name: form.name, email: form.email },
+          expertise: form.expertise,
+          phone: form.phone
+        } : m));
         showToast("Mentor updated!", "success");
       } else {
         const result = await createMentor({
@@ -133,7 +145,10 @@ const MentorManagement = () => {
           email: form.email,
           phone: form.phone
         });
-        setMentors(prev => [...prev, result]);
+        // Add the new mentor to the list
+        if (result.success && result.data?.mentor) {
+          setMentors(prev => [...prev, result.data.mentor]);
+        }
         showToast("Mentor added!", "success");
       }
       setShowModal(false);
@@ -183,17 +198,17 @@ const MentorManagement = () => {
 
   // Table columns
   const columns: TableColumn<typeof mentors[0]>[] = [
-    { key: "name", label: "Name", className: "font-semibold text-blue-800" },
+    { key: "user", label: "Name", render: (row) => row.user?.name || "-", className: "font-semibold text-blue-800" },
     { key: "expertise", label: "Expertise", className: "text-blue-700" },
-    { key: "email", label: "Email", className: "text-blue-700" },
+    { key: "user", label: "Email", render: (row) => row.user?.email || "-", className: "text-blue-700" },
     { key: "phone", label: "Phone", className: "text-blue-700" },
     {
-      key: "assignedTeams",
+      key: "mentor_assignments",
       label: "Assigned Teams",
       render: row =>
-        row.assignedTeams && row.assignedTeams.length > 0
-          ? row.assignedTeams.map(
-              (id: number) => teams.find((t) => t.id === id)?.team_name || id
+        row.mentor_assignments && row.mentor_assignments.length > 0
+          ? row.mentor_assignments.map(
+              (assignment: any) => assignment.team?.team_name || assignment.team_id
             ).join(", ")
           : "-",
       className: "text-blue-700"

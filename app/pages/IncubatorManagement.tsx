@@ -106,9 +106,9 @@ const IncubatorManagement = () => {
   // Filtered and paginated data
   const filtered = incubators.filter(
     (team) =>
-      team.teamName.toLowerCase().includes(search.toLowerCase()) ||
-      team.teamLeader.name.toLowerCase().includes(search.toLowerCase()) ||
-      team.mentor.toLowerCase().includes(search.toLowerCase())
+      team.team_name.toLowerCase().includes(search.toLowerCase()) ||
+      team.company_name?.toLowerCase().includes(search.toLowerCase()) ||
+      team.status?.toLowerCase().includes(search.toLowerCase())
   );
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -130,16 +130,16 @@ const IncubatorManagement = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name === "credentialsEmail") {
-      setForm((prev) => ({ ...prev, credentials: { ...prev.credentials, email: value } }));
+      setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, email: value } }));
     } else if (name === "credentialsPassword") {
-      setForm((prev) => ({ ...prev, credentials: { ...prev.credentials, password: value } }));
+      setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, password: value } }));
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm((prev: any) => ({ ...prev, [name]: value }));
     }
   };
 
   const handleMemberChange = (idx: number, field: keyof TeamMember, value: string) => {
-    setForm((prev) => {
+    setForm((prev: any) => {
       const members = [...prev.members];
       members[idx] = { ...members[idx], [field]: value };
       return { ...prev, members };
@@ -147,12 +147,12 @@ const IncubatorManagement = () => {
   };
 
   const addMember = () => {
-    setForm((prev) => ({ ...prev, members: [...prev.members, { name: "", email: "", role: "Member" }] }));
+    setForm((prev: any) => ({ ...prev, members: [...prev.members, { name: "", email: "", role: "Member" }] }));
   };
 
   const removeMember = (idx: number) => {
-    setForm((prev) => {
-      const members = prev.members.filter((_, i) => i !== idx);
+    setForm((prev: any) => {
+      const members = prev.members.filter((_: any, i: number) => i !== idx);
       return { ...prev, members };
     });
   };
