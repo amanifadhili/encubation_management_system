@@ -1,58 +1,117 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { notifications as mockNotifications, incubators } from "../mock/sampleData";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import {
+  getNotifications,
+  createNotification,
+  markNotificationAsRead,
+  deleteNotification,
+  getIncubators
+} from "../services/api";
+import socketService from "../services/socket";
 
 const Notifications = () => {
   const { user } = useAuth();
   const isManager = user?.role === "manager";
   const isIncubator = user?.role === "incubator";
-  const teamName = isIncubator ? (user as any).teamName : null;
 
-  // Only managers can send notifications, and only to teams
-  // Managers see only notifications they sent (sender === user.name)
-  // Teams see only notifications addressed to their team
-  const [notifications, setNotifications] = useState(
-    isManager
-      ? mockNotifications.filter(n => n.sender === user.name)
-      : isIncubator
-        ? mockNotifications.filter(n => n.user === teamName)
-        : []
-  );
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editMessage, setEditMessage] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [addRecipient, setAddRecipient] = useState("");
   const [addMessage, setAddMessage] = useState("");
+  const [teams, setTeams] = useState<any[]>([]);
 
-  // Recipient list: only team names
-  const uniqueRecipients = Array.from(new Set(incubators.map(t => t.teamName)));
+  // Load notifications and teams on mount
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+      loadTeams();
+      setupSocket();
+    }
+  }, [user]);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await getNotifications();
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTeams = async () => {
+    try {
+      const data = await getIncubators();
+      setTeams(data.map(team => ({ id: team.id, teamName: team.team_name })));
+    } catch (error) {
+      console.error('Failed to load teams:', error);
+      setTeams([]);
+    }
+  };
+
+  const setupSocket = () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      socketService.connect(token);
+
+      // Listen for new notifications
+      const handleNewNotification = (event: any) => {
+        const { data } = event.detail;
+        setNotifications(prev => [data, ...prev]);
+      };
+
+      window.addEventListener('socket:notification_received', handleNewNotification);
+
+      return () => {
+        window.removeEventListener('socket:notification_received', handleNewNotification);
+        socketService.disconnect();
+      };
+    }
+  };
 
   // Mark as read/unread (only for teams)
-  const toggleRead = (idx: number) => {
+  const toggleRead = async (notificationId: number) => {
     if (!isIncubator) return;
-    setNotifications(prev => prev.map((n, i) => i === idx ? { ...n, read: !n.read } : n));
+    try {
+      await markNotificationAsRead(notificationId);
+      setNotifications(prev => prev.map(n =>
+        n.id === notificationId ? { ...n, read_status: !n.read_status } : n
+      ));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   };
 
   // Delete (only for sender/manager)
-  const handleDelete = (idx: number) => {
-    setDeleteIdx(idx);
+  const handleDelete = (notificationId: number) => {
+    setDeleteIdx(notificationId);
   };
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteIdx === null) return;
-    setNotifications(prev => prev.filter((_, i) => i !== deleteIdx));
-    setDeleteIdx(null);
+    try {
+      await deleteNotification(deleteIdx);
+      setNotifications(prev => prev.filter(n => n.id !== deleteIdx));
+      setDeleteIdx(null);
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+    }
   };
   const cancelDelete = () => setDeleteIdx(null);
 
-  // Edit (only for sender/manager)
+  // Edit (only for sender/manager) - Note: Backend might not support editing
   const handleEdit = (idx: number) => {
     setEditIdx(idx);
     setEditMessage(notifications[idx].message);
   };
   const confirmEdit = () => {
+    // For now, just update locally since backend might not support editing
     if (editIdx === null) return;
     setNotifications(prev => prev.map((n, i) => i === editIdx ? { ...n, message: editMessage } : n));
     setEditIdx(null);
@@ -64,23 +123,25 @@ const Notifications = () => {
   };
 
   // Add notification (manager only, to teams only)
-  const handleAddNotification = (e: React.FormEvent) => {
+  const handleAddNotification = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addRecipient || !addMessage) return;
-    setNotifications(prev => [
-      {
-        id: Math.max(0, ...prev.map(n => n.id)) + 1,
-        user: addRecipient,
+
+    try {
+      const result = await createNotification({
+        title: "Notification", // Backend expects title
         message: addMessage,
-        read: false,
-        date: new Date().toISOString(),
-        sender: user.name,
-      },
-      ...prev,
-    ]);
-    setShowAddModal(false);
-    setAddRecipient("");
-    setAddMessage("");
+        recipient_type: "team",
+        recipient_id: parseInt(addRecipient)
+      });
+
+      setNotifications(prev => [result, ...prev]);
+      setShowAddModal(false);
+      setAddRecipient("");
+      setAddMessage("");
+    } catch (error) {
+      console.error('Failed to create notification:', error);
+    }
   };
 
   return (
@@ -101,22 +162,24 @@ const Notifications = () => {
           )}
         </div>
         <div className="space-y-4">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="text-center text-blue-400 py-12">Loading notifications...</div>
+          ) : notifications.length === 0 ? (
             <div className="text-center text-blue-400 py-12">No notifications.</div>
           ) : (
             notifications.map((n, idx) => (
-              <div key={n.id} className={`bg-white rounded shadow p-4 flex flex-col gap-2 relative border-l-4 ${n.read ? 'border-blue-200' : 'border-blue-600'}`}>
+              <div key={n.id} className={`bg-white rounded shadow p-4 flex flex-col gap-2 relative border-l-4 ${n.read_status ? 'border-blue-200' : 'border-blue-600'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {!n.read && isIncubator && <span className="w-2 h-2 bg-blue-600 rounded-full" title="Unread" />}
-                    <span className="font-semibold text-blue-900">{n.message}</span>
+                    {!n.read_status && isIncubator && <span className="w-2 h-2 bg-blue-600 rounded-full" title="Unread" />}
+                    <span className="font-semibold text-blue-900">{n.title}: {n.message}</span>
                   </div>
                   <div className="flex gap-2">
                     {isIncubator && (
                       <button
                         className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs"
-                        onClick={() => toggleRead(idx)}
-                      >{n.read ? "Mark as Unread" : "Mark as Read"}</button>
+                        onClick={() => toggleRead(n.id)}
+                      >{n.read_status ? "Mark as Unread" : "Mark as Read"}</button>
                     )}
                     {isManager && (
                       <>
@@ -126,7 +189,7 @@ const Notifications = () => {
                         >Edit</button>
                         <button
                           className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs"
-                          onClick={() => handleDelete(idx)}
+                          onClick={() => handleDelete(n.id)}
                         >Delete</button>
                       </>
                     )}
@@ -134,11 +197,11 @@ const Notifications = () => {
                 </div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
                   {isManager ? (
-                    <span>To: <span className="font-semibold">{n.user}</span></span>
+                    <span>To: <span className="font-semibold">Team {n.recipient_id}</span></span>
                   ) : (
-                    <span>From: <span className="font-semibold">{n.sender}</span></span>
+                    <span>From: <span className="font-semibold">Manager {n.sender_id}</span></span>
                   )}
-                  <span>{new Date(n.date).toLocaleString()}</span>
+                  <span>{new Date(n.created_at).toLocaleString()}</span>
                 </div>
               </div>
             ))
@@ -163,8 +226,8 @@ const Notifications = () => {
                 required
               >
                 <option value="">Select team...</option>
-                {uniqueRecipients.map(name => (
-                  <option key={name} value={name}>{name}</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>{team.teamName}</option>
                 ))}
               </select>
             </div>

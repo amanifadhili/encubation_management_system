@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { incubators as mockIncubators, mentors } from "../mock/sampleData";
+import React, { useState, useEffect } from "react";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
+import { getIncubators, getMentors } from "../services/api";
 import Table from "../components/Table";
 import type { TableColumn } from "../components/Table";
 import Modal from "../components/Modal";
@@ -60,13 +60,44 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 const IncubatorManagement = () => {
   const { user } = useAuth();
-  const [incubators, setIncubators] = useState<Team[]>([...mockIncubators]);
+  const [incubators, setIncubators] = useState<any[]>([]);
+  const [mentors, setMentors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState<Team>({ ...defaultForm });
+  const [form, setForm] = useState<any>({ ...defaultForm });
   const [isEdit, setIsEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const showToast = useToast();
+
+  // Load data on mount
+  useEffect(() => {
+    if (user) {
+      loadIncubators();
+      loadMentors();
+    }
+  }, [user]);
+
+  const loadIncubators = async () => {
+    try {
+      const data = await getIncubators();
+      setIncubators(data);
+    } catch (error) {
+      console.error('Failed to load incubators:', error);
+      showToast('Failed to load teams', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMentors = async () => {
+    try {
+      const data = await getMentors();
+      setMentors(data);
+    } catch (error) {
+      console.error('Failed to load mentors:', error);
+    }
+  };
 
   // Add state for detail modal
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -206,194 +237,39 @@ const IncubatorManagement = () => {
             <SearchBar
               value={search}
               onChange={v => { setSearch(v); setPage(1); }}
-              placeholder="Search by name, project, or mentor..."
-            />
-            <RoleGuard allowed={["manager"]}>
-              <Button onClick={openAddModal} fullWidth>+ Add Incubator/Team</Button>
-            </RoleGuard>
-          </div>
-        </div>
-        {!canModify && (
-          <div className="mb-4 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded text-sm sm:text-base">
-            You do not have permission to add, edit, or delete teams. You can only view the list.
-          </div>
-        )}
-        <div className="overflow-x-auto rounded-lg shadow-lg bg-white">
-          <div className="min-w-[600px]">
-            <Table
-              columns={columns}
-              data={paginated}
-              actions={canModify ? (row: Team) => (
-                <div className="flex gap-2">
-                  <Tooltip label="Edit">
-                    <Button
-                      variant="icon"
-                      onClick={() => openEditModal(row)}
-                      aria-label="Edit"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                        <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
-                      </svg>
-                    </Button>
-                  </Tooltip>
-                  <Tooltip label="Delete">
-                    <Button
-                      variant="icon"
-                      onClick={() => handleDelete(row.id)}
-                      aria-label="Delete"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </Button>
-                  </Tooltip>
-                  <Tooltip label="View Details">
-                    <Button
-                      variant="icon"
-                      onClick={() => openDetailModal(row)}
-                      aria-label="View Team Details"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-blue-700">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                      </svg>
-                    </Button>
-                  </Tooltip>
-                </div>
-              ) : undefined}
-              emptyMessage="No teams found."
+              placeholder="Search by team name..."
             />
           </div>
         </div>
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-        {/* Fallback message for no permission and no data */}
-        {!canModify && paginated.length === 0 && (
-          <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-900 rounded text-center text-base font-semibold shadow">
-            No teams are available to view at this time. Please contact your manager for access or check back later.
+
+        {loading ? (
+          <div className="text-center text-blue-400 py-12">Loading teams...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {incubators.length === 0 ? (
+              <div className="col-span-full text-center text-blue-400 py-12">No teams found.</div>
+            ) : (
+              incubators
+                .filter(team => team.team_name.toLowerCase().includes(search.toLowerCase()))
+                .map((team: any) => (
+                  <div key={team.id} className="bg-white rounded shadow p-6">
+                    <h3 className="text-xl font-bold text-blue-900 mb-2">{team.team_name}</h3>
+                    <div className="text-blue-700 mb-1">
+                      <span className="font-semibold">Company:</span> {team.company_name || 'N/A'}
+                    </div>
+                    <div className="text-blue-700 mb-1">
+                      <span className="font-semibold">Status:</span>
+                      <Badge variant={team.status === "active" ? "success" : team.status === "pending" ? "warning" : "default"} className="ml-2">
+                        {team.status}
+                      </Badge>
+                    </div>
+                    <div className="text-blue-700">
+                      <span className="font-semibold">Created:</span> {new Date(team.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+            )}
           </div>
-        )}
-        {/* Fallback message for all users if no data at all */}
-        {canModify && paginated.length === 0 && (
-          <div className="mt-8 p-6 bg-blue-50 border-l-4 border-blue-400 text-blue-900 rounded text-center text-base font-semibold shadow">
-            No teams found. Start by adding a new incubator team!
-          </div>
-        )}
-        <Modal
-          title={isEdit ? "Edit Incubator/Team" : "Add Incubator/Team"}
-          open={showModal && canModify}
-          onClose={() => setShowModal(false)}
-          actions={
-            <>
-              <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" form="incubator-form">
-                {isEdit ? "Save Changes" : "Add Team"}
-              </Button>
-            </>
-          }
-          role="dialog"
-          aria-modal="true"
-        >
-          <form id="incubator-form" onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Team Name *</label>
-              <input
-                name="teamName"
-                value={form.teamName}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Credentials (Email *)</label>
-              <input
-                name="credentialsEmail"
-                value={form.credentials.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Credentials (Password *)</label>
-              <input
-                name="credentialsPassword"
-                type="text"
-                value={form.credentials.password}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Mentor *</label>
-              <select
-                name="mentor"
-                value={form.mentor}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                required
-              >
-                <option value="">Select Mentor</option>
-                {mentors.map(m => (
-                  <option key={m.name} value={m.name}>{m.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Status</label>
-              <select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-              >
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
-          </form>
-        </Modal>
-        {/* Detail Modal for managing team members */}
-        {showDetailModal && selectedTeam && (
-          <Modal open={showDetailModal} onClose={closeDetailModal} title={`Team: ${selectedTeam.teamName}`} role="dialog" aria-modal="true">
-            <div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-900">Team Leader:</div> <span className="text-gray-800">{selectedTeam.teamLeader?.name ? `${selectedTeam.teamLeader.name} (${selectedTeam.teamLeader.email})` : 'Not assigned yet.'}</span>
-              </div>
-              <div className="mb-4">
-                <div className="font-semibold mb-2 text-blue-900">Members:</div>
-                {selectedTeam.members.length === 0 ? (
-                  <div className="text-gray-500 italic">No members yet. Team can add members after login.</div>
-                ) : (
-                  <ul className="space-y-2">
-                    {selectedTeam.members.map((member, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-gray-800">
-                        <span>{member.name} ({member.role}) - {member.email}</span>
-                        {(user && user.role === "manager") || (user && user.role === "incubator" && 'teamId' in user && user.teamId === selectedTeam.id && member.role !== "Team Leader") ? (
-                          <Button
-                            variant="icon"
-                            className="ml-2"
-                            onClick={() => handleRemoveMember(idx)}
-                            aria-label="Remove Member"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </Button>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {(user && user.role === "manager") || (user && user.role === "incubator" && 'teamId' in user && user.teamId === selectedTeam.id) ? (
-                  <Button className="mt-4" onClick={handleAddMember}>Add Member</Button>
-                ) : null}
-              </div>
-            </div>
-          </Modal>
         )}
       </div>
     </ErrorBoundary>

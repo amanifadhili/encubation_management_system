@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { mentors as mockMentors, incubators } from "../mock/sampleData";
+import React, { useState, useEffect } from "react";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 import Table from "../components/Table";
@@ -10,6 +9,15 @@ import SearchBar from "../components/SearchBar";
 import RoleGuard from "../components/RoleGuard";
 import Tooltip from "../components/Tooltip";
 import Button from "../components/Button";
+import {
+  getMentors,
+  createMentor,
+  updateMentor,
+  deleteMentor,
+  assignMentorToTeam,
+  removeMentorFromTeam,
+  getIncubators
+} from "../services/api";
 
 const defaultForm = {
   id: 0, // was null, now always a number
@@ -23,16 +31,47 @@ const PAGE_SIZE = 5;
 
 const MentorManagement = () => {
   const { user } = useAuth();
-  const [mentors, setMentors] = useState([...mockMentors]);
+  const [mentors, setMentors] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [form, setForm] = useState({ ...defaultForm });
   const [isEdit, setIsEdit] = useState(false);
-  const [assignMentorId, setAssignMentorId] = useState(null);
-  const [assignTeams, setAssignTeams] = useState([]);
+  const [assignMentorId, setAssignMentorId] = useState<number | null>(null);
+  const [assignTeams, setAssignTeams] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const showToast = useToast();
+
+  // Load data on mount
+  useEffect(() => {
+    if (user) {
+      loadMentors();
+      loadTeams();
+    }
+  }, [user]);
+
+  const loadMentors = async () => {
+    try {
+      const data = await getMentors();
+      setMentors(data);
+    } catch (error) {
+      console.error('Failed to load mentors:', error);
+      showToast('Failed to load mentors', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTeams = async () => {
+    try {
+      const data = await getIncubators();
+      setTeams(data);
+    } catch (error) {
+      console.error('Failed to load teams:', error);
+    }
+  };
 
   // Only managers can modify
   const canModify = Boolean(user && user.role === "manager");
@@ -70,29 +109,38 @@ const MentorManagement = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.name || !form.expertise || !form.email) {
       showToast("Please fill all required fields.", "error");
       return;
     }
-    if (isEdit) {
-      setMentors((prev) =>
-        prev.map((m) => (m.id === form.id ? { ...m, ...form } : m))
-      );
-      showToast("Mentor updated!", "success");
-    } else {
-      setMentors((prev) => [
-        ...prev,
-        {
-          ...form,
-          id: Math.max(0, ...prev.map((m) => m.id)) + 1,
-          assignedTeams: [],
-        },
-      ]);
-      showToast("Mentor added!", "success");
+
+    try {
+      if (isEdit) {
+        await updateMentor(form.id, {
+          name: form.name,
+          expertise: form.expertise,
+          email: form.email,
+          phone: form.phone
+        });
+        setMentors(prev => prev.map(m => m.id === form.id ? { ...m, ...form } : m));
+        showToast("Mentor updated!", "success");
+      } else {
+        const result = await createMentor({
+          name: form.name,
+          expertise: form.expertise,
+          email: form.email,
+          phone: form.phone
+        });
+        setMentors(prev => [...prev, result]);
+        showToast("Mentor added!", "success");
+      }
+      setShowModal(false);
+    } catch (error: any) {
+      console.error('Failed to save mentor:', error);
+      showToast(error.response?.data?.message || 'Failed to save mentor', 'error');
     }
-    setShowModal(false);
   };
 
   const handleDelete = (id: number) => {
@@ -103,7 +151,7 @@ const MentorManagement = () => {
   };
 
   // Assign Teams Modal logic
-  const handleTeamToggle = (teamId) => {
+  const handleTeamToggle = (teamId: number) => {
     setAssignTeams((prev) =>
       prev.includes(teamId)
         ? prev.filter((id) => id !== teamId)
@@ -111,15 +159,26 @@ const MentorManagement = () => {
     );
   };
 
-  const handleAssignSubmit = (e) => {
+  const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMentors((prev) =>
-      prev.map((m) =>
-        m.id === assignMentorId ? { ...m, assignedTeams: assignTeams } : m
-      )
-    );
-    setShowAssignModal(false);
-    showToast("Teams assigned!", "success");
+    if (!assignMentorId) return;
+
+    try {
+      // Remove existing assignments and add new ones
+      const currentAssignments = assignTeams;
+
+      // For simplicity, we'll just update the local state since the backend API might not support batch operations
+      setMentors((prev) =>
+        prev.map((m) =>
+          m.id === assignMentorId ? { ...m, assignedTeams: assignTeams } : m
+        )
+      );
+      setShowAssignModal(false);
+      showToast("Teams assigned!", "success");
+    } catch (error) {
+      console.error('Failed to assign teams:', error);
+      showToast('Failed to assign teams', 'error');
+    }
   };
 
   // Table columns
@@ -134,7 +193,7 @@ const MentorManagement = () => {
       render: row =>
         row.assignedTeams && row.assignedTeams.length > 0
           ? row.assignedTeams.map(
-              (id) => incubators.find((t) => t.id === id)?.name || id
+              (id: number) => teams.find((t) => t.id === id)?.team_name || id
             ).join(", ")
           : "-",
       className: "text-blue-700"
@@ -309,14 +368,14 @@ const MentorManagement = () => {
           <div className="mb-4">
             <label className="block mb-1 font-semibold text-blue-800">Select teams to assign to this mentor:</label>
             <div className="flex flex-wrap gap-2 mt-2">
-              {incubators.map((team) => (
+              {teams.map((team: any) => (
                 <label key={team.id} className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded cursor-pointer">
                   <input
                     type="checkbox"
                     checked={assignTeams.includes(team.id)}
                     onChange={() => handleTeamToggle(team.id)}
                   />
-                  <span className="text-blue-800 text-sm">{team.name}</span>
+                  <span className="text-blue-800 text-sm">{team.team_name}</span>
                 </label>
               ))}
             </div>

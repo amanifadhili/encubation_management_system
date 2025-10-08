@@ -1,8 +1,8 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Toast from './Toast';
-import { notifications as mockNotifications } from '../mock/sampleData';
+import { getNotifications } from '../services/api';
 
 const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   director: [
@@ -72,17 +72,33 @@ export default function Layout() {
   // Responsive sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Notifications state for unread count
+  const [notifications, setNotifications] = useState<any[]>([]);
+
   // Close sidebar on route change (mobile)
   React.useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
 
+  // Load notifications for unread count
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+    }
+  }, [user]);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await getNotifications();
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      setNotifications([]);
+    }
+  };
+
   // Unread notification badge logic
-  let unreadCount = 0;
-  if (user) {
-    const userName = user.name || (user as any).teamName;
-    unreadCount = mockNotifications.filter(n => (n.user === userName) && !n.read).length;
-  }
+  const unreadCount = notifications.filter(n => !n.read_status).length;
 
   return (
     <ToastContext.Provider value={showToast}>

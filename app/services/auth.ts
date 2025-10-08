@@ -1,47 +1,99 @@
-// Mock authentication service
-import { incubators } from "../mock/sampleData";
+// Real authentication service using backend API
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:3001/api';
 
 export type UserRole = 'director' | 'manager' | 'mentor' | 'incubator';
 export interface User {
+  id: string;
   name: string;
   email: string;
   role: UserRole;
+  teamId?: string;
+  teamName?: string;
+  teamLeader?: any;
+  members?: any[];
+  mentor?: string;
+  status?: string;
 }
 
 let currentUser: User | null = null;
 
-export function login(email: string, password: string): User | null {
-  // Check for team login
-  const team = incubators.find(
-    t => t.credentials.email === email && t.credentials.password === password
-  );
-  if (team) {
-    return {
-      role: "incubator",
-      teamId: team.id,
-      teamName: team.teamName,
-      teamLeader: team.teamLeader,
-      members: team.members,
-      mentor: team.mentor,
-      status: team.status
-    };
+export async function login(email: string, password: string): Promise<User | null> {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+      email,
+      password
+    });
+
+    if (response.data.success) {
+      const { token, user } = response.data.data;
+
+      // Store token in localStorage
+      localStorage.setItem('token', token);
+
+      // Set current user
+      currentUser = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        teamId: user.team_id,
+        // For incubator role, we might need to fetch additional team data
+        // But for now, keep it simple
+      };
+
+      return currentUser;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Login error:', error);
+    return null;
   }
-  // Mock users
-  const users: User[] = [
-    { name: 'Alice Director', email: 'director@example.com', role: 'director' },
-    { name: 'Bob Manager', email: 'manager@example.com', role: 'manager' },
-    { name: 'Carol Mentor', email: 'mentor@example.com', role: 'mentor' },
-    { name: 'Dave Incubator', email: 'incubator@example.com', role: 'incubator' },
-  ];
-  const user = users.find(u => u.email === email && password === 'password123');
-  currentUser = user || null;
-  return currentUser;
 }
 
-export function logout() {
-  currentUser = null;
+export async function logout(): Promise<void> {
+  try {
+    // Call logout endpoint to invalidate token on server
+    await axios.post(`${API_BASE_URL}/auth/logout`, {}, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+  } finally {
+    // Always clear local data
+    localStorage.removeItem('token');
+    currentUser = null;
+  }
 }
 
-export function getCurrentUser(): User | null {
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    const response = await axios.get(`${API_BASE_URL}/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    if (response.data.success) {
+      currentUser = response.data.data.user;
+      return currentUser;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Get current user error:', error);
+    localStorage.removeItem('token');
+    return null;
+  }
+}
+
+export function getStoredUser(): User | null {
   return currentUser;
-} 
+}

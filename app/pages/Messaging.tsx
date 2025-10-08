@@ -1,13 +1,17 @@
-import React, { useState, useMemo, useRef, useEffect, Fragment} from "react";
-import ReactDOM from "react-dom";
-import { conversations as mockConversations } from "../mock/messagingData";
-import { mockUsers } from "../mock/credentials";
+import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import clsx from "clsx";
-import { incubators, mentors } from "../mock/sampleData";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
-
+import {
+  getConversations,
+  createConversation,
+  getConversationMessages,
+  sendMessage,
+  sendFileMessage,
+  getUsers
+} from "../services/api";
+import socketService from "../services/socket";
 
 // Role-based color map
 const roleColors: { [key: string]: string } = {
@@ -18,433 +22,196 @@ const roleColors: { [key: string]: string } = {
   default: "bg-gray-400 text-white"
 };
 
-function getUserInfo(name: string) {
-  return (
-    mockUsers.find((u: any) => u.name === name) ||
-    { name, role: "default" }
-  );
-}
-
-const REACTION_EMOJIS = ["👍", "❤️", "😂", "🎉", "😮", "😢"];
-
-function addReactionToMessage(
-  convos: any[],
-  convoId: number,
-  msgIdx: number,
-  emoji: string,
-  userName: string
-) {
-  return convos.map((c: any) => {
-    if (c.id !== convoId) return c;
-    return {
-      ...c,
-      messages: c.messages.map((msg: any, i: number) => {
-        if (i !== msgIdx) return msg;
-        const reactions = msg.reactions || [];
-        const existing = reactions.find((r: any) => r.emoji === emoji);
-        let newReactions;
-        if (existing) {
-          // Toggle user reaction
-          if (existing.users.includes(userName)) {
-            newReactions = reactions.map((r: any) =>
-              r.emoji === emoji
-                ? { ...r, users: r.users.filter((u: string) => u !== userName) }
-                : r
-            ).filter((r: any) => r.users.length > 0);
-          } else {
-            newReactions = reactions.map((r: any) =>
-              r.emoji === emoji
-                ? { ...r, users: [...r.users, userName] }
-                : r
-            );
-          }
-        } else {
-          newReactions = [...reactions, { emoji, users: [userName] }];
-        }
-        return { ...msg, reactions: newReactions };
-      })
-    };
-  });
-}
-
-// Add at the top:
-
-// Add reply to thread
-function addThreadReply(
-  convos: any[],
-  convoId: number,
-  msgIdx: number,
-  reply: string,
-  userName: string
-) {
-  return convos.map((c: any) => {
-    if (c.id !== convoId) return c;
-    return {
-      ...c,
-      messages: c.messages.map((msg: any, i: number) => {
-        if (i !== msgIdx) return msg;
-        const replies = msg.replies || [];
-        return {
-          ...msg,
-          replies: [
-            ...replies,
-            {
-              sender: userName,
-              content: reply,
-              timestamp: new Date().toISOString()
-            }
-          ]
-        };
-      })
-    };
-  });
-}
-
-// Refactor context menu to receive message and senderInfo as props
-// Add a ContextMenu component inside Messaging
-function ContextMenu({
-  anchor,
-  pos,
-  message,
-  senderInfo,
-  onReact,
-  onReply,
-  onClose,
-  msgIdx,
-  convoId
-}: {
-  anchor: HTMLElement | null;
-  pos: { top: number; left: number };
-  message: any;
-  senderInfo: { name: string; role: string };
-  onReact: (emoji: string, msgIdx: number, convoId: number) => void;
-  onReply: (msgIdx: number, convoId: number) => void;
-  onClose: () => void;
-  msgIdx: number;
-  convoId: number;
-}) {
-  return ReactDOM.createPortal(
-    <div
-      className="fixed z-[9999] min-w-[200px] bg-white rounded-lg shadow-lg border p-2 animate-fade-in"
-      style={{ top: pos.top, left: pos.left, maxWidth: 280, width: '90vw' }}
-    >
-      {/* Emoji reactions bar */}
-      <div className="flex gap-1 mb-2 border-b pb-2 overflow-x-auto">
-        {REACTION_EMOJIS.map(emoji => {
-          const count = (message.reactions || []).find((r: any) => r.emoji === emoji)?.users.length || 0;
-          const reacted = (message.reactions || []).find((r: any) => r.emoji === emoji)?.users.includes(senderInfo.name);
-          return (
-            <button
-              key={emoji}
-              className={clsx(
-                "px-1 text-lg rounded hover:bg-blue-100 transition",
-                reacted && "bg-blue-200"
-              )}
-              onClick={() => { 
-                console.log('React clicked', { emoji, msgIdx, convoId });
-                onReact(emoji, msgIdx, convoId); 
-                onClose(); 
-              }}
-              type="button"
-              aria-label={`React with ${emoji}`}
-            >
-              {emoji} {count > 0 && <span className="text-xs font-bold">{count}</span>}
-            </button>
-          );
-        })}
-      </div>
-      {/* Reply action */}
-      <button
-        className="w-full flex items-center gap-2 px-2 py-2 text-left text-blue-700 hover:bg-blue-50 rounded transition"
-        onClick={() => { 
-          console.log('Reply clicked', { msgIdx, convoId });
-          onReply(msgIdx, convoId); 
-          onClose(); 
-        }}
-        type="button"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h7V6a1 1 0 0 1 1.707-.707l8 8a1 1 0 0 1 0 1.414l-8 8A1 1 0 0 1 10 22v-4H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z"/></svg>
-        Reply
-      </button>
-    </div>,
-    document.body
-  );
-}
-
 const Messaging = () => {
   const { user } = useAuth();
-  // Load conversations from localStorage or mock data
-  const getInitialConversations = () => {
-    const saved = localStorage.getItem("conversations");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [...mockConversations.filter(c => !c.name)];
-      }
-    }
-    return [...mockConversations.filter(c => !c.name)];
-  };
-  const [conversations, setConversations] = useState(getInitialConversations());
-  // Persist conversations to localStorage
-  useEffect(() => {
-    localStorage.setItem("conversations", JSON.stringify(conversations));
-  }, [conversations]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const chatEndRef = useRef(null);
-  // Remove thread state and sidebar logic, add inline reply state
-  const [replyTo, setReplyTo] = useState<{ sender: string; content: string } | null>(null);
-  // Add state for context menu
-  const [menuOpen, setMenuOpen] = useState<{ idx: number | null; anchor: HTMLElement | null }>({ idx: null, anchor: null });
-  // Add state for menu position
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showNewDM, setShowNewDM] = useState(false);
   const [dmTarget, setDMTarget] = useState("");
+  const [sending, setSending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handler to open menu (calculate position)
-  const handleMenuOpen = (e: React.MouseEvent, idx: number) => {
-    e.preventDefault();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuWidth = 220;
-    const menuHeight = 80;
-    let top = rect.bottom + window.scrollY;
-    let left = rect.left + window.scrollX;
-    // If too close to right, shift left
-    if (left + menuWidth > window.innerWidth - 8) {
-      left = window.innerWidth - menuWidth - 8;
-    }
-    // If too close to left, shift right
-    if (left < 8) {
-      left = 8;
-    }
-    // If too close to bottom, show above
-    if (top + menuHeight > window.innerHeight - 8) {
-      top = rect.top + window.scrollY - menuHeight;
-    }
-    // If too close to top, show below
-    if (top < 8) {
-      top = 8;
-    }
-    setMenuOpen({ idx, anchor: e.currentTarget as HTMLElement });
-    setMenuPos({ top, left });
-  };
-  // Handler to close menu
-  const handleMenuClose = () => { setMenuOpen({ idx: null, anchor: null }); setMenuPos(null); };
-
-  // Click outside to close menu
+  // Load conversations and users on mount
   useEffect(() => {
-    function onClick(e: Event) {
-      if (menuOpen.anchor && !(menuOpen.anchor as any).contains(e.target)) {
-        setMenuOpen({ idx: null, anchor: null });
-        setMenuPos(null);
+    if (user) {
+      loadConversations();
+      loadUsers();
+    }
+  }, [user]);
+
+  // Connect to socket when user is available
+  useEffect(() => {
+    if (user) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        socketService.connect(token);
+
+        // Listen for new messages
+        const handleNewMessage = (event: any) => {
+          const { data } = event.detail;
+          if (selectedId === data.conversation_id) {
+            setMessages(prev => [...prev, data]);
+          }
+          // Update conversation list if needed
+          loadConversations();
+        };
+
+        window.addEventListener('socket:message_received', handleNewMessage);
+
+        return () => {
+          window.removeEventListener('socket:message_received', handleNewMessage);
+          socketService.disconnect();
+        };
       }
     }
-    if (menuOpen.idx !== null) {
-      document.addEventListener("mousedown", onClick);
-      return () => document.removeEventListener("mousedown", onClick);
-    }
-  }, [menuOpen]);
+  }, [user, selectedId]);
 
-  // Handle file selection
+  // Load messages when conversation is selected
+  useEffect(() => {
+    if (selectedId) {
+      loadMessages(selectedId);
+    }
+  }, [selectedId]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const loadConversations = async () => {
+    try {
+      const data = await getConversations();
+      setConversations(data);
+      if (data.length > 0 && !selectedId) {
+        setSelectedId(data[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async (conversationId: string) => {
+    setMessagesLoading(true);
+    try {
+      const data = await getConversationMessages(conversationId);
+      setMessages(data);
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const data = await getUsers();
+      // Filter out current user from the list
+      setUsers(data.filter((u: any) => u.id !== user?.id));
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      setUsers([]);
+    }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!message.trim() && !file) || !selectedId || sending) return;
+
+    setSending(true);
+    setUploadError(null);
+    setUploadProgress(0);
+    try {
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('conversationId', selectedId);
+        formData.append('content', message || 'File shared');
+
+        await sendFileMessage(selectedId, formData, (progress) => {
+          setUploadProgress(progress);
+        });
+      } else {
+        await sendMessage(selectedId, { content: message });
+      }
+
+      setMessage("");
+      setFile(null);
+      setFilePreview(null);
+      setUploadProgress(0);
+    } catch (error: any) {
+      console.error('Failed to send message:', error);
+      setUploadError(error.response?.data?.message || error.message || 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] || null;
-    setFile(f);
-    if (f && f.type.startsWith("image/")) {
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+    if (selectedFile && selectedFile.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = ev => setFilePreview(ev.target?.result as string);
-      reader.readAsDataURL(f);
+      reader.readAsDataURL(selectedFile);
     } else {
       setFilePreview(null);
     }
   };
 
-  // Helper: get DM-able users
-  const getDMUsers = () => {
-    if (!user) return [];
-    if (user.role === "mentor") {
-      // Mentors: assigned teams, directors, managers
-      const mentor = mentors.find(m => m.name === user.name);
-      if (!mentor) return [];
-      const teamNames = incubators.filter(t => mentor.assignedTeams.includes(t.id)).map(t => t.teamName);
-      const allowedRoles = ["director", "manager"];
-      const allowedNames = [
-        ...teamNames,
-        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name)
-      ];
-      return allowedNames.map(name => {
-        // Find role for display
-        const userObj = mockUsers.find(u => u.name === name);
-        const role = userObj ? userObj.role : (teamNames.includes(name) ? "incubator" : "unknown");
-        return { name, role };
-      });
-    }
-    if (user.role === "incubator") {
-      // Teams: assigned mentor(s), directors, managers, other teams
-      const team = incubators.find(t => t.teamName === (user as any).teamName);
-      if (!team) return [];
-      const mentorNames = mentors.filter(m => m.assignedTeams.includes(team.id)).map(m => m.name);
-      const allowedRoles = ["director", "manager"];
-      const allowedNames = [
-        ...mentorNames,
-        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name),
-        ...incubators.filter(t => t.teamName !== (user as any).teamName).map(t => t.teamName)
-      ];
-      return allowedNames.map(name => {
-        // Find role for display
-        const userObj = mockUsers.find(u => u.name === name);
-        const role = userObj ? userObj.role : (mentorNames.includes(name) ? "mentor" : "incubator");
-        return { name, role };
-      });
-    }
-    // Director/Manager: all teams (by teamName), all mentors, all directors/managers except self
-    const teamUsers = incubators.map(t => ({ name: t.teamName, role: "incubator" }));
-    const mentorUsers = mentors.map(m => ({ name: m.name, role: "mentor" }));
-    const adminUsers = mockUsers.filter(u => ["director", "manager"].includes(u.role) && u.name !== user.name).map(u => ({ name: u.name, role: u.role }));
-    return [...teamUsers, ...mentorUsers, ...adminUsers];
-  };
-
-  // Only show DMs in sidebar
-  const userConvos = useMemo(() => {
-    if (!user) return [];
-    if (user.role === "mentor") {
-      // Mentors: assigned teams, directors, managers
-      const mentor = mentors.find(m => m.name === user.name);
-      if (!mentor) return [];
-      const teamNames = incubators.filter(t => mentor.assignedTeams.includes(t.id)).map(t => t.teamName);
-      const allowedRoles = ["director", "manager"];
-      const allowedNames = [
-        ...teamNames,
-        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name)
-      ];
-      return conversations.filter(c =>
-        c.participants.length === 2 &&
-        c.participants.includes(user.name) &&
-        allowedNames.includes(c.participants.find((n: string) => n !== user.name) || "")
-      );
-    }
-    if (user.role === "incubator") {
-      // Teams: assigned mentor(s), directors, managers, other teams
-      const team = incubators.find(t => t.teamName === (user as any).teamName);
-      if (!team) return [];
-      const mentorNames = mentors.filter(m => m.assignedTeams.includes(team.id)).map(m => m.name);
-      const allowedRoles = ["director", "manager"];
-      const allowedNames = [
-        ...mentorNames,
-        ...mockUsers.filter(u => allowedRoles.includes(u.role)).map(u => u.name),
-        ...incubators.filter(t => t.teamName !== (user as any).teamName).map(t => t.teamName)
-      ];
-      return conversations.filter(c => {
-        if (c.participants.length !== 2) return false;
-        const selfName = (user as any).teamName;
-        const other = c.participants.find((n: string) => n !== selfName) || "";
-        return c.participants.includes(selfName) && allowedNames.includes(other);
-      });
-    }
-    // Director/Manager: all DMs except self
-    return conversations.filter(c =>
-      c.participants.length === 2 &&
-      c.participants.includes(user.name) &&
-      c.participants.find((n: string) => n !== user.name)
-    );
-  }, [conversations, user]);
-
-  // New DM handler
-  const handleStartDM = () => {
+  const handleStartDM = async () => {
     if (!dmTarget) return;
-    // Check if DM already exists
-    let convo = conversations.find(c =>
-      (c.participants.includes((user as any).name) || c.participants.includes((user as any).teamName)) &&
-      c.participants.includes(dmTarget)
-    );
-    if (!convo) {
-      // For managers/directors, if dmTarget is a team, use teamName as participant
-      let selfName = (user as any).role === "incubator" ? (user as any).teamName : (user as any).name;
-      // If manager/director and dmTarget is a team, ensure teamName is used
-      const isTargetTeam = incubators.some(t => t.teamName === dmTarget);
-      if (["manager", "director"].includes((user as any).role) && isTargetTeam) {
-        convo = {
-          id: Math.max(0, ...conversations.map(c => c.id)) + 1,
-          name: null,
-          participants: [selfName, dmTarget],
-          messages: [],
-        };
-      } else {
-        convo = {
-          id: Math.max(0, ...conversations.map(c => c.id)) + 1,
-          name: null,
-          participants: [selfName, dmTarget],
-          messages: [],
-        };
-      }
-      setConversations(prev => [...prev, convo]);
+
+    try {
+      const result = await createConversation({
+        participants: [user!.id, parseInt(dmTarget)] // Assuming dmTarget is user ID
+      });
+
+      setConversations(prev => [...prev, result]);
+      setSelectedId(result.id);
+      setShowNewDM(false);
+      setDMTarget("");
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
     }
-    setSelectedId(convo.id);
-    setShowNewDM(false);
-    setDMTarget("");
   };
 
-  // Select first conversation by default
-  useEffect(() => {
-    if (!selectedId && userConvos.length > 0) setSelectedId(userConvos[0].id as number);
-  }, [selectedId, userConvos]);
-
-  const selected = userConvos.find(c => c.id === selectedId);
-
-  // Scroll to bottom on new message
-  useEffect(() => {
-    if (chatEndRef.current && typeof (chatEndRef.current as any).scrollIntoView === "function") {
-      (chatEndRef.current as any).scrollIntoView({ behavior: "smooth" });
-    }
-  }, [selected?.messages.length]);
-
-  // Update handleSend to include file
-  const handleSend = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if ((!message.trim() && !file) || !selected) return;
-    setConversations(prev => prev.map(c =>
-      c.id === selected.id
-        ? {
-            ...c,
-            messages: [
-              ...c.messages,
-              {
-                sender: user!.name,
-                content: message,
-                timestamp: new Date().toISOString(),
-                replyTo: replyTo ? { ...replyTo } : undefined,
-                file: file ? { name: file.name, type: file.type, url: filePreview, size: file.size } : undefined
-              }
-            ]
-          }
-        : c
-    ));
-    setMessage("");
-    setReplyTo(null);
-    setFile(null);
-    setFilePreview(null);
-  };
-
-  // Format timestamp
-  function formatTime(ts: string) {
+  const formatTime = (ts: string) => {
     const d = new Date(ts);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
+  };
 
-  // Avatar (initials)
-  function Avatar({ name, role }: { name: string; role: string }) {
-    const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase();
+  const Avatar = ({ name, role }: { name: string; role: string }) => {
+    const initials = name.split(" ").map(n => n[0]).join("").toUpperCase();
     return (
-      <span className={clsx("inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg shadow", roleColors[role as keyof typeof roleColors] || roleColors.default)}>
+      <span className={clsx("inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg shadow", roleColors[role] || roleColors.default)}>
         {initials}
       </span>
     );
-  }
+  };
 
   if (!user) return null;
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="text-blue-700">Loading conversations...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[80vh] bg-white rounded-lg shadow-lg overflow-hidden max-w-5xl mx-auto mt-8">
@@ -460,18 +227,14 @@ const Messaging = () => {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {userConvos.length === 0 ? (
+          {conversations.length === 0 ? (
             <div className="p-8 text-gray-400 text-center">No conversations yet.</div>
           ) : (
-            userConvos.map(c => {
-              // Show DM name (other participant)
-              const selfName = user ? ((user as any).name || (user as any).teamName) : "";
-              const other = c.participants.find((n: string) => n !== selfName) || "";
-              // If other is a team, show team name
-              const label = other;
-              // Unread: if last message not from user
-              const lastMsg = c.messages[c.messages.length - 1];
-              const unread = lastMsg && user && lastMsg.sender !== (user as any).name && lastMsg.sender !== (user as any).teamName;
+            conversations.map(c => {
+              // Show conversation name (other participant)
+              const otherParticipant = c.participants.find((p: string) => p !== user.id) || user.id;
+              const label = `User ${otherParticipant}`; // In real app, get user name
+              const lastMsg = c.messages?.[c.messages.length - 1];
               return (
                 <button
                   key={c.id}
@@ -481,14 +244,13 @@ const Messaging = () => {
                   )}
                   onClick={() => setSelectedId(c.id)}
                 >
-                  <Avatar {...getUserInfo(String(label))} />
+                  <Avatar name={label} role="default" />
                   <div className="flex-1">
                     <div className="font-semibold text-blue-900 truncate">{label}</div>
                     <div className="text-xs text-gray-500 truncate">
                       {lastMsg ? lastMsg.content.slice(0, 30) : "No messages yet."}
                     </div>
                   </div>
-                  {unread && <span className="w-2 h-2 bg-blue-500 rounded-full" title="Unread" />}
                 </button>
               );
             })
@@ -511,8 +273,8 @@ const Messaging = () => {
               onChange={e => setDMTarget(e.target.value)}
             >
               <option value="">Select...</option>
-              {getDMUsers().map(u => (
-                <option key={u.name} value={u.name}>{u.name} ({u.role})</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
               ))}
             </select>
           </div>
@@ -530,15 +292,15 @@ const Messaging = () => {
       <main className="flex-1 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b flex items-center gap-3 bg-white">
-          {selected ? (
+          {selectedId ? (
             <>
-              <Avatar {...getUserInfo(selected.name ? selected.name : selected.participants.find(n => n !== user.name))} />
+              <Avatar name="Chat" role="default" />
               <div>
                 <div className="font-bold text-blue-900">
-                  {selected.name || selected.participants.filter(n => n !== user.name).join(", ")}
+                  Conversation
                 </div>
                 <div className="text-xs text-gray-500">
-                  {selected.participants.length > 2 ? "Group chat" : "Direct message"}
+                  Direct message
                 </div>
               </div>
             </>
@@ -548,129 +310,106 @@ const Messaging = () => {
         </div>
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6 bg-gradient-to-br from-blue-50 to-white">
-          {selected ? (
-            <div className="flex flex-col gap-4">
-              {selected.messages.map((msg, i) => {
-                const m = msg as any;
-                const senderInfo = getUserInfo(m.sender);
-                const isMe = m.sender === user.name;
-                return (
-                  <div key={i} className={clsx("flex items-end gap-2 group relative", isMe ? "justify-end" : "justify-start")}> 
-                    {!isMe && <Avatar {...senderInfo} />}
-                    <div>
-                      {m.replyTo && (
-                        <div className="mb-1 px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs border-l-4 border-blue-300">
-                          <span className="font-semibold">{m.replyTo.sender}:</span> {m.replyTo.content}
-                        </div>
-                      )}
-                      <div className={clsx(
-                        "px-4 py-2 rounded-lg shadow text-sm max-w-xs break-words relative",
-                        isMe
-                          ? "bg-blue-600 text-white rounded-br-none"
-                          : (roleColors[senderInfo.role] || roleColors.default) + " rounded-bl-none"
-                      )}
-                        onContextMenu={e => handleMenuOpen(e as React.MouseEvent, i)}
-                        onClick={e => handleMenuOpen(e as React.MouseEvent, i)}
-                        tabIndex={0}
-                        onKeyDown={e => { if (e.key === "Enter") handleMenuOpen(e as unknown as React.MouseEvent, i); }}
-                        aria-label="Open message menu"
-                        role="button"
-                      >
-                        <span className="block">{m.content}</span>
-                        {/* Context menu trigger (three dots) */}
-                        <button
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-xl text-blue-200 hover:text-blue-700 focus:opacity-100 transition"
-                          onClick={e => handleMenuOpen(e as React.MouseEvent, i)}
-                          tabIndex={-1}
-                          aria-label="Open menu"
-                          type="button"
-                        >
-                          &#x22EE;
-                        </button>
-                        {/* Context menu (inline, absolutely positioned with dynamic positioning) */}
-                        {menuOpen.idx === i && menuPos && (
-                          <div
-                            className="fixed z-[9999] min-w-[200px] bg-white rounded-lg shadow-lg border p-2 animate-fade-in"
-                            style={{ top: menuPos.top, left: menuPos.left, maxWidth: 280, width: '90vw' }}
-                          >
-                            {/* Emoji reactions bar */}
-                            <div className="flex gap-1 mb-2 border-b pb-2 overflow-x-auto">
-                              {REACTION_EMOJIS.map(emoji => {
-                                const count = (m.reactions || []).find((r: any) => r.emoji === emoji)?.users.length || 0;
-                                const reacted = (m.reactions || []).find((r: any) => r.emoji === emoji)?.users.includes(user!.name);
-                                return (
-                                  <button
-                                    key={emoji}
-                                    className={clsx(
-                                      "px-1 text-lg rounded hover:bg-blue-100 transition",
-                                      reacted && "bg-blue-200"
-                                    )}
-                                    onClick={() => {
-                                      setConversations(prev => addReactionToMessage(prev, selected.id, i, emoji, user!.name));
-                                      handleMenuClose();
-                                    }}
-                                    type="button"
-                                    aria-label={`React with ${emoji}`}
-                                  >
-                                    {emoji} {count > 0 && <span className="text-xs font-bold">{count}</span>}
-                                  </button>
-                                );
-                              })}
+          {selectedId ? (
+            messagesLoading ? (
+              <div className="text-center text-gray-500">Loading messages...</div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {messages.map((msg, i) => {
+                  const isMe = msg.sender_id === user.id;
+                  return (
+                    <div key={i} className={clsx("flex items-end gap-2", isMe ? "justify-end" : "justify-start")}>
+                      {!isMe && <Avatar name={`User ${msg.sender_id}`} role="default" />}
+                      <div>
+                        <div className={clsx(
+                          "px-4 py-2 rounded-lg shadow text-sm max-w-xs break-words",
+                          isMe
+                            ? "bg-blue-600 text-white rounded-br-none"
+                            : "bg-white text-gray-900 rounded-bl-none"
+                        )}>
+                          <span className="block">{msg.content}</span>
+                          {msg.file_path && (
+                            <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">📎</span>
+                                <div>
+                                  <div className="font-medium">{msg.file_name || 'File'}</div>
+                                  {msg.file_size && <div className="text-gray-500">{(msg.file_size / 1024 / 1024).toFixed(2)} MB</div>}
+                                </div>
+                              </div>
+                              {msg.file_path && (
+                                <a
+                                  href={msg.file_path}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline mt-1 inline-block"
+                                >
+                                  View File
+                                </a>
+                              )}
                             </div>
-                            {/* Reply action */}
-                            <button
-                              className="w-full flex items-center gap-2 px-2 py-2 text-left text-blue-700 hover:bg-blue-50 rounded transition"
-                              onClick={() => {
-                                setReplyTo({ sender: String(senderInfo.name || ""), content: String(m.content || "") });
-                                handleMenuClose();
-                              }}
-                              type="button"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h7V6a1 1 0 0 1 1.707-.707l8 8a1 1 0 0 1 0 1.414l-8 8A1 1 0 0 1 10 22v-4H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z"/></svg>
-                              Reply
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                        <div className={clsx("text-xs mt-1", isMe ? "text-right text-blue-400" : "text-gray-400")}>
+                          {formatTime(msg.sent_at)}
+                        </div>
                       </div>
-                      {/* Reactions bar (summary) */}
-                      <div className="flex gap-1 mt-1">
-                        {(m.reactions || []).filter((r: any) => r.users.length > 0).map((r: any) => (
-                          <span key={r.emoji} className={clsx("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700")}>{r.emoji} {r.users.length}</span>
-                        ))}
-                      </div>
-                      <div className={clsx("text-xs mt-1", isMe ? "text-right text-blue-400" : "text-gray-400")}>{senderInfo.name} • {formatTime(m.timestamp)}</div>
                     </div>
-                  </div>
-                );
-              })}
-              <div ref={chatEndRef} />
-            </div>
+                  );
+                })}
+                <div ref={chatEndRef} />
+              </div>
+            )
           ) : (
             <div className="h-full flex items-center justify-center text-gray-400">Select a conversation to start chatting.</div>
           )}
         </div>
         {/* Input */}
-        {selected && (
+        {selectedId && (
           <>
-            {replyTo && (
-              <div className="flex items-center gap-2 p-2 bg-blue-50 border-l-4 border-blue-400 mb-2 rounded">
-                <span className="font-semibold text-blue-700">Replying to {replyTo.sender}:</span>
-                <span className="text-blue-900">{replyTo.content}</span>
-                <button onClick={() => setReplyTo(null)} className="ml-auto text-blue-400 hover:text-blue-700 text-lg">&times;</button>
-              </div>
-            )}
             {/* File preview above input */}
             {file && (
-              <div className="flex items-center gap-2 p-2 bg-blue-50 border-l-4 border-blue-400 mb-2 rounded">
-                {filePreview && file.type.startsWith("image/") ? (
-                  <img src={filePreview} alt="preview" className="w-16 h-16 object-cover rounded shadow" />
-                ) : (
-                  <span className="inline-block w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-2xl">
-                    📎
-                  </span>
+              <div className="p-3 bg-blue-50 border-l-4 border-blue-400 mb-2 rounded">
+                <div className="flex items-center gap-2">
+                  {filePreview && file.type.startsWith("image/") ? (
+                    <img src={filePreview} alt="preview" className="w-16 h-16 object-cover rounded shadow" />
+                  ) : (
+                    <span className="inline-block w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-2xl">
+                      📎
+                    </span>
+                  )}
+                  <div className="flex-1">
+                    <span className="text-blue-900 text-sm font-semibold block">{file.name}</span>
+                    <span className="text-blue-600 text-xs">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setFile(null);
+                      setFilePreview(null);
+                      setUploadError(null);
+                      setUploadProgress(0);
+                    }}
+                    className="text-blue-400 hover:text-blue-700 text-lg"
+                  >
+                    &times;
+                  </button>
+                </div>
+                {sending && uploadProgress > 0 && (
+                  <div className="mt-2">
+                    <div className="bg-blue-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-blue-600 mt-1">Uploading... {uploadProgress}%</div>
+                  </div>
                 )}
-                <span className="text-blue-900 text-sm font-semibold">{file.name}</span>
-                <button onClick={() => { setFile(null); setFilePreview(null); }} className="ml-auto text-blue-400 hover:text-blue-700 text-lg">&times;</button>
+                {uploadError && (
+                  <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+                    {uploadError}
+                  </div>
+                )}
               </div>
             )}
             <form onSubmit={handleSend} className="p-4 border-t bg-white flex gap-2">
@@ -701,9 +440,9 @@ const Messaging = () => {
               <button
                 type="submit"
                 className="px-6 py-2 bg-blue-700 text-white rounded font-semibold shadow hover:bg-blue-800 transition disabled:opacity-50"
-                disabled={!message.trim() && !file}
+                disabled={sending || (!message.trim() && !file)}
               >
-                Send
+                {sending ? "Sending..." : "Send"}
               </button>
             </form>
           </>
@@ -713,4 +452,4 @@ const Messaging = () => {
   );
 };
 
-export default Messaging; 
+export default Messaging;

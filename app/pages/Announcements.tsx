@@ -1,17 +1,39 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { announcements as mockAnnouncements } from "../mock/sampleData";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import {
+  getAnnouncements,
+  createAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement
+} from "../services/api";
 
 const Announcements = () => {
   const { user } = useAuth();
   const canPost = user && (user.role === "manager" || user.role === "director");
-  const [announcements, setAnnouncements] = useState(mockAnnouncements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+
+  // Load announcements on mount
+  useEffect(() => {
+    loadAnnouncements();
+  }, []);
+
+  const loadAnnouncements = async () => {
+    try {
+      const data = await getAnnouncements();
+      setAnnouncements(data);
+    } catch (error) {
+      console.error('Failed to load announcements:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Open add/edit modal
   const openModal = (idx: number | null = null) => {
@@ -25,37 +47,50 @@ const Announcements = () => {
   };
 
   // Save add/edit
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !form.content) return;
-    const now = new Date().toISOString().slice(0, 10);
-    if (editIdx !== null) {
-      setAnnouncements(prev => prev.map((a, i) => i === editIdx ? { ...a, title: form.title, content: form.content, date: now, postedBy: user.name } : a));
-    } else {
-      setAnnouncements(prev => [
-        {
-          id: Math.max(0, ...prev.map(a => a.id)) + 1,
+    if (!form.title || !form.content || !user) return;
+
+    try {
+      if (editIdx !== null) {
+        const announcementId = announcements[editIdx].id;
+        await updateAnnouncement(announcementId, {
           title: form.title,
-          content: form.content,
-          date: now,
-          postedBy: user.name,
-        },
-        ...prev,
-      ]);
+          content: form.content
+        });
+        setAnnouncements(prev => prev.map((a, i) => i === editIdx ? { ...a, title: form.title, content: form.content } : a));
+      } else {
+        const result = await createAnnouncement({
+          title: form.title,
+          content: form.content
+        });
+        setAnnouncements(prev => [result, ...prev]);
+      }
+      setShowModal(false);
+      setEditIdx(null);
+      setForm({ title: "", content: "" });
+    } catch (error: any) {
+      console.error('Failed to save announcement:', error);
+      // You could show a toast here
     }
-    setShowModal(false);
-    setEditIdx(null);
-    setForm({ title: "", content: "" });
   };
 
   // Delete announcement (with confirmation)
   const handleDelete = (idx: number) => {
     setDeleteIdx(idx);
   };
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteIdx === null) return;
-    setAnnouncements(prev => prev.filter((_, i) => i !== deleteIdx));
-    setDeleteIdx(null);
+
+    try {
+      const announcementId = announcements[deleteIdx].id;
+      await deleteAnnouncement(announcementId);
+      setAnnouncements(prev => prev.filter((_, i) => i !== deleteIdx));
+      setDeleteIdx(null);
+    } catch (error: any) {
+      console.error('Failed to delete announcement:', error);
+      // You could show a toast here
+    }
   };
   const cancelDelete = () => setDeleteIdx(null);
 
@@ -77,14 +112,16 @@ const Announcements = () => {
           )}
         </div>
         <div className="space-y-6">
-          {announcements.length === 0 ? (
+          {loading ? (
+            <div className="text-center text-blue-400 py-12">Loading announcements...</div>
+          ) : announcements.length === 0 ? (
             <div className="text-center text-blue-400 py-12">No announcements yet.</div>
           ) : (
-            announcements.map((a, idx) => (
+            announcements.map((a: any, idx: number) => (
               <div key={a.id} className="bg-white rounded shadow p-4 flex flex-col gap-2 relative">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-blue-900">{a.title}</h2>
-                  {(canPost && a.postedBy === user.name) && (
+                  {canPost && (
                     <div className="flex gap-2">
                       <button
                         className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
@@ -99,8 +136,8 @@ const Announcements = () => {
                 </div>
                 <div className="text-blue-800 mb-2">{a.content}</div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
-                  <span>Posted by: <span className="font-semibold">{a.postedBy}</span></span>
-                  <span>{a.date}</span>
+                  <span>Posted by: <span className="font-semibold">{a.author_id || 'System'}</span></span>
+                  <span>{new Date(a.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
             ))
