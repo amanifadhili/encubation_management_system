@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { incubators as mockIncubators } from "../mock/sampleData";
 import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
@@ -10,9 +9,8 @@ const ManageTeam = () => {
   const showToast = useToast();
   if (!user || user.role !== "incubator") return <div className="text-red-600 font-semibold">Access denied.</div>;
   const teamId = (user as any).teamId;
-  const team = mockIncubators.find(i => i.id === teamId);
-  const [members, setMembers] = useState(team?.members || []);
-  const [teamLeaderEmail, setTeamLeaderEmail] = useState(team?.teamLeader?.email || "");
+  const [members, setMembers] = useState<any[]>([]);
+  const [teamLeaderEmail, setTeamLeaderEmail] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", email: "", role: "Member" });
   const [editIdx, setEditIdx] = useState<number | null>(null);
@@ -97,13 +95,13 @@ const ManageTeam = () => {
         {/* Team summary card */}
         <div className="mb-8 p-4 bg-white rounded shadow flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="font-semibold text-blue-800">Team Name:</div>
-            <div className="text-lg font-bold text-blue-900">{team?.teamName}</div>
-            <div className="mt-2 text-blue-700"><span className="font-semibold">Credentials (Email):</span> {team?.credentials.email}</div>
+            <div className="font-semibold text-blue-800">Team ID:</div>
+            <div className="text-lg font-bold text-blue-900">{teamId}</div>
+            <div className="mt-2 text-blue-700"><span className="font-semibold">Role:</span> Incubator</div>
           </div>
           <div>
             <div className="font-semibold text-blue-800">Current Team Leader:</div>
-            <div className="text-blue-900">{teamLeaderEmail ? members.find(m => m.email === teamLeaderEmail)?.name || teamLeaderEmail : <span className="italic text-blue-400">Not assigned yet.</span>}</div>
+            <div className="text-blue-900">{teamLeaderEmail ? members.find((m: any) => m.email === teamLeaderEmail)?.name || teamLeaderEmail : <span className="italic text-blue-400">Not assigned yet.</span>}</div>
           </div>
         </div>
         {/* Members table */}

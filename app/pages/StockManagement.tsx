@@ -1,115 +1,128 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { incubators, tools as mockTools } from "../mock/sampleData";
+import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { getInventory, createInventoryItem, updateInventoryItem, deleteInventoryItem } from "../services/api";
 
 const StockManagement = () => {
   const { user } = useAuth();
-  const isManager = user?.role === "manager";
-  const isIncubator = user?.role === "incubator";
-  // Local state for tools
-  const [tools, setTools] = useState(mockTools);
-  const [showModal, setShowModal] = useState(false);
-  const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", total: 1, status: "available" });
-  const [assignIdx, setAssignIdx] = useState<number | null>(null);
-  const [assignTeam, setAssignTeam] = useState("");
-  const [assignQty, setAssignQty] = useState(1);
-  const [viewIdx, setViewIdx] = useState<number | null>(null);
+  const showToast = useToast();
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
-
-  // Search and filter logic
-  const filteredTools = tools.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filter === "all" || t.status === filter;
-    return matchesSearch && matchesFilter;
+  const [showModal, setShowModal] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [form, setForm] = useState({
+    id: 0,
+    name: "",
+    description: "",
+    total_quantity: 1,
+    status: "available"
   });
 
-  // Open add/edit modal
-  const openModal = (idx: number | null = null) => {
-    setEditIdx(idx);
-    if (idx !== null) {
-      setForm({ name: tools[idx].name, total: tools[idx].total, status: tools[idx].status });
-    } else {
-      setForm({ name: "", total: 1, status: "available" });
+  const isManager = user?.role === "manager";
+
+  // Load inventory on mount
+  useEffect(() => {
+    if (user) {
+      loadInventory();
     }
+  }, [user]);
+
+  const loadInventory = async () => {
+    try {
+      const data = await getInventory();
+      setInventory(data);
+    } catch (error) {
+      console.error('Failed to load inventory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtered inventory
+  const filteredInventory = inventory.filter(item =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const openAddModal = () => {
+    setForm({ id: 0, name: "", description: "", total_quantity: 1, status: "available" });
+    setIsEdit(false);
     setShowModal(true);
   };
 
-  // Save add/edit
-  const handleSave = (e: React.FormEvent) => {
+  const openEditModal = (item: any) => {
+    setForm({
+      id: item.id,
+      name: item.name,
+      description: item.description || "",
+      total_quantity: item.total_quantity,
+      status: item.status
+    });
+    setIsEdit(true);
+    setShowModal(true);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: name === 'total_quantity' ? parseInt(value) || 1 : value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || form.total < 1) return;
-    if (editIdx !== null) {
-      setTools(prev => prev.map((t, i) => i === editIdx ? { ...t, name: form.name, total: form.total, status: form.status } : t));
-    } else {
-      setTools(prev => [
-        ...prev,
-        {
-          id: Math.max(0, ...prev.map(t => t.id)) + 1,
-          name: form.name,
-          total: form.total,
-          assigned: [],
-          status: form.status,
-        },
-      ]);
+    if (!form.name) {
+      showToast("Please enter item name.", "error");
+      return;
     }
-    setShowModal(false);
-    setEditIdx(null);
-    setForm({ name: "", total: 1, status: "available" });
-  };
 
-  // Delete tool (with confirmation)
-  const handleDelete = (idx: number) => {
-    setDeleteIdx(idx);
-  };
-  const confirmDelete = () => {
-    if (deleteIdx === null) return;
-    setTools(prev => prev.filter((_, i) => i !== deleteIdx));
-    setDeleteIdx(null);
-  };
-  const cancelDelete = () => setDeleteIdx(null);
-
-  // Assign tool to team
-  const handleAssign = (idx: number) => {
-    setAssignIdx(idx);
-    setAssignTeam("");
-    setAssignQty(1);
-  };
-  const handleAssignSave = () => {
-    if (!assignTeam || assignQty < 1) return;
-    setTools(prev => prev.map((t, i) => {
-      if (i !== assignIdx) return t;
-      // Check if already assigned to this team
-      const existing = t.assigned.find((a: any) => a.teamId === Number(assignTeam));
-      let newAssigned;
-      if (existing) {
-        newAssigned = t.assigned.map((a: any) => a.teamId === Number(assignTeam) ? { ...a, quantity: a.quantity + assignQty } : a);
+    try {
+      if (isEdit) {
+        await updateInventoryItem(form.id, {
+          name: form.name,
+          description: form.description,
+          total_quantity: form.total_quantity,
+          status: form.status
+        });
+        setInventory(prev => prev.map(item =>
+          item.id === form.id ? { ...item, ...form } : item
+        ));
+        showToast("Inventory item updated!", "success");
       } else {
-        newAssigned = [...t.assigned, { teamId: Number(assignTeam), quantity: assignQty }];
+        const result = await createInventoryItem({
+          name: form.name,
+          description: form.description,
+          total_quantity: form.total_quantity,
+          status: form.status
+        });
+        if (result.success && result.data?.item) {
+          setInventory(prev => [...prev, result.data.item]);
+        }
+        showToast("Inventory item created!", "success");
       }
-      return { ...t, assigned: newAssigned };
-    }));
-    setAssignIdx(null);
-    setAssignTeam("");
-    setAssignQty(1);
-  };
-  // View More modal
-  const handleViewMore = (idx: number) => {
-    setViewIdx(idx);
-  };
-  // Unassign tool from team
-  const handleUnassign = (toolIdx: number, teamId: number) => {
-    setTools(prev => prev.map((t, i) => {
-      if (i !== toolIdx) return t;
-      return { ...t, assigned: t.assigned.filter((a: any) => a.teamId !== teamId) };
-    }));
+      setShowModal(false);
+    } catch (error: any) {
+      console.error('Failed to save inventory item:', error);
+      showToast(error.response?.data?.message || 'Failed to save inventory item', 'error');
+    }
   };
 
-  // Table columns: Item Name, Total Items, Assigned Items, Available Items, View More, Actions
+  const handleDelete = async (id: number) => {
+    if (window.confirm("Are you sure you want to delete this inventory item?")) {
+      try {
+        await deleteInventoryItem(id);
+        setInventory(prev => prev.filter(item => item.id !== id));
+        showToast("Inventory item deleted!", "success");
+      } catch (error: any) {
+        console.error('Failed to delete inventory item:', error);
+        showToast(error.response?.data?.message || 'Failed to delete inventory item', 'error');
+      }
+    }
+  };
+
   return (
     <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
       <div className="max-w-5xl mx-auto">
@@ -126,250 +139,133 @@ const StockManagement = () => {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            <select
-              className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-              value={filter}
-              onChange={e => setFilter(e.target.value)}
-            >
-              <option value="all">All</option>
-              <option value="available">Available</option>
-              <option value="unavailable">Unavailable</option>
-            </select>
           </div>
           {isManager && (
             <button
-              className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-              onClick={() => openModal(null)}
+              className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
+              onClick={openAddModal}
             >
-              + Add Item
+              + Add Inventory Item
             </button>
           )}
         </div>
         <div className="bg-white rounded shadow p-4">
           <h2 className="text-xl font-semibold mb-4 text-blue-900">Inventory Items</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border rounded">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="px-4 py-2 text-left text-blue-900">Item Name</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Total Items</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Assigned Items</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Available Items</th>
-                  <th className="px-4 py-2 text-left text-blue-900">View More</th>
-                  {isManager && <th className="px-4 py-2 text-left text-blue-900">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTools.length === 0 ? (
-                  <tr>
-                    <td colSpan={isManager ? 6 : 5} className="text-center py-8 text-blue-400">No items found. Try adjusting your search or filters.</td>
-                  </tr>
-                ) : (
-                  filteredTools.map((t, idx) => {
-                    const assignedCount = t.assigned.reduce((sum: number, a: any) => sum + a.quantity, 0);
-                    const availableCount = t.total - assignedCount;
-                    return (
-                      <tr key={t.id} className="border-b hover:bg-blue-50 transition">
-                        <td className="px-4 py-2 text-blue-900 font-semibold">{t.name}</td>
-                        <td className="px-4 py-2 text-blue-900">{t.total}</td>
-                        <td className="px-4 py-2 text-blue-900">{assignedCount}</td>
-                        <td className="px-4 py-2 text-blue-900">{availableCount}</td>
-                        <td className="px-4 py-2">
+          {loading ? (
+            <div className="text-center py-8 text-blue-400">Loading inventory...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredInventory.length === 0 ? (
+                <div className="col-span-full text-center text-blue-400 py-12">No items found.</div>
+              ) : (
+                filteredInventory.map((item: any) => (
+                  <div key={item.id} className="bg-gray-50 rounded p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-bold text-blue-900">{item.name}</h3>
+                      {isManager && (
+                        <div className="flex gap-2">
                           <button
-                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                            onClick={() => handleViewMore(tools.indexOf(t))}
-                          >View More</button>
-                        </td>
-                        {isManager && (
-                          <td className="px-4 py-2 flex gap-2 flex-wrap">
-                            <button
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                              onClick={() => openModal(tools.indexOf(t))}
-                            >Edit</button>
-                            <button
-                              className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                              onClick={() => handleAssign(tools.indexOf(t))}
-                            >Assign</button>
-                            <button
-                              className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                              onClick={() => handleDelete(tools.indexOf(t))}
-                            >Delete</button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                            onClick={() => openEditModal(item)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-blue-700 mb-1">
+                      <span className="font-semibold">Total:</span> {item.total_quantity}
+                    </div>
+                    <div className="text-blue-700 mb-1">
+                      <span className="font-semibold">Available:</span> {item.available_quantity}
+                    </div>
+                    <div className="text-blue-700">
+                      <span className="font-semibold">Status:</span>
+                      <span className={`ml-2 px-2 py-1 rounded text-xs ${item.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {item.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
-        {/* Add/Edit Modal */}
+
+        {/* Add/Edit Inventory Item Modal */}
         <Modal
-          title={editIdx !== null ? "Edit Item" : "Add New Item"}
-          open={showModal}
-          onClose={() => { setShowModal(false); setEditIdx(null); }}
+          title={isEdit ? "Edit Inventory Item" : "Add Inventory Item"}
+          open={showModal && isManager}
+          onClose={() => setShowModal(false)}
           actions={null}
           role="dialog"
           aria-modal="true"
         >
-          <form onSubmit={handleSave}>
+          <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Name</label>
+              <label className="block mb-1 font-semibold text-blue-800">Item Name *</label>
               <input
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                name="name"
                 value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 required
               />
             </div>
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Number in Stock</label>
+              <label className="block mb-1 font-semibold text-blue-800">Description</label>
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                rows={3}
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block mb-1 font-semibold text-blue-800">Total Quantity *</label>
               <input
+                name="total_quantity"
                 type="number"
                 min={1}
+                value={form.total_quantity}
+                onChange={handleChange}
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                value={form.total}
-                onChange={e => setForm(f => ({ ...f, total: Number(e.target.value) }))}
                 required
               />
             </div>
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Availability Status</label>
+              <label className="block mb-1 font-semibold text-blue-800">Status</label>
               <select
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                name="status"
                 value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               >
                 <option value="available">Available</option>
                 <option value="unavailable">Unavailable</option>
+                <option value="maintenance">Maintenance</option>
               </select>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setEditIdx(null); }}>
+              <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
                 Cancel
               </Button>
               <Button type="submit">
-                Save
+                {isEdit ? "Update Item" : "Create Item"}
               </Button>
             </div>
           </form>
-        </Modal>
-        {/* Assign Modal */}
-        <Modal
-          title="Assign Item to Team"
-          open={assignIdx !== null}
-          onClose={() => setAssignIdx(null)}
-          actions={null}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Select Team</label>
-            <select
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-              value={assignTeam}
-              onChange={e => setAssignTeam(e.target.value)}
-            >
-              <option value="">Select...</option>
-              {incubators.map(t => (
-                <option key={t.id} value={t.id}>{t.teamName}</option>
-              ))}
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Quantity to Assign</label>
-            <input
-              type="number"
-              min={1}
-              max={assignIdx !== null ? tools[assignIdx].total - tools[assignIdx].assigned.reduce((sum: number, a: any) => sum + a.quantity, 0) : 1}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-              value={assignQty}
-              onChange={e => setAssignQty(Number(e.target.value))}
-              required
-            />
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button variant="secondary" type="button" onClick={() => setAssignIdx(null)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleAssignSave}
-              disabled={!assignTeam || assignQty < 1 || (assignIdx !== null && assignQty > tools[assignIdx].total - tools[assignIdx].assigned.reduce((sum: number, a: any) => sum + a.quantity, 0))}
-            >
-              Assign
-            </Button>
-          </div>
-        </Modal>
-        {/* View More Modal */}
-        <Modal
-          title={viewIdx !== null ? `Teams Assigned: ${tools[viewIdx].name}` : "Teams Assigned"}
-          open={viewIdx !== null}
-          onClose={() => setViewIdx(null)}
-          actions={null}
-          role="dialog"
-          aria-modal="true"
-        >
-          {viewIdx !== null && (
-            <>
-              {tools[viewIdx].assigned.length === 0 ? (
-                <div className="text-blue-400">No teams have this item assigned.</div>
-              ) : (
-                <ul className="space-y-2">
-                  {tools[viewIdx].assigned.map((a: any) => {
-                    const team = incubators.find(t => t.id === a.teamId);
-                    return (
-                      <li key={a.teamId} className="flex justify-between items-center border-b pb-1">
-                        <span className="font-semibold text-blue-900">{team ? team.teamName : `Team #${a.teamId}`}</span>
-                        <span className="text-blue-700">Qty: {a.quantity}</span>
-                        {isManager && (
-                          <Button
-                            variant="secondary"
-                            className="ml-2 text-xs"
-                            type="button"
-                            onClick={() => handleUnassign(viewIdx, a.teamId)}
-                          >Unassign</Button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              <div className="flex gap-2 justify-end mt-6">
-                <Button variant="secondary" type="button" onClick={() => setViewIdx(null)}>
-                  Close
-                </Button>
-              </div>
-            </>
-          )}
-        </Modal>
-        {/* Delete Confirmation Modal */}
-        <Modal
-          title="Delete Item"
-          open={deleteIdx !== null}
-          onClose={cancelDelete}
-          actions={null}
-          role="dialog"
-          aria-modal="true"
-        >
-          {deleteIdx !== null && (
-            <>
-              <div className="mb-6 text-blue-900">Are you sure you want to delete <span className="font-semibold">{tools[deleteIdx].name}</span>? This action cannot be undone.</div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="secondary" type="button" onClick={cancelDelete}>
-                  Cancel
-                </Button>
-                <Button variant="danger" type="button" onClick={confirmDelete}>
-                  Delete
-                </Button>
-              </div>
-            </>
-          )}
         </Modal>
       </div>
     </div>
   );
 };
 
-export default StockManagement; 
+export default StockManagement;

@@ -1,14 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { incubators, projects as mockProjects, mentors } from "../mock/sampleData";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import {
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  uploadProjectFiles,
+  getProjectFiles,
+  getIncubators
+} from "../services/api";
 
 const categories = ["All", "Technology", "Agriculture", "Health", "Education"];
 const statusOptions = ["All", "Active", "Pending", "Completed"];
 
 function getFileUrl(file: File) {
   return URL.createObjectURL(file);
+}
+
+function getFileIcon(fileName: string, mimeType?: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (mimeType?.startsWith('image/')) return '🖼️';
+  if (ext === 'pdf') return '📄';
+  if (['doc', 'docx'].includes(ext || '')) return '📝';
+  if (['xls', 'xlsx'].includes(ext || '')) return '📊';
+  if (['ppt', 'pptx'].includes(ext || '')) return '📽️';
+  if (ext === 'txt') return '📄';
+  return '📎';
 }
 
 const Projects = () => {
@@ -19,11 +38,10 @@ const Projects = () => {
   const isIncubator = user?.role === "incubator";
   const teamId = isIncubator ? (user as any).teamId : null;
 
-  // Mentor: get assigned teams
-  const mentorTeams = isMentor ? mentors.find(m => m.name === user.name)?.assignedTeams || [] : [];
-
-  // Local state for projects
-  const [projects, setProjects] = useState(mockProjects);
+  // State for projects and loading
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [form, setForm] = useState({
@@ -40,13 +58,53 @@ const Projects = () => {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [projectFiles, setProjectFiles] = useState<{ [projectId: number]: any[] }>({});
+
+  // Load projects and teams on mount
+  useEffect(() => {
+    if (user) {
+      loadProjects();
+      loadTeams();
+    }
+  }, [user]);
+
+  const loadProjects = async () => {
+    try {
+      const data = await getProjects();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTeams = async () => {
+    try {
+      const data = await getIncubators();
+      setTeams(data.map((team: any) => ({ id: team.id, teamName: team.team_name })));
+    } catch (error) {
+      console.error('Failed to load teams:', error);
+      setTeams([]);
+    }
+  };
+
+  const loadProjectFiles = async (projectId: number) => {
+    try {
+      const files = await getProjectFiles(projectId);
+      setProjectFiles(prev => ({ ...prev, [projectId]: files }));
+    } catch (error) {
+      console.error('Failed to load project files:', error);
+    }
+  };
 
   // Filtered projects
   let filteredProjects = projects;
   if (isIncubator) {
-    filteredProjects = projects.filter(p => p.incubatorId === teamId);
-  } else if (isMentor) {
-    filteredProjects = projects.filter(p => mentorTeams.includes(p.incubatorId));
+    filteredProjects = projects.filter(p => p.team_id === teamId);
   }
   // Search filter
   filteredProjects = filteredProjects.filter(p =>
@@ -61,6 +119,16 @@ const Projects = () => {
   if (statusFilter !== "All") {
     filteredProjects = filteredProjects.filter(p => p.status === statusFilter);
   }
+
+  // Load project files when viewing a project
+  useEffect(() => {
+    if (viewIdx !== null && filteredProjects[viewIdx]) {
+      const projectId = filteredProjects[viewIdx].id;
+      if (!projectFiles[projectId]) {
+        loadProjectFiles(projectId);
+      }
+    }
+  }, [viewIdx, filteredProjects, projectFiles]);
 
   // Add/Edit modal
   const openModal = (idx: number | null = null) => {
@@ -82,29 +150,68 @@ const Projects = () => {
   };
 
   // Save add/edit
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.description) return;
-    if (editIdx !== null) {
-      const projId = filteredProjects[editIdx].id;
-      setProjects(prev => prev.map(p => p.id === projId ? {
-        ...p,
-        ...form,
-        incubatorId: teamId,
-      } : p));
-    } else {
-      setProjects(prev => [
-        ...prev,
-        {
-          id: Math.max(0, ...prev.map(p => p.id)) + 1,
-          ...form,
-          incubatorId: teamId,
-        },
-      ]);
+
+    setUploadError(null);
+    try {
+      let result: any;
+      if (editIdx !== null) {
+        const projectId = filteredProjects[editIdx].id;
+        result = await updateProject(projectId, {
+          name: form.name,
+          description: form.description,
+          category: form.category,
+          status: form.status,
+          progress: form.progress
+        });
+
+        // Upload files if any
+        if (form.files.length > 0) {
+          setUploading(true);
+          setUploadProgress(0);
+          const formData = new FormData();
+          form.files.forEach(file => formData.append('files', file));
+          await uploadProjectFiles(projectId, formData, (progress) => {
+            setUploadProgress(progress);
+          });
+          setUploading(false);
+        }
+
+        setProjects(prev => prev.map(p => p.id === projectId ? result : p));
+      } else {
+        result = await createProject({
+          name: form.name,
+          description: form.description,
+          category: form.category,
+          status: form.status,
+          progress: form.progress,
+          team_id: teamId
+        });
+
+        // Upload files if any
+        if (form.files.length > 0) {
+          setUploading(true);
+          setUploadProgress(0);
+          const formData = new FormData();
+          form.files.forEach(file => formData.append('files', file));
+          await uploadProjectFiles(result.id, formData, (progress) => {
+            setUploadProgress(progress);
+          });
+          setUploading(false);
+        }
+
+        setProjects(prev => [...prev, result]);
+      }
+      setShowModal(false);
+      setEditIdx(null);
+      setForm({ name: "", description: "", category: categories[1], status: statusOptions[1], progress: 0, files: [] });
+    } catch (error: any) {
+      console.error('Failed to save project:', error);
+      setUploadError(error.response?.data?.message || error.message || 'Failed to save project');
+      setUploading(false);
     }
-    setShowModal(false);
-    setEditIdx(null);
-    setForm({ name: "", description: "", category: categories[1], status: statusOptions[1], progress: 0, files: [] });
   };
 
   // Update progress (incubator only)
@@ -116,7 +223,8 @@ const Projects = () => {
   // Handle file upload (real)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    setForm(f => ({ ...f, files: [...f.files, ...Array.from(e.target.files)] }));
+    const newFiles = Array.from(e.target.files);
+    setForm(f => ({ ...f, files: [...f.files, ...newFiles] }));
   };
   const handleRemoveFile = (file: File) => {
     setForm(f => ({ ...f, files: f.files.filter((fObj: File) => fObj !== file) }));
@@ -124,7 +232,7 @@ const Projects = () => {
 
   // Comments
   const handleAddComment = (projectId: number) => {
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !user) return;
     setComments(prev => ({
       ...prev,
       [projectId]: [
@@ -185,65 +293,69 @@ const Projects = () => {
         </div>
         <div className="bg-white rounded shadow p-4">
           <h2 className="text-xl font-semibold mb-4 text-blue-900">Project List</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border rounded">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="px-4 py-2 text-left text-blue-900">Project Name</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Team</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Category</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Status</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Progress</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProjects.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-8 text-blue-400">Loading projects...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border rounded">
+                <thead className="bg-blue-100">
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-blue-400">No projects found.</td>
+                    <th className="px-4 py-2 text-left text-blue-900">Project Name</th>
+                    <th className="px-4 py-2 text-left text-blue-900">Team</th>
+                    <th className="px-4 py-2 text-left text-blue-900">Category</th>
+                    <th className="px-4 py-2 text-left text-blue-900">Status</th>
+                    <th className="px-4 py-2 text-left text-blue-900">Progress</th>
+                    <th className="px-4 py-2 text-left text-blue-900">Actions</th>
                   </tr>
-                ) : (
-                  filteredProjects.map((p, idx) => {
-                    const team = incubators.find(t => t.id === p.incubatorId);
-                    return (
-                      <tr key={p.id} className="border-b hover:bg-blue-50 transition">
-                        <td className="px-4 py-2 text-blue-900 font-semibold">{p.name}</td>
-                        <td className="px-4 py-2 text-blue-900">{team ? team.teamName : "-"}</td>
-                        <td className="px-4 py-2 text-blue-900">{p.category}</td>
-                        <td className="px-4 py-2 text-blue-900">{p.status}</td>
-                        <td className="px-4 py-2 text-blue-900">
-                          {isIncubator ? (
-                            <input
-                              type="range"
-                              min={0}
-                              max={100}
-                              value={p.progress || 0}
-                              onChange={e => handleProgress(idx, Number(e.target.value))}
-                              className="w-32"
-                            />
-                          ) : (
-                            <span>{p.progress || 0}%</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 flex gap-2">
-                          <button
-                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                            onClick={() => setViewIdx(idx)}
-                          >View</button>
-                          {isIncubator && (
-                            <button
-                              className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                              onClick={() => openModal(idx)}
-                            >Edit</button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredProjects.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-blue-400">No projects found.</td>
+                    </tr>
+                  ) : (
+                    filteredProjects.map((p, idx) => {
+                        const team = teams.find(t => t.id === p.team_id);
+                        return (
+                          <tr key={p.id} className="border-b hover:bg-blue-50 transition">
+                            <td className="px-4 py-2 text-blue-900 font-semibold">{p.name}</td>
+                            <td className="px-4 py-2 text-blue-900">{team ? team.teamName : "-"}</td>
+                            <td className="px-4 py-2 text-blue-900">{p.category}</td>
+                            <td className="px-4 py-2 text-blue-900">{p.status}</td>
+                            <td className="px-4 py-2 text-blue-900">
+                              {isIncubator ? (
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={100}
+                                  value={p.progress || 0}
+                                  onChange={e => handleProgress(idx, Number(e.target.value))}
+                                  className="w-32"
+                                />
+                              ) : (
+                                <span>{p.progress || 0}%</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 flex gap-2">
+                              <button
+                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                onClick={() => setViewIdx(idx)}
+                              >View</button>
+                              {isIncubator && (
+                                <button
+                                  className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                  onClick={() => openModal(idx)}
+                                >Edit</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
         {/* Add/Edit Modal */}
         <Modal
@@ -317,17 +429,34 @@ const Projects = () => {
                 multiple
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 onChange={handleFileUpload}
+                accept="image/*,.pdf,.doc,.docx,.txt"
               />
+              {uploading && (
+                <div className="mt-2">
+                  <div className="bg-blue-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-sm text-blue-600 mt-1">Uploading... {uploadProgress}%</div>
+                </div>
+              )}
+              {uploadError && (
+                <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+                  {uploadError}
+                </div>
+              )}
               {form.files.length > 0 && (
                 <ul className="list-disc ml-6 text-blue-900 mt-2">
-                  {form.files.map((f: File | string, i: number) => (
+                  {form.files.map((f: File, i: number) => (
                     <li key={i} className="flex items-center gap-2">
-                      {typeof f === "object" && "type" in f && f.type.startsWith("image/") ? (
-                        <img src={getFileUrl(f as File)} alt={typeof f === "object" && "name" in f ? f.name : "file"} className="w-10 h-10 object-cover rounded" />
+                      {f.type.startsWith("image/") ? (
+                        <img src={getFileUrl(f)} alt={f.name} className="w-10 h-10 object-cover rounded" />
                       ) : (
                         <span className="inline-block w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-xl">📄</span>
                       )}
-                      <span>{typeof f === "object" && "name" in f ? f.name : String(f)}</span>
+                      <span>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
                       <Button
                         variant="icon"
                         className="text-xs text-red-600 hover:underline"
@@ -363,7 +492,7 @@ const Projects = () => {
             <>
               <div className="mb-4">
                 <div className="font-semibold text-blue-800 mb-1">Team:</div>
-                <div className="text-blue-900">{incubators.find(t => t.id === filteredProjects[viewIdx].incubatorId)?.teamName || "-"}</div>
+                <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || "-"}</div>
               </div>
               <div className="mb-4">
                 <div className="font-semibold text-blue-800 mb-1">Description:</div>
@@ -384,29 +513,45 @@ const Projects = () => {
               {/* Files */}
               <div className="mb-4">
                 <div className="font-semibold text-blue-800 mb-1">Files:</div>
-                {filteredProjects[viewIdx].files && filteredProjects[viewIdx].files.length > 0 ? (
-                  <ul className="list-disc ml-6 text-blue-900">
-                    {filteredProjects[viewIdx].files.map((f: File | string, i: number) => (
-                      <li key={i} className="flex items-center gap-2">
-                        {typeof f === "object" && "type" in f && f.type.startsWith("image/") ? (
-                          <a href={getFileUrl(f as File)} target="_blank" rel="noopener noreferrer">
-                            <img src={getFileUrl(f as File)} alt={typeof f === "object" && "name" in f ? f.name : "file"} className="w-16 h-16 object-cover rounded shadow" />
-                          </a>
-                        ) : (
-                          <a
-                            href={typeof f === "object" && "type" in f ? getFileUrl(f as File) : undefined}
-                            download={typeof f === "object" && "name" in f ? f.name : undefined}
-                            className="text-blue-700 underline flex items-center gap-1"
-                          >
-                            <span className="inline-block w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-xl">📄</span>
-                            {typeof f === "object" && "name" in f ? f.name : String(f)}
-                          </a>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                {projectFiles[filteredProjects[viewIdx].id] ? (
+                  projectFiles[filteredProjects[viewIdx].id].length > 0 ? (
+                    <ul className="space-y-2">
+                      {projectFiles[filteredProjects[viewIdx].id].map((f, i) => (
+                        <li key={i} className="flex items-center gap-3 p-2 bg-blue-50 rounded">
+                          {f.type && f.type.startsWith("image/") ? (
+                            <img
+                              src={f.url}
+                              alt={f.name}
+                              className="w-12 h-12 object-cover rounded border"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling!.textContent = '🖼️';
+                              }}
+                            />
+                          ) : null}
+                          <span className="text-2xl">{getFileIcon(f.name, f.type)}</span>
+                          <div className="flex-1">
+                            <div className="font-medium text-blue-900">{f.name}</div>
+                            {f.size && <div className="text-xs text-blue-600">{(f.size / 1024 / 1024).toFixed(2)} MB</div>}
+                          </div>
+                          {f.url && (
+                            <a
+                              href={f.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                            >
+                              View
+                            </a>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-blue-400">No files uploaded.</div>
+                  )
                 ) : (
-                  <div className="text-blue-400">No files uploaded.</div>
+                  <div className="text-blue-400">Loading files...</div>
                 )}
               </div>
               {/* Comments */}

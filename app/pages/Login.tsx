@@ -6,19 +6,36 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-blue-50">
+        <div className="text-blue-700">Loading...</div>
+      </div>
+    );
+  }
 
   if (user) return <Navigate to="/dashboard" replace />;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const success = login(email, password);
-    if (success) {
-      navigate("/dashboard");
-    } else {
-      setError("Invalid email or password");
+    setLoading(true);
+
+    try {
+      const success = await login(email, password);
+      if (success) {
+        navigate("/dashboard");
+      } else {
+        setError("Invalid email or password");
+      }
+    } catch (err) {
+      setError("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,7 +67,13 @@ const Login = () => {
             />
           </div>
           {error && <div className="text-red-500 text-sm">{error}</div>}
-          <button type="submit" className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition">Login</button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
         </form>
         <button
           onClick={() => navigate("/")}

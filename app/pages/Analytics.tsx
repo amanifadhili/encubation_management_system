@@ -1,6 +1,5 @@
 // This Analytics page is now used as the main Dashboard for all users. Do not link separately in the sidebar.
-import React from "react";
-import { incubators, projects, tools, requests, mentors, managers } from "../mock/sampleData";
+import React, { useState, useEffect } from "react";
 import { Bar, Pie, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,6 +11,7 @@ import {
   Legend,
 } from "chart.js";
 import { useAuth } from "../context/AuthContext";
+import { getDashboardAnalytics } from "../services/api";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
@@ -22,144 +22,78 @@ const Card = ({ title, value }: { title: string; value: React.ReactNode }) => (
   </div>
 );
 
-function getRoleFilteredData(user: any) {
-  if (!user) return { teams: [], projects: [], inventory: [], requests: [] };
-  if (user.role === "director") {
-    return {
-      teams: incubators,
-      projects,
-      inventory: tools,
-      requests,
-    };
-  }
-  if (user.role === "manager") {
-    // Find manager's managed teams
-    const manager = managers.find(m => m.name === user.name);
-    const teamIds = manager?.teamsManaged || [];
-    return {
-      teams: incubators.filter(t => teamIds.includes(t.id)),
-      projects: projects.filter(p => teamIds.includes(p.incubatorId)),
-      inventory: tools.map(tool => ({
-        ...tool,
-        assigned: tool.assigned.filter(a => teamIds.includes(a.teamId)),
-      })),
-      requests: requests.filter(r => teamIds.includes(r.incubatorId)),
-    };
-  }
-  if (user.role === "mentor") {
-    // Find mentor's assigned teams
-    const mentor = mentors.find(m => m.name === user.name);
-    const teamIds = mentor?.assignedTeams || [];
-    return {
-      teams: incubators.filter(t => teamIds.includes(t.id)),
-      projects: projects.filter(p => teamIds.includes(p.incubatorId)),
-      inventory: tools.map(tool => ({
-        ...tool,
-        assigned: tool.assigned.filter(a => teamIds.includes(a.teamId)),
-      })),
-      requests: requests.filter(r => teamIds.includes(r.incubatorId)),
-    };
-  }
-  if (user.role === "incubator") {
-    const teamId = user.teamId;
-    return {
-      teams: incubators.filter(t => t.id === teamId),
-      projects: projects.filter(p => p.incubatorId === teamId),
-      inventory: tools.map(tool => ({
-        ...tool,
-        assigned: tool.assigned.filter(a => a.teamId === teamId),
-      })),
-      requests: requests.filter(r => r.incubatorId === teamId),
-    };
-  }
-  return { teams: [], projects: [], inventory: [], requests: [] };
-}
-
 const Analytics = () => {
   const { user } = useAuth();
-  const { teams, projects, inventory, requests } = getRoleFilteredData(user);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Summary metrics
-  const totalTeams = teams.length;
-  const totalProjects = projects.length;
-  const totalInventory = inventory.reduce((sum, t) => sum + t.total, 0);
-  const totalRequests = requests.length;
+  useEffect(() => {
+    if (user) {
+      loadAnalytics();
+    }
+  }, [user]);
 
-  // Project status distribution
-  const projectStatusCounts = projects.reduce((acc, p) => {
-    acc[p.status] = (acc[p.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const loadAnalytics = async () => {
+    try {
+      const data = await getDashboardAnalytics();
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Inventory assignment
-  const inventoryAssigned = inventory.map(t => t.assigned.reduce((sum, a) => sum + a.quantity, 0));
-  const inventoryAvailable = inventory.map((t, i) => t.total - inventoryAssigned[i]);
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="text-center text-blue-400 py-12">Loading analytics...</div>
+      </div>
+    );
+  }
 
-  // Requests by type/status
-  const requestTypeCounts = requests.reduce((acc, r) => {
-    acc[r.type] = (acc[r.type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  const requestStatusCounts = requests.reduce((acc, r) => {
-    acc[r.status] = (acc[r.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Project category distribution
-  const projectCategoryCounts = projects.reduce((acc, p) => {
-    acc[p.category] = (acc[p.category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  if (!analytics) {
+    return (
+      <div className="p-8">
+        <div className="text-center text-blue-400 py-12">No analytics data available</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8">
       <h1 className="text-2xl font-bold mb-4 text-blue-900">Analytics Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card title="Total Teams" value={totalTeams} />
-        <Card title="Total Projects" value={totalProjects} />
-        <Card title="Total Inventory" value={totalInventory} />
-        <Card title="Total Requests" value={totalRequests} />
+        <Card title="Total Teams" value={analytics.summary?.total_teams || 0} />
+        <Card title="Total Projects" value={analytics.summary?.total_projects || 0} />
+        <Card title="Total Inventory" value={analytics.summary?.total_inventory || 0} />
+        <Card title="Total Requests" value={analytics.summary?.total_requests || 0} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
         <div className="bg-white rounded shadow p-6">
           <h2 className="text-lg font-semibold mb-4 text-blue-900">Project Categories</h2>
-          <Pie
-            data={{
-              labels: Object.keys(projectCategoryCounts),
-              datasets: [
-                {
-                  data: Object.values(projectCategoryCounts),
-                  backgroundColor: ["#2563eb", "#22d3ee", "#f59e42", "#f43f5e", "#a3e635", "#fbbf24"],
-                },
-              ],
-            }}
-            options={{ plugins: { legend: { position: "bottom" } } }}
-          />
+          {analytics.detailed?.project_categories && analytics.detailed.project_categories.length > 0 ? (
+            <Pie
+              data={{
+                labels: analytics.detailed.project_categories.map((cat: any) => cat.category),
+                datasets: [
+                  {
+                    data: analytics.detailed.project_categories.map((cat: any) => cat.count),
+                    backgroundColor: ["#2563eb", "#22d3ee", "#f59e42", "#f43f5e", "#a3e635", "#fbbf24"],
+                  },
+                ],
+              }}
+              options={{ plugins: { legend: { position: "bottom" } } }}
+            />
+          ) : (
+            <div className="text-center text-gray-500 py-8">No project data available</div>
+          )}
         </div>
         <div className="bg-white rounded shadow p-6">
-          <h2 className="text-lg font-semibold mb-4 text-blue-900">Inventory Assignment</h2>
-          <Bar
-            data={{
-              labels: inventory.map(t => t.name),
-              datasets: [
-                {
-                  label: "Assigned",
-                  data: inventoryAssigned,
-                  backgroundColor: "#2563eb",
-                },
-                {
-                  label: "Available",
-                  data: inventoryAvailable,
-                  backgroundColor: "#22d3ee",
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              plugins: { legend: { position: "bottom" } },
-              scales: { y: { beginAtZero: true } },
-            }}
-          />
+          <h2 className="text-lg font-semibold mb-4 text-blue-900">Recent Activity</h2>
+          <div className="text-center text-gray-500 py-8">
+            Analytics charts will be implemented based on real data from the backend
+          </div>
         </div>
       </div>
     </div>
