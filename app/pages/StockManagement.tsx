@@ -5,6 +5,7 @@ import { ErrorHandler } from "../utils/errorHandler";
 import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 import { getInventory, createInventoryItem, updateInventoryItem, deleteInventoryItem } from "../services/api";
 
 const StockManagement = () => {
@@ -22,6 +23,10 @@ const StockManagement = () => {
     total_quantity: 1,
     status: "available"
   });
+  
+  // Loading states for different operations
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isManager = user?.role === "manager";
 
@@ -90,6 +95,7 @@ const StockManagement = () => {
       return;
     }
 
+    setSubmitting(true);
     try {
       if (isEdit) {
         await updateInventoryItem(form.id, {
@@ -117,17 +123,22 @@ const StockManagement = () => {
       setShowModal(false);
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'saving inventory item');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this inventory item?")) {
+      setDeleting(true);
       try {
         await deleteInventoryItem(id);
         setInventory(prev => prev.filter(item => item.id !== id));
         showToast("Inventory item deleted!", "success");
       } catch (error: any) {
         ErrorHandler.handleError(error, showToast, 'deleting inventory item');
+      } finally {
+        setDeleting(false);
       }
     }
   };
@@ -150,18 +161,19 @@ const StockManagement = () => {
             />
           </div>
           {isManager && (
-            <button
-              className="px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
+            <ButtonLoader
+              loading={false}
               onClick={openAddModal}
-            >
-              + Add Inventory Item
-            </button>
+              label="+ Add Inventory Item"
+              variant="primary"
+              className="bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600"
+            />
           )}
         </div>
         <div className="bg-white rounded shadow p-4">
           <h2 className="text-xl font-semibold mb-4 text-blue-900">Inventory Items</h2>
           {loading ? (
-            <div className="text-center py-8 text-blue-400">Loading inventory...</div>
+            <PageSkeleton count={6} layout="card" />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredInventory.length === 0 ? (
@@ -173,18 +185,24 @@ const StockManagement = () => {
                       <h3 className="text-lg font-bold text-blue-900">{item.name}</h3>
                       {isManager && (
                         <div className="flex gap-2">
-                          <button
-                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                          <ButtonLoader
+                            loading={false}
                             onClick={() => openEditModal(item)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+                            label="Edit"
+                            variant="outline"
+                            size="sm"
+                            className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-300"
+                          />
+                          <ButtonLoader
+                            loading={deleting}
                             onClick={() => handleDelete(item.id)}
-                          >
-                            Delete
-                          </button>
+                            label="Delete"
+                            loadingText="Deleting..."
+                            variant="danger"
+                            size="sm"
+                            className="bg-red-100 text-red-700 hover:bg-red-200"
+                            disabled={deleting}
+                          />
                         </div>
                       )}
                     </div>
@@ -224,6 +242,7 @@ const StockManagement = () => {
                 value={form.name}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                disabled={submitting}
                 required
               />
             </div>
@@ -235,6 +254,7 @@ const StockManagement = () => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 rows={3}
+                disabled={submitting}
               />
             </div>
             <div className="mb-4">
@@ -246,6 +266,7 @@ const StockManagement = () => {
                 value={form.total_quantity}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                disabled={submitting}
                 required
               />
             </div>
@@ -256,6 +277,7 @@ const StockManagement = () => {
                 value={form.status}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                disabled={submitting}
               >
                 <option value="available">Available</option>
                 <option value="unavailable">Unavailable</option>
@@ -263,12 +285,21 @@ const StockManagement = () => {
               </select>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {isEdit ? "Update Item" : "Create Item"}
-              </Button>
+              <ButtonLoader
+                loading={false}
+                onClick={() => setShowModal(false)}
+                label="Cancel"
+                variant="secondary"
+                type="button"
+              />
+              <ButtonLoader
+                loading={submitting}
+                label={isEdit ? "Update Item" : "Create Item"}
+                loadingText={isEdit ? "Updating..." : "Creating..."}
+                variant="primary"
+                type="submit"
+                disabled={submitting}
+              />
             </div>
           </form>
         </Modal>

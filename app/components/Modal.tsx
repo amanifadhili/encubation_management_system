@@ -1,4 +1,5 @@
 import React from "react";
+import { ButtonLoader } from "./loading";
 
 interface ModalProps {
   title: string;
@@ -7,10 +8,11 @@ interface ModalProps {
   children: React.ReactNode;
   actions?: React.ReactNode;
   role?: string;
+  loading?: boolean;
   [key: string]: any;
 }
 
-const Modal: React.FC<ModalProps> = ({ title, open, onClose, children, actions, role = "dialog", ...props }) => {
+const Modal: React.FC<ModalProps> = ({ title, open, onClose, children, actions, role = "dialog", loading = false, ...props }) => {
   if (!open) return null;
   return (
     <>
@@ -30,9 +32,18 @@ const Modal: React.FC<ModalProps> = ({ title, open, onClose, children, actions, 
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-blue-900">{title}</h2>
-          <button onClick={onClose} className="text-2xl text-blue-700 font-bold hover:text-blue-900" aria-label="Close Modal">&times;</button>
+          <ButtonLoader
+            loading={false}
+            onClick={onClose}
+            label="×"
+            variant="secondary"
+            size="sm"
+            className="text-2xl text-blue-700 hover:text-blue-900 p-1 min-w-0"
+            aria-label="Close Modal"
+            disabled={loading}
+          />
         </div>
-        <div>{children}</div>
+        <div className={loading ? "opacity-50 pointer-events-none" : ""}>{children}</div>
         {actions && <div className="flex justify-end space-x-2 mt-6">{actions}</div>}
       </div>
     </>

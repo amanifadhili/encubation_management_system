@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 
 const ManageTeam = () => {
   const { user } = useAuth();
@@ -17,6 +18,12 @@ const ManageTeam = () => {
   const [editForm, setEditForm] = useState({ name: "", email: "", role: "Member" });
   const [removingIdx, setRemovingIdx] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // Loading states for individual actions
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Add member modal logic
   const handleAddMember = () => {
@@ -24,12 +31,12 @@ const ManageTeam = () => {
       showToast("Please enter name and email.", "error");
       return;
     }
-    setLoading(true);
+    setAdding(true);
     setTimeout(() => {
       setMembers(prev => [...prev, { name: addForm.name, email: addForm.email, role: "Member" }]);
       setAddForm({ name: "", email: "", role: "Member" });
       setShowAddModal(false);
-      setLoading(false);
+      setAdding(false);
       showToast("Member added!", "success");
     }, 600);
   };
@@ -48,12 +55,12 @@ const ManageTeam = () => {
       showToast("Please enter name and email.", "error");
       return;
     }
-    setLoading(true);
+    setEditing(true);
     setTimeout(() => {
       setMembers(prev => prev.map((m, i) => i === idx ? { name: editForm.name, email: editForm.email, role: "Member" } : m));
       setEditIdx(null);
       setEditForm({ name: "", email: "", role: "Member" });
-      setLoading(false);
+      setEditing(false);
       showToast("Member updated!", "success");
     }, 600);
   };
@@ -61,11 +68,11 @@ const ManageTeam = () => {
   // Remove member with confirmation
   const confirmRemove = (idx: number) => setRemovingIdx(idx);
   const handleRemoveMember = (idx: number) => {
-    setLoading(true);
+    setRemoving(true);
     setTimeout(() => {
       setMembers(prev => prev.filter((_, i) => i !== idx));
       setRemovingIdx(null);
-      setLoading(false);
+      setRemoving(false);
       showToast("Member removed!", "info");
     }, 600);
   };
@@ -78,10 +85,10 @@ const ManageTeam = () => {
 
   // Save all changes (mock)
   const handleSave = () => {
-    setLoading(true);
+    setSaving(true);
     setTimeout(() => {
       showToast("Team changes saved! (mock)", "success");
-      setLoading(false);
+      setSaving(false);
     }, 800);
   };
 
@@ -132,7 +139,7 @@ const ManageTeam = () => {
                             className="px-2 py-1 rounded border w-full"
                             value={editForm.name}
                             onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                            disabled={loading}
+                            disabled={editing}
                           />
                         ) : (
                           m.name
@@ -145,7 +152,7 @@ const ManageTeam = () => {
                             className="px-2 py-1 rounded border w-full"
                             value={editForm.email}
                             onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                            disabled={loading}
+                            disabled={editing}
                           />
                         ) : (
                           m.email
@@ -158,7 +165,7 @@ const ManageTeam = () => {
                           name="teamLeader"
                           checked={teamLeaderEmail === m.email}
                           onChange={() => handleSetLeader(m.email)}
-                          disabled={loading}
+                          disabled={editing || adding || removing || saving}
                           title={teamLeaderEmail === m.email ? "Current Team Leader" : "Set as Team Leader"}
                         />
                       </td>
@@ -166,39 +173,40 @@ const ManageTeam = () => {
                       <td className="px-4 py-2 flex gap-2">
                         {editIdx === idx ? (
                           <>
-                            <button
-                              className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            <ButtonLoader
+                              variant="primary"
                               onClick={() => saveEdit(idx)}
-                              disabled={loading}
-                            >
-                              Save
-                            </button>
-                            <button
-                              className="px-2 py-1 bg-gray-200 text-blue-700 rounded hover:bg-gray-300"
+                              loading={editing}
+                              label="Save"
+                              loadingText="Saving..."
+                              size="sm"
+                            />
+                            <ButtonLoader
+                              variant="secondary"
                               onClick={cancelEdit}
-                              disabled={loading}
-                            >
-                              Cancel
-                            </button>
+                              loading={false}
+                              label="Cancel"
+                              size="sm"
+                            />
                           </>
                         ) : (
                           <>
-                            <button
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                            <ButtonLoader
+                              variant="outline"
                               onClick={() => startEdit(idx)}
-                              disabled={loading}
-                              title="Edit Member"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                              loading={false}
+                              label="Edit"
+                              size="sm"
+                              disabled={editing || adding || removing || saving}
+                            />
+                            <ButtonLoader
+                              variant="danger"
                               onClick={() => confirmRemove(idx)}
-                              disabled={loading}
-                              title="Remove Member"
-                            >
-                              Remove
-                            </button>
+                              loading={false}
+                              label="Remove"
+                              size="sm"
+                              disabled={editing || adding || removing || saving}
+                            />
                           </>
                         )}
                       </td>
@@ -223,7 +231,7 @@ const ManageTeam = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={addForm.name}
                 onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-                disabled={loading}
+                disabled={adding}
               />
             </div>
             <div className="mb-4">
@@ -232,16 +240,25 @@ const ManageTeam = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={addForm.email}
                 onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
-                disabled={loading}
+                disabled={adding}
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => setShowAddModal(false)} disabled={loading}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={handleAddMember} disabled={loading}>
-                Add Member
-              </Button>
+              <ButtonLoader
+                variant="secondary"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                loading={false}
+                label="Cancel"
+              />
+              <ButtonLoader
+                type="button"
+                onClick={handleAddMember}
+                loading={adding}
+                label="Add Member"
+                loadingText="Adding..."
+                variant="primary"
+              />
             </div>
           </Modal>
           {/* Remove confirmation dialog */}
@@ -257,34 +274,43 @@ const ManageTeam = () => {
               <>
                 <div className="mb-4 text-blue-900">Are you sure you want to remove <span className="font-semibold">{members[removingIdx].name}</span> from your team?</div>
                 <div className="flex gap-2 justify-end">
-                  <Button variant="secondary" type="button" onClick={() => setRemovingIdx(null)} disabled={loading}>
-                    Cancel
-                  </Button>
-                  <Button variant="danger" type="button" onClick={() => handleRemoveMember(removingIdx)} disabled={loading}>
-                    Remove
-                  </Button>
+                  <ButtonLoader
+                    variant="secondary"
+                    type="button"
+                    onClick={() => setRemovingIdx(null)}
+                    loading={false}
+                    label="Cancel"
+                  />
+                  <ButtonLoader
+                    variant="danger"
+                    type="button"
+                    onClick={() => handleRemoveMember(removingIdx)}
+                    loading={removing}
+                    label="Remove"
+                    loadingText="Removing..."
+                  />
                 </div>
               </>
             )}
           </Modal>
           {/* Add member button */}
-          <div className="mt-6 flex justify-end">
-            <Button
-              className="px-6 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+          <div className="mt-6 flex justify-end gap-4">
+            <ButtonLoader
               onClick={() => setShowAddModal(true)}
-              disabled={loading}
-            >
-              + Add Member
-            </Button>
-            <Button
-              className="ml-4 px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700"
+              loading={false}
+              label="+ Add Member"
+              variant="primary"
+              disabled={editing || adding || removing || saving}
+            />
+            <ButtonLoader
               onClick={handleSave}
-              disabled={loading}
-            >
-              Save Changes
-            </Button>
+              loading={saving}
+              label="Save Changes"
+              loadingText="Saving..."
+              variant="success"
+              disabled={editing || adding || removing}
+            />
           </div>
-          {loading && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10"><div className="bg-white p-4 rounded shadow text-blue-700 font-bold">Saving...</div></div>}
         </div>
       </div>
     </div>

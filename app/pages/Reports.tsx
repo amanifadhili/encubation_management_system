@@ -5,6 +5,7 @@ import { ErrorHandler } from "../utils/errorHandler";
 import { getTeamsReport, getInventoryReport, getProjectsReport, exportReport } from "../services/api";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -13,6 +14,8 @@ const Reports = () => {
   const [inventoryReport, setInventoryReport] = useState<any>(null);
   const [projectsReport, setProjectsReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load reports on mount
   useEffect(() => {
@@ -21,7 +24,10 @@ const Reports = () => {
     }
   }, [user]);
 
-  const loadReports = async () => {
+  const loadReports = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    }
     try {
       const [teams, inventory, projects] = await Promise.all([
         getTeamsReport(),
@@ -35,16 +41,24 @@ const Reports = () => {
       ErrorHandler.handleError(error, showToast, 'loading reports');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    loadReports(true);
   };
 
   // Export as PDF (simplified)
   const handleExport = async () => {
+    setExporting(true);
     try {
       await exportReport({ type: 'teams' });
       showToast("Report exported!", "success");
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'exporting report');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -56,16 +70,28 @@ const Reports = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Reports & Analytics</h1>
             <div className="text-white opacity-90 mb-2">View comprehensive reports and export data.</div>
           </div>
-          <button
-            className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
-            onClick={handleExport}
-          >
-            Export Report
-          </button>
+          <div className="flex gap-2">
+            <ButtonLoader
+              onClick={handleRefresh}
+              loading={refreshing}
+              label="Refresh"
+              loadingText="Refreshing..."
+              variant="secondary"
+              size="md"
+            />
+            <ButtonLoader
+              onClick={handleExport}
+              loading={exporting}
+              label="Export Report"
+              loadingText="Exporting..."
+              variant="success"
+              size="md"
+            />
+          </div>
         </div>
 
         {loading ? (
-          <div className="text-center text-blue-400 py-12">Loading reports...</div>
+          <PageSkeleton count={3} layout="card" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded shadow p-6">
