@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import { getIncubators, getMentors, createIncubator, updateIncubator, deleteIncubator } from "../services/api";
+import { getIncubators, getMentors, createIncubator, updateIncubator, deleteIncubator, assignMentorToTeam, removeMentorFromTeam } from "../services/api";
 import { ValidationErrors } from "../components/ValidationErrors";
 import type { ValidationError } from "../components/ValidationErrors";
 import { FormField } from "../components/FormField";
@@ -79,6 +79,11 @@ const IncubatorManagement = () => {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  
+  // Mentor assignment state
+  const [showMentorModal, setShowMentorModal] = useState(false);
+  const [assignTeamId, setAssignTeamId] = useState<string | null>(null);
+  const [selectedMentor, setSelectedMentor] = useState<string | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -148,8 +153,17 @@ const IncubatorManagement = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (team: Team) => {
-    setForm({ ...team });
+  const openEditModal = (team: any) => {
+    setForm({
+      id: team.id,
+      teamName: team.team_name,
+      company_name: team.company_name,
+      status: team.status,
+      credentials: { email: "", password: "" },
+      teamLeader: { name: "", email: "", role: "Team Leader" },
+      members: [],
+      mentor: ""
+    });
     setIsEdit(true);
     setShowModal(true);
   };
@@ -210,8 +224,10 @@ const IncubatorManagement = () => {
         const result = await createIncubator({
           team_name: form.teamName,
           company_name: form.company_name || '',
-          email: form.credentials.email,
-          password: form.credentials.password
+          credentials: {
+            email: form.credentials.email,
+            password: form.credentials.password
+          }
         });
         if (result.success && result.data?.team) {
           setIncubators((prev) => [...prev, result.data.team]);
@@ -242,10 +258,17 @@ const IncubatorManagement = () => {
       // Handle 400 - Validation Errors
       else if (errorDetails?.status === 400) {
         const errors = ErrorHandler.parseValidationErrors(errorDetails);
-        setValidationErrors(errors);
         
-        if (errors.length > 0) {
-          setFocusedField(errors[0].field);
+        // Map backend field names to frontend field names
+        const mappedErrors = errors.map(err => ({
+          ...err,
+          field: err.field.replace('credentials.', '') // Map credentials.email -> email
+        }));
+        
+        setValidationErrors(mappedErrors);
+        
+        if (mappedErrors.length > 0) {
+          setFocusedField(mappedErrors[0].field);
         }
         
         showToast(errorDetails.userMessage, 'error');
@@ -266,6 +289,64 @@ const IncubatorManagement = () => {
       } catch (error: any) {
         ErrorHandler.handleError(error, showToast, 'deleting team');
       }
+    }
+  };
+
+  // Mentor assignment handlers
+  const openMentorModal = (team: any) => {
+    setAssignTeamId(team.id);
+    // Get current mentor assignment for this team (only one mentor per team)
+    const currentMentor = team.mentor_assignments?.[0]?.mentor_id || null;
+    setSelectedMentor(currentMentor);
+    setShowMentorModal(true);
+  };
+
+  const handleMentorSelect = (mentorId: string) => {
+    // Allow deselecting by clicking the same radio button
+    setSelectedMentor(prev => prev === mentorId ? null : mentorId);
+  };
+
+  const handleMentorAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignTeamId) return;
+
+    try {
+      // Get current team to find existing assignment
+      const currentTeam = incubators.find(t => t.id === assignTeamId);
+      const existingMentor = currentTeam?.mentor_assignments?.[0]?.mentor_id || null;
+
+      console.log('=== ASSIGNING MENTOR TO TEAM DEBUG ===');
+      console.log('Team ID:', assignTeamId);
+      console.log('Selected Mentor ID:', selectedMentor);
+      console.log('Existing Mentor ID:', existingMentor);
+      console.log('Team ID type:', typeof assignTeamId);
+      console.log('Selected Mentor type:', typeof selectedMentor);
+
+      // If there's an existing mentor and it's different from the selected one, remove it
+      if (existingMentor && existingMentor !== selectedMentor) {
+        console.log('Removing existing mentor...');
+        await removeMentorFromTeam(existingMentor, assignTeamId);
+      }
+
+      // If a mentor is selected and it's different from the existing one, add it
+      if (selectedMentor && selectedMentor !== existingMentor) {
+        console.log('Adding new mentor...');
+        console.log('Request payload:', { team_id: assignTeamId });
+        await assignMentorToTeam(selectedMentor, { team_id: assignTeamId });
+      }
+
+      // Reload teams to get updated assignments
+      await loadIncubators();
+      
+      setShowMentorModal(false);
+      showToast("Mentor assigned successfully!", "success");
+    } catch (error: any) {
+      console.error('=== ASSIGNMENT FAILED ===');
+      console.error('Full error object:', error);
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      console.error('Validation errors:', error.response?.data?.errors);
+      ErrorHandler.handleError(error, showToast, 'assigning mentor');
     }
   };
 
@@ -351,38 +432,73 @@ const IncubatorManagement = () => {
               incubators
                 .filter(team => team.team_name.toLowerCase().includes(search.toLowerCase()))
                 .map((team: any) => (
-                  <div key={team.id} className="bg-white rounded shadow p-6">
+                  <div key={team.id} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow border border-blue-100">
                     <div className="flex justify-between items-start mb-4">
                       <h3 className="text-xl font-bold text-blue-900">{team.team_name}</h3>
                       {canModify && (
                         <div className="flex gap-2">
-                          <button
-                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
-                            onClick={() => openEditModal(team)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
-                            onClick={() => handleDelete(team.id)}
-                          >
-                            Delete
-                          </button>
+                          <Tooltip label="Edit Team">
+                            <button
+                              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                              onClick={() => openEditModal(team)}
+                              aria-label="Edit"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+                              </svg>
+                            </button>
+                          </Tooltip>
+                          <Tooltip label="Delete Team">
+                            <button
+                              className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                              onClick={() => handleDelete(team.id)}
+                              aria-label="Delete"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </Tooltip>
                         </div>
                       )}
                     </div>
-                    <div className="text-blue-700 mb-1">
-                      <span className="font-semibold">Company:</span> {team.company_name || 'N/A'}
+                    <div className="space-y-3">
+                      <div className="text-blue-700">
+                        <span className="font-semibold">Company:</span> {team.company_name || 'N/A'}
+                      </div>
+                      <div className="text-blue-700">
+                        <span className="font-semibold">Status:</span>
+                        <Badge variant={team.status === "active" ? "success" : team.status === "pending" ? "warning" : "default"} className="ml-2">
+                          {team.status}
+                        </Badge>
+                      </div>
+                      <div className="text-blue-700">
+                        <span className="font-semibold">Mentor:</span>
+                        {team.mentor_assignments && team.mentor_assignments.length > 0 ? (
+                          <Badge variant="default" className="bg-purple-100 text-purple-800 ml-2">
+                            {team.mentor_assignments[0].mentor?.user?.name || 'Unknown'}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-500 ml-2">No mentor assigned</span>
+                        )}
+                      </div>
+                      <div className="text-blue-700">
+                        <span className="font-semibold">Created:</span> {new Date(team.created_at).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div className="text-blue-700 mb-1">
-                      <span className="font-semibold">Status:</span>
-                      <Badge variant={team.status === "active" ? "success" : team.status === "pending" ? "warning" : "default"} className="ml-2">
-                        {team.status}
-                      </Badge>
-                    </div>
-                    <div className="text-blue-700">
-                      <span className="font-semibold">Created:</span> {new Date(team.created_at).toLocaleDateString()}
-                    </div>
+                    {canModify && (
+                      <div className="mt-4 pt-4 border-t border-blue-100">
+                        <button
+                          className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold shadow hover:from-purple-700 hover:to-purple-600 transition flex items-center justify-center gap-2"
+                          onClick={() => openMentorModal(team)}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                          </svg>
+                          Assign Mentor
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))
             )}
@@ -514,6 +630,94 @@ const IncubatorManagement = () => {
             <Button type="submit">
               {isEdit ? "Update Team" : "Create Team"}
             </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Mentor Assignment Modal */}
+      <Modal
+        title="Assign Mentor"
+        open={showMentorModal && canModify}
+        onClose={() => setShowMentorModal(false)}
+        actions={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setShowMentorModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="mentor-assign-form">
+              Save Assignment
+            </Button>
+          </>
+        }
+        role="dialog"
+        aria-modal="true"
+      >
+        <form id="mentor-assign-form" onSubmit={handleMentorAssignSubmit}>
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 mb-4">
+              Select a mentor to assign to this team. Each team can only have one mentor. Click the selected mentor again to unassign.
+            </p>
+            {mentors.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto mb-2 text-gray-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                </svg>
+                <p className="font-semibold">No mentors available</p>
+                <p className="text-sm mt-1">Please add mentors first before assigning them to teams.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {mentors.map((mentor: any) => {
+                  const isSelected = selectedMentor === mentor.id;
+                  const isAssignedToOtherTeam = mentor.mentor_assignments && 
+                    mentor.mentor_assignments.length > 0 && 
+                    mentor.mentor_assignments[0].team_id !== assignTeamId;
+                  const assignedTeamName = isAssignedToOtherTeam ? mentor.mentor_assignments[0].team?.team_name : null;
+                  
+                  return (
+                    <label
+                      key={mentor.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg transition border-2 ${
+                        isAssignedToOtherTeam
+                          ? 'bg-gray-100 border-gray-300 opacity-60 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-blue-50 border-blue-500 shadow-md cursor-pointer'
+                          : 'bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-300 cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="mentor"
+                        checked={isSelected}
+                        onChange={() => !isAssignedToOtherTeam && handleMentorSelect(mentor.id)}
+                        disabled={isAssignedToOtherTeam}
+                        className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <div className="flex-1">
+                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : isAssignedToOtherTeam ? 'text-gray-500' : 'text-gray-900'}`}>
+                          {mentor.user?.name || 'Unknown'}
+                        </div>
+                        <div className="text-sm text-gray-600">{mentor.expertise || 'No expertise listed'}</div>
+                        <div className="text-xs text-gray-500">{mentor.user?.email || ''}</div>
+                        {isAssignedToOtherTeam && (
+                          <div className="text-xs text-orange-600 font-semibold mt-1 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                            </svg>
+                            Already assigned to "{assignedTeamName}"
+                          </div>
+                        )}
+                      </div>
+                      {isSelected && !isAssignedToOtherTeam && (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-600">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </form>
       </Modal>

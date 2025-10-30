@@ -179,7 +179,7 @@ export async function getMentors(params?: any) {
   return response.data.success ? response.data.data.mentors : response.data;
 }
 
-export async function getMentor(id: number) {
+export async function getMentor(id: string) {
   const response = await api.get(`/mentors/${id}`);
   return response.data;
 }
@@ -189,21 +189,21 @@ export async function createMentor(data: any) {
   return response.data;
 }
 
-export async function updateMentor(id: number, data: any) {
+export async function updateMentor(id: string, data: any) {
   const response = await api.put(`/mentors/${id}`, data);
   return response.data;
 }
 
-export async function deleteMentor(id: number) {
+export async function deleteMentor(id: string) {
   return handleDelete(`/mentors/${id}`);
 }
 
-export async function assignMentorToTeam(mentorId: number, data: any) {
+export async function assignMentorToTeam(mentorId: string, data: any) {
   const response = await api.post(`/mentors/${mentorId}/assign`, data);
   return response.data;
 }
 
-export async function removeMentorFromTeam(mentorId: number, teamId: number) {
+export async function removeMentorFromTeam(mentorId: string, teamId: string) {
   return handleDelete(`/mentors/${mentorId}/assign/${teamId}`);
 }
 
