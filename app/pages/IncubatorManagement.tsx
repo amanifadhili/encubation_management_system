@@ -18,6 +18,7 @@ import Tooltip from "../components/Tooltip";
 import Button from "../components/Button";
 import Badge from "../components/Badge";
 import SectionTitle from "../components/SectionTitle";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 
 // 1. Define types for team and member
 interface TeamMember {
@@ -70,6 +71,11 @@ const IncubatorManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<any>({ ...defaultForm });
+  
+  // Loading states for individual actions
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [assigningMentor, setAssigningMentor] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -206,6 +212,7 @@ const IncubatorManagement = () => {
     }
 
     setValidationErrors([]);
+    setSubmitting(true);
     
     try {
       if (isEdit) {
@@ -277,17 +284,22 @@ const IncubatorManagement = () => {
       else {
         showToast(errorDetails?.userMessage || 'Failed to save team', 'error');
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this team?")) {
+      setDeleting(true);
       try {
         await deleteIncubator(id);
         setIncubators((prev) => prev.filter((team) => team.id !== id));
         showToast("Team deleted!", "success");
       } catch (error: any) {
         ErrorHandler.handleError(error, showToast, 'deleting team');
+      } finally {
+        setDeleting(false);
       }
     }
   };
@@ -310,6 +322,7 @@ const IncubatorManagement = () => {
     e.preventDefault();
     if (!assignTeamId) return;
 
+    setAssigningMentor(true);
     try {
       // Get current team to find existing assignment
       const currentTeam = incubators.find(t => t.id === assignTeamId);
@@ -347,6 +360,8 @@ const IncubatorManagement = () => {
       console.error('Error response data:', error.response?.data);
       console.error('Validation errors:', error.response?.data?.errors);
       ErrorHandler.handleError(error, showToast, 'assigning mentor');
+    } finally {
+      setAssigningMentor(false);
     }
   };
 
@@ -423,7 +438,7 @@ const IncubatorManagement = () => {
         </div>
 
         {loading ? (
-          <div className="text-center text-blue-400 py-12">Loading teams...</div>
+          <PageSkeleton count={6} layout="card" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {incubators.length === 0 ? (
@@ -537,6 +552,7 @@ const IncubatorManagement = () => {
               onBlur={() => handleFieldBlur('team_name')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               required
+              disabled={submitting}
             />
           </FormField>
           
@@ -554,6 +570,7 @@ const IncubatorManagement = () => {
               onChange={handleChange}
               onBlur={() => handleFieldBlur('company_name')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              disabled={submitting}
             />
           </FormField>
           
@@ -576,6 +593,7 @@ const IncubatorManagement = () => {
                   onBlur={() => handleFieldBlur('email')}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                   required
+                  disabled={submitting}
                 />
               </FormField>
               
@@ -597,6 +615,7 @@ const IncubatorManagement = () => {
                   onBlur={() => handleFieldBlur('password')}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                   required
+                  disabled={submitting}
                 />
               </FormField>
             </>
@@ -616,6 +635,7 @@ const IncubatorManagement = () => {
               onChange={handleChange}
               onBlur={() => handleFieldBlur('status')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+              disabled={submitting}
             >
               <option value="active">Active</option>
               <option value="pending">Pending</option>
@@ -624,12 +644,20 @@ const IncubatorManagement = () => {
           </FormField>
           
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setValidationErrors([]); setTouchedFields(new Set()); }}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {isEdit ? "Update Team" : "Create Team"}
-            </Button>
+            <ButtonLoader
+              variant="secondary"
+              type="button"
+              onClick={() => { setShowModal(false); setValidationErrors([]); setTouchedFields(new Set()); }}
+              label="Cancel"
+              loading={false}
+            />
+            <ButtonLoader
+              type="submit"
+              loading={submitting}
+              label={isEdit ? "Update Team" : "Create Team"}
+              loadingText={isEdit ? "Updating..." : "Creating..."}
+              variant="primary"
+            />
           </div>
         </form>
       </Modal>
@@ -641,12 +669,21 @@ const IncubatorManagement = () => {
         onClose={() => setShowMentorModal(false)}
         actions={
           <>
-            <Button variant="secondary" type="button" onClick={() => setShowMentorModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="mentor-assign-form">
-              Save Assignment
-            </Button>
+            <ButtonLoader
+              variant="secondary"
+              type="button"
+              onClick={() => setShowMentorModal(false)}
+              label="Cancel"
+              loading={false}
+            />
+            <ButtonLoader
+              type="submit"
+              form="mentor-assign-form"
+              loading={assigningMentor}
+              label="Save Assignment"
+              loadingText="Assigning..."
+              variant="primary"
+            />
           </>
         }
         role="dialog"
@@ -689,8 +726,8 @@ const IncubatorManagement = () => {
                         type="radio"
                         name="mentor"
                         checked={isSelected}
-                        onChange={() => !isAssignedToOtherTeam && handleMentorSelect(mentor.id)}
-                        disabled={isAssignedToOtherTeam}
+                        onChange={() => !isAssignedToOtherTeam && !assigningMentor && handleMentorSelect(mentor.id)}
+                        disabled={isAssignedToOtherTeam || assigningMentor}
                         className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <div className="flex-1">
