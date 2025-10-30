@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { getInventory, createInventoryItem, updateInventoryItem, deleteInventoryItem } from "../services/api";
@@ -32,10 +34,19 @@ const StockManagement = () => {
 
   const loadInventory = async () => {
     try {
-      const data = await getInventory();
+      const data = await withRetry(
+        () => getInventory(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt) => {
+            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
       setInventory(data);
-    } catch (error) {
-      console.error('Failed to load inventory:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading inventory');
     } finally {
       setLoading(false);
     }
@@ -105,8 +116,7 @@ const StockManagement = () => {
       }
       setShowModal(false);
     } catch (error: any) {
-      console.error('Failed to save inventory item:', error);
-      showToast(error.response?.data?.message || 'Failed to save inventory item', 'error');
+      ErrorHandler.handleError(error, showToast, 'saving inventory item');
     }
   };
 
@@ -117,8 +127,7 @@ const StockManagement = () => {
         setInventory(prev => prev.filter(item => item.id !== id));
         showToast("Inventory item deleted!", "success");
       } catch (error: any) {
-        console.error('Failed to delete inventory item:', error);
-        showToast(error.response?.data?.message || 'Failed to delete inventory item', 'error');
+        ErrorHandler.handleError(error, showToast, 'deleting inventory item');
       }
     }
   };

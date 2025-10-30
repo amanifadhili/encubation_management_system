@@ -11,6 +11,9 @@ import {
   Legend,
 } from "chart.js";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import { getDashboardAnalytics } from "../services/api";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
@@ -24,6 +27,7 @@ const Card = ({ title, value }: { title: string; value: React.ReactNode }) => (
 
 const Analytics = () => {
   const { user } = useAuth();
+  const showToast = useToast();
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,10 +39,26 @@ const Analytics = () => {
 
   const loadAnalytics = async () => {
     try {
-      const data = await getDashboardAnalytics();
+      const data = await withRetry(
+        () => getDashboardAnalytics(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt) => {
+            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
       setAnalytics(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load analytics:', error);
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isTimeout(error)) {
+        showToast('Request timed out. Please try again.', 'error');
+      } else {
+        showToast(errorDetails.userMessage || 'Failed to load analytics', 'error');
+      }
     } finally {
       setLoading(false);
     }

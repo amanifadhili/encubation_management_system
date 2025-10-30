@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import {
@@ -13,6 +15,7 @@ import socketService from "../services/socket";
 
 const Notifications = () => {
   const { user } = useAuth();
+  const showToast = useToast();
   const isManager = user?.role === "manager";
   const isIncubator = user?.role === "incubator";
 
@@ -39,8 +42,8 @@ const Notifications = () => {
     try {
       const data = await getNotifications();
       setNotifications(data);
-    } catch (error) {
-      console.error('Failed to load notifications:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading notifications');
     } finally {
       setLoading(false);
     }
@@ -50,8 +53,8 @@ const Notifications = () => {
     try {
       const data = await getIncubators();
       setTeams(data.map((team: any) => ({ id: team.id, teamName: team.team_name })));
-    } catch (error) {
-      console.error('Failed to load teams:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading teams');
       setTeams([]);
     }
   };
@@ -84,8 +87,8 @@ const Notifications = () => {
       setNotifications(prev => prev.map(n =>
         n.id === notificationId ? { ...n, read_status: !n.read_status } : n
       ));
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'updating notification');
     }
   };
 
@@ -99,8 +102,9 @@ const Notifications = () => {
       await deleteNotification(deleteIdx);
       setNotifications(prev => prev.filter(n => n.id !== deleteIdx));
       setDeleteIdx(null);
-    } catch (error) {
-      console.error('Failed to delete notification:', error);
+      showToast('Notification deleted successfully', 'success');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'deleting notification');
     }
   };
   const cancelDelete = () => setDeleteIdx(null);
@@ -139,8 +143,9 @@ const Notifications = () => {
       setShowAddModal(false);
       setAddRecipient("");
       setAddMessage("");
-    } catch (error) {
-      console.error('Failed to create notification:', error);
+      showToast('Notification sent successfully', 'success');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'creating notification');
     }
   };
 

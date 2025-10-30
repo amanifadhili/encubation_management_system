@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
+import { ValidationErrors } from "../components/ValidationErrors";
+import type { ValidationError } from "../components/ValidationErrors";
+import { FormField } from "../components/FormField";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import Table from "../components/Table";
 import type { TableColumn } from "../components/Table";
 import Modal from "../components/Modal";
@@ -44,6 +49,11 @@ const MentorManagement = () => {
   const [page, setPage] = useState(1);
   const showToast = useToast();
 
+  // Validation error state
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
   // Load data on mount
   useEffect(() => {
     if (user) {
@@ -54,11 +64,26 @@ const MentorManagement = () => {
 
   const loadMentors = async () => {
     try {
-      const data = await getMentors();
+      const data = await withRetry(
+        () => getMentors(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt) => {
+            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
       setMentors(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load mentors:', error);
-      showToast('Failed to load mentors', 'error');
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isTimeout(error)) {
+        showToast('Request timed out. Please try again.', 'error');
+      } else {
+        showToast(errorDetails.userMessage || 'Failed to load mentors', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,10 +91,10 @@ const MentorManagement = () => {
 
   const loadTeams = async () => {
     try {
-      const data = await getIncubators();
+      const data = await withRetry(() => getIncubators(), { maxRetries: 2 });
       setTeams(data);
-    } catch (error) {
-      console.error('Failed to load teams:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading teams');
     }
   };
 
@@ -122,6 +147,8 @@ const MentorManagement = () => {
       return;
     }
 
+    setValidationErrors([]);
+    
     try {
       if (isEdit) {
         await updateMentor(form.id, {
@@ -130,14 +157,13 @@ const MentorManagement = () => {
           email: form.email,
           phone: form.phone
         });
-        // Update the mentor in the list with the new data
         setMentors(prev => prev.map(m => m.id === form.id ? {
           ...m,
           user: { ...m.user, name: form.name, email: form.email },
           expertise: form.expertise,
           phone: form.phone
         } : m));
-        showToast("Mentor updated!", "success");
+        showToast("Mentor updated successfully!", "success");
       } else {
         const result = await createMentor({
           name: form.name,
@@ -145,17 +171,62 @@ const MentorManagement = () => {
           email: form.email,
           phone: form.phone
         });
-        // Add the new mentor to the list
         if (result.success && result.data?.mentor) {
           setMentors(prev => [...prev, result.data.mentor]);
         }
-        showToast("Mentor added!", "success");
+        showToast("Mentor added successfully!", "success");
       }
       setShowModal(false);
+      setValidationErrors([]);
+      setTouchedFields(new Set());
     } catch (error: any) {
       console.error('Failed to save mentor:', error);
-      showToast(error.response?.data?.message || 'Failed to save mentor', 'error');
+      const errorDetails = error.errorDetails;
+      
+      // Handle 422 - Business Logic Errors
+      if (ErrorHandler.isUnprocessableEntity(error)) {
+        const businessError = ErrorHandler.parseBusinessLogicError(errorDetails);
+        showToast(businessError.message, 'warning');
+        
+        if (businessError.field) {
+          setFocusedField(businessError.field);
+          setTouchedFields(prev => {
+            const newSet = new Set(prev);
+            if (businessError.field) newSet.add(businessError.field);
+            return newSet;
+          });
+        }
+      }
+      // Handle 400 - Validation Errors
+      else if (errorDetails?.status === 400) {
+        const errors = ErrorHandler.parseValidationErrors(errorDetails);
+        setValidationErrors(errors);
+        
+        if (errors.length > 0) {
+          setFocusedField(errors[0].field);
+        }
+        
+        showToast(errorDetails.userMessage, 'error');
+      }
+      // Handle other errors
+      else {
+        showToast(errorDetails?.userMessage || 'Failed to save mentor', 'error');
+      }
     }
+  };
+
+  // Helper functions for validation
+  const handleFieldFocus = (field: string) => {
+    setFocusedField(field);
+    setTouchedFields(prev => new Set(prev).add(field));
+  };
+
+  const getFieldError = (field: string) => {
+    return validationErrors.find(e => e.field === field)?.message;
+  };
+
+  const handleFieldBlur = (field: string) => {
+    setTouchedFields(prev => new Set(prev).add(field));
   };
 
   const handleDelete = (id: number) => {
@@ -190,9 +261,8 @@ const MentorManagement = () => {
       );
       setShowAssignModal(false);
       showToast("Teams assigned!", "success");
-    } catch (error) {
-      console.error('Failed to assign teams:', error);
-      showToast('Failed to assign teams', 'error');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'assigning teams');
     }
   };
 

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ValidationErrors } from "../components/ValidationErrors";
+import type { ValidationError } from "../components/ValidationErrors";
+import { FormField } from "../components/FormField";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import {
   getProjects,
   createProject,
@@ -32,6 +38,7 @@ function getFileIcon(fileName: string, mimeType?: string) {
 
 const Projects = () => {
   const { user } = useAuth();
+  const showToast = useToast();
   const isManager = user?.role === "manager";
   const isDirector = user?.role === "director";
   const isMentor = user?.role === "mentor";
@@ -62,6 +69,11 @@ const Projects = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [projectFiles, setProjectFiles] = useState<{ [projectId: number]: any[] }>({});
+  
+  // Validation error state
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Load projects and teams on mount
   useEffect(() => {
@@ -73,10 +85,28 @@ const Projects = () => {
 
   const loadProjects = async () => {
     try {
-      const data = await getProjects();
+      const data = await withRetry(
+        () => getProjects(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt, delay) => {
+            showToast(`Retrying... (Attempt ${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
       setProjects(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load projects:', error);
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isTimeout(error)) {
+        showToast('Request timed out. Please try again.', 'error');
+      } else if (ErrorHandler.isServiceUnavailable(error)) {
+        showToast('Service temporarily unavailable. Please try again later.', 'error');
+      } else {
+        showToast(errorDetails.userMessage || 'Failed to load projects', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -84,10 +114,10 @@ const Projects = () => {
 
   const loadTeams = async () => {
     try {
-      const data = await getIncubators();
+      const data = await withRetry(() => getIncubators(), { maxRetries: 2 });
       setTeams(data.map((team: any) => ({ id: team.id, teamName: team.team_name })));
-    } catch (error) {
-      console.error('Failed to load teams:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading teams');
       setTeams([]);
     }
   };
@@ -96,8 +126,11 @@ const Projects = () => {
     try {
       const files = await getProjectFiles(projectId);
       setProjectFiles(prev => ({ ...prev, [projectId]: files }));
-    } catch (error) {
-      console.error('Failed to load project files:', error);
+    } catch (error: any) {
+      // Silent for 404 (no files) and network errors (not critical)
+      if (!ErrorHandler.isNotFound(error) && !ErrorHandler.isNetworkError(error)) {
+        ErrorHandler.handleError(error, showToast, 'loading project files');
+      }
     }
   };
 
@@ -155,6 +188,8 @@ const Projects = () => {
     if (!form.name || !form.description) return;
 
     setUploadError(null);
+    setValidationErrors([]);
+    
     try {
       let result: any;
       if (editIdx !== null) {
@@ -180,6 +215,7 @@ const Projects = () => {
         }
 
         setProjects(prev => prev.map(p => p.id === projectId ? result : p));
+        showToast('Project updated successfully!', 'success');
       } else {
         result = await createProject({
           name: form.name,
@@ -203,13 +239,56 @@ const Projects = () => {
         }
 
         setProjects(prev => [...prev, result]);
+        showToast('Project created successfully!', 'success');
       }
       setShowModal(false);
       setEditIdx(null);
       setForm({ name: "", description: "", category: categories[1], status: statusOptions[1], progress: 0, files: [] });
+      setValidationErrors([]);
+      setTouchedFields(new Set());
     } catch (error: any) {
       console.error('Failed to save project:', error);
-      setUploadError(error.response?.data?.message || error.message || 'Failed to save project');
+      const errorDetails = error.errorDetails;
+      
+      // Handle 422 - Business Logic Errors
+      if (ErrorHandler.isUnprocessableEntity(error)) {
+        const businessError = ErrorHandler.parseBusinessLogicError(errorDetails);
+        showToast(businessError.message, 'warning');
+        
+        // Highlight the problematic field if specified
+        if (businessError.field) {
+          setFocusedField(businessError.field);
+          setTouchedFields(prev => {
+            const newSet = new Set(prev);
+            if (businessError.field) newSet.add(businessError.field);
+            return newSet;
+          });
+        }
+      }
+      // Handle 413 - File Too Large
+      else if (ErrorHandler.isPayloadTooLarge(error)) {
+        const sizeError = ErrorHandler.parseFileSizeError(errorDetails);
+        showToast(sizeError.message, 'error');
+        setUploadError(sizeError.message);
+      }
+      // Handle 400 - Validation Errors
+      else if (errorDetails?.status === 400) {
+        const errors = ErrorHandler.parseValidationErrors(errorDetails);
+        setValidationErrors(errors);
+        
+        // Focus first error field
+        if (errors.length > 0) {
+          setFocusedField(errors[0].field);
+        }
+        
+        showToast(errorDetails.userMessage, 'error');
+      }
+      // Handle other errors
+      else {
+        setUploadError(errorDetails?.userMessage || 'Failed to save project');
+        showToast(errorDetails?.userMessage || 'Failed to save project', 'error');
+      }
+      
       setUploading(false);
     }
   };
@@ -218,6 +297,22 @@ const Projects = () => {
   const handleProgress = (idx: number, value: number) => {
     const projId = filteredProjects[idx].id;
     setProjects(prev => prev.map(p => p.id === projId ? { ...p, progress: value } : p));
+  };
+
+  // Handle field focus for error clicking
+  const handleFieldFocus = (field: string) => {
+    setFocusedField(field);
+    setTouchedFields(prev => new Set(prev).add(field));
+  };
+
+  // Get error for specific field
+  const getFieldError = (field: string) => {
+    return validationErrors.find(e => e.field === field)?.message;
+  };
+
+  // Mark field as touched
+  const handleFieldBlur = (field: string) => {
+    setTouchedFields(prev => new Set(prev).add(field));
   };
 
   // Handle file upload (real)
@@ -361,66 +456,113 @@ const Projects = () => {
         <Modal
           title={editIdx !== null ? "Edit Project" : "Add Project"}
           open={showModal}
-          onClose={() => { setShowModal(false); setEditIdx(null); }}
+          onClose={() => { setShowModal(false); setEditIdx(null); setValidationErrors([]); setTouchedFields(new Set()); }}
           actions={null}
           role="dialog"
           aria-modal="true"
         >
           <form onSubmit={handleSave}>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Project Name</label>
+            <ValidationErrors 
+              errors={validationErrors} 
+              onFieldFocus={handleFieldFocus}
+            />
+            
+            <FormField
+              label="Project Name"
+              name="name"
+              error={getFieldError('name')}
+              touched={touchedFields.has('name')}
+              required
+              autoFocus={focusedField === 'name'}
+            >
               <input
+                id="name"
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                onBlur={() => handleFieldBlur('name')}
                 required
               />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Description</label>
+            </FormField>
+            
+            <FormField
+              label="Description"
+              name="description"
+              error={getFieldError('description')}
+              touched={touchedFields.has('description')}
+              required
+              autoFocus={focusedField === 'description'}
+            >
               <textarea
+                id="description"
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                onBlur={() => handleFieldBlur('description')}
                 rows={4}
                 required
               />
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Category</label>
+            </FormField>
+            
+            <FormField
+              label="Category"
+              name="category"
+              error={getFieldError('category')}
+              touched={touchedFields.has('category')}
+              autoFocus={focusedField === 'category'}
+            >
               <select
+                id="category"
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.category}
                 onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                onBlur={() => handleFieldBlur('category')}
               >
                 {categories.slice(1).map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Status</label>
+            </FormField>
+            
+            <FormField
+              label="Status"
+              name="status"
+              error={getFieldError('status')}
+              touched={touchedFields.has('status')}
+              autoFocus={focusedField === 'status'}
+            >
               <select
+                id="status"
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.status}
                 onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                onBlur={() => handleFieldBlur('status')}
               >
                 {statusOptions.slice(1).map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-            </div>
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Progress (%)</label>
+            </FormField>
+            
+            <FormField
+              label="Progress (%)"
+              name="progress"
+              error={getFieldError('progress')}
+              touched={touchedFields.has('progress')}
+              autoFocus={focusedField === 'progress'}
+              helperText="Enter a value between 0 and 100"
+            >
               <input
+                id="progress"
                 type="number"
                 min={0}
                 max={100}
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.progress}
                 onChange={e => setForm(f => ({ ...f, progress: Number(e.target.value) }))}
+                onBlur={() => handleFieldBlur('progress')}
               />
-            </div>
+            </FormField>
             {/* File upload (real) */}
             <div className="mb-4">
               <label className="block mb-1 font-semibold text-blue-800">Files (images, pdf, doc, etc.)</label>

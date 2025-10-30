@@ -2,6 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 import { getIncubators, getMentors, createIncubator, updateIncubator, deleteIncubator } from "../services/api";
+import { ValidationErrors } from "../components/ValidationErrors";
+import type { ValidationError } from "../components/ValidationErrors";
+import { FormField } from "../components/FormField";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import Table from "../components/Table";
 import type { TableColumn } from "../components/Table";
 import Modal from "../components/Modal";
@@ -70,6 +75,11 @@ const IncubatorManagement = () => {
   const [page, setPage] = useState(1);
   const showToast = useToast();
 
+  // Validation error state
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
   // Load data on mount
   useEffect(() => {
     if (user) {
@@ -80,11 +90,28 @@ const IncubatorManagement = () => {
 
   const loadIncubators = async () => {
     try {
-      const data = await getIncubators();
+      const data = await withRetry(
+        () => getIncubators(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt) => {
+            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
       setIncubators(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load incubators:', error);
-      showToast('Failed to load teams', 'error');
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isTimeout(error)) {
+        showToast('Request timed out. Please try again.', 'error');
+      } else if (ErrorHandler.isServiceUnavailable(error)) {
+        showToast('Service temporarily unavailable. Please try again later.', 'error');
+      } else {
+        showToast(errorDetails.userMessage || 'Failed to load teams', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -92,10 +119,10 @@ const IncubatorManagement = () => {
 
   const loadMentors = async () => {
     try {
-      const data = await getMentors();
+      const data = await withRetry(() => getMentors(), { maxRetries: 2 });
       setMentors(data);
-    } catch (error) {
-      console.error('Failed to load mentors:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading mentors');
     }
   };
 
@@ -159,11 +186,13 @@ const IncubatorManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.teamName || !form.credentials.email || !form.credentials.password) {
+    if (!form.teamName || (!isEdit && (!form.credentials.email || !form.credentials.password))) {
       showToast("Please fill all required fields.", "error");
       return;
     }
 
+    setValidationErrors([]);
+    
     try {
       if (isEdit) {
         await updateIncubator(form.id, {
@@ -171,13 +200,12 @@ const IncubatorManagement = () => {
           company_name: form.company_name || '',
           status: form.status
         });
-        // Update the team in the list
         setIncubators((prev) =>
           prev.map((team) =>
             team.id === form.id ? { ...team, team_name: form.teamName, company_name: form.company_name, status: form.status } : team
           )
         );
-        showToast("Team updated!", "success");
+        showToast("Team updated successfully!", "success");
       } else {
         const result = await createIncubator({
           team_name: form.teamName,
@@ -185,16 +213,47 @@ const IncubatorManagement = () => {
           email: form.credentials.email,
           password: form.credentials.password
         });
-        // Add the new team to the list
         if (result.success && result.data?.team) {
           setIncubators((prev) => [...prev, result.data.team]);
         }
-        showToast("Team created!", "success");
+        showToast("Team created successfully!", "success");
       }
       setShowModal(false);
+      setValidationErrors([]);
+      setTouchedFields(new Set());
     } catch (error: any) {
       console.error('Failed to save team:', error);
-      showToast(error.response?.data?.message || 'Failed to save team', 'error');
+      const errorDetails = error.errorDetails;
+      
+      // Handle 422 - Business Logic Errors
+      if (ErrorHandler.isUnprocessableEntity(error)) {
+        const businessError = ErrorHandler.parseBusinessLogicError(errorDetails);
+        showToast(businessError.message, 'warning');
+        
+        if (businessError.field) {
+          setFocusedField(businessError.field);
+          setTouchedFields(prev => {
+            const newSet = new Set(prev);
+            if (businessError.field) newSet.add(businessError.field);
+            return newSet;
+          });
+        }
+      }
+      // Handle 400 - Validation Errors
+      else if (errorDetails?.status === 400) {
+        const errors = ErrorHandler.parseValidationErrors(errorDetails);
+        setValidationErrors(errors);
+        
+        if (errors.length > 0) {
+          setFocusedField(errors[0].field);
+        }
+        
+        showToast(errorDetails.userMessage, 'error');
+      }
+      // Handle other errors
+      else {
+        showToast(errorDetails?.userMessage || 'Failed to save team', 'error');
+      }
     }
   };
 
@@ -205,10 +264,23 @@ const IncubatorManagement = () => {
         setIncubators((prev) => prev.filter((team) => team.id !== id));
         showToast("Team deleted!", "success");
       } catch (error: any) {
-        console.error('Failed to delete team:', error);
-        showToast(error.response?.data?.message || 'Failed to delete team', 'error');
+        ErrorHandler.handleError(error, showToast, 'deleting team');
       }
     }
+  };
+
+  // Helper functions for validation
+  const handleFieldFocus = (field: string) => {
+    setFocusedField(field);
+    setTouchedFields(prev => new Set(prev).add(field));
+  };
+
+  const getFieldError = (field: string) => {
+    return validationErrors.find(e => e.field === field)?.message;
+  };
+
+  const handleFieldBlur = (field: string) => {
+    setTouchedFields(prev => new Set(prev).add(field));
   };
 
   // Function to open detail modal
@@ -322,72 +394,121 @@ const IncubatorManagement = () => {
       <Modal
         title={isEdit ? "Edit Team" : "Add New Team"}
         open={showModal && canModify}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setValidationErrors([]); setTouchedFields(new Set()); }}
         actions={null}
         role="dialog"
         aria-modal="true"
       >
         <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Team Name *</label>
+          <ValidationErrors 
+            errors={validationErrors} 
+            onFieldFocus={handleFieldFocus}
+          />
+          
+          <FormField
+            label="Team Name"
+            name="team_name"
+            error={getFieldError('team_name')}
+            touched={touchedFields.has('team_name')}
+            required
+            autoFocus={focusedField === 'team_name'}
+          >
             <input
+              id="team_name"
               name="teamName"
               value={form.teamName}
               onChange={handleChange}
+              onBlur={() => handleFieldBlur('team_name')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               required
             />
-          </div>
-          <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Company Name</label>
+          </FormField>
+          
+          <FormField
+            label="Company Name"
+            name="company_name"
+            error={getFieldError('company_name')}
+            touched={touchedFields.has('company_name')}
+            autoFocus={focusedField === 'company_name'}
+          >
             <input
+              id="company_name"
               name="company_name"
               value={form.company_name || ''}
               onChange={handleChange}
+              onBlur={() => handleFieldBlur('company_name')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
             />
-          </div>
+          </FormField>
+          
           {!isEdit && (
             <>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold text-blue-800">Team Leader Email *</label>
+              <FormField
+                label="Team Leader Email"
+                name="email"
+                error={getFieldError('email')}
+                touched={touchedFields.has('email')}
+                required
+                autoFocus={focusedField === 'email'}
+              >
                 <input
+                  id="email"
                   name="credentialsEmail"
                   type="email"
                   value={form.credentials.email}
                   onChange={handleChange}
+                  onBlur={() => handleFieldBlur('email')}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                   required
                 />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold text-blue-800">Team Leader Password *</label>
+              </FormField>
+              
+              <FormField
+                label="Team Leader Password"
+                name="password"
+                error={getFieldError('password')}
+                touched={touchedFields.has('password')}
+                required
+                autoFocus={focusedField === 'password'}
+                helperText="Minimum 6 characters"
+              >
                 <input
+                  id="password"
                   name="credentialsPassword"
                   type="password"
                   value={form.credentials.password}
                   onChange={handleChange}
+                  onBlur={() => handleFieldBlur('password')}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                   required
                 />
-              </div>
+              </FormField>
             </>
           )}
-          <div className="mb-4">
-            <label className="block mb-1 font-semibold text-blue-800">Status</label>
+          
+          <FormField
+            label="Status"
+            name="status"
+            error={getFieldError('status')}
+            touched={touchedFields.has('status')}
+            autoFocus={focusedField === 'status'}
+          >
             <select
+              id="status"
               name="status"
               value={form.status}
               onChange={handleChange}
+              onBlur={() => handleFieldBlur('status')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
             >
               <option value="active">Active</option>
               <option value="pending">Pending</option>
               <option value="inactive">Inactive</option>
             </select>
-          </div>
+          </FormField>
+          
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
+            <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setValidationErrors([]); setTouchedFields(new Set()); }}>
               Cancel
             </Button>
             <Button type="submit">

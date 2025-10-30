@@ -2,7 +2,11 @@ import React, { useState, createContext, useContext, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Toast from './Toast';
+import type { ToastType } from './Toast';
 import { getNotifications } from '../services/api';
+import { useToastManager } from '../hooks/useToast';
+import { OfflineBanner } from './OfflineBanner';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   director: [
@@ -46,7 +50,11 @@ const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
 };
 
 // Toast context for children to trigger notifications
-type ToastContextType = (msg: string, type?: 'success' | 'error' | 'info') => void;
+type ToastContextType = (
+  message: string, 
+  type?: ToastType,
+  options?: { duration?: number; action?: { label: string; onClick: () => void } }
+) => void;
 export const ToastContext = createContext<ToastContextType>(() => {});
 export const useToast = () => useContext(ToastContext);
 
@@ -56,12 +64,18 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const links = user ? sidebarLinksByRole[user.role] : [];
 
-  // Toast state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  // Enhanced Toast system with multiple toasts
+  const { toasts, showToast, removeToast } = useToastManager();
+
+  // Online/offline status monitoring
+  useOnlineStatus({
+    onOnline: () => {
+      showToast('Connection restored!', 'success');
+    },
+    onOffline: () => {
+      showToast('You are offline. Some features may be unavailable.', 'error', { duration: 5000 });
+    }
+  });
 
   const handleLogout = () => {
     logout();
@@ -102,6 +116,9 @@ export default function Layout() {
 
   return (
     <ToastContext.Provider value={showToast}>
+      {/* Offline Banner - Fixed at top */}
+      <OfflineBanner position="top" showReconnected={true} reconnectedDuration={3000} />
+      
       <div className="flex h-screen bg-gray-100">
         {/* Sidebar (responsive) */}
         {/* Mobile Hamburger */}
@@ -185,9 +202,22 @@ export default function Layout() {
           </header>
           {/* Content Area */}
           <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
-            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             <Outlet />
           </main>
+          
+          {/* Toast Container - Fixed position for multiple toasts */}
+          <div className="fixed top-6 right-6 z-50 space-y-3 pointer-events-none">
+            {toasts.map((toast) => (
+              <div key={toast.id} className="pointer-events-auto">
+                <Toast 
+                  message={toast.message} 
+                  type={toast.type} 
+                  onClose={() => removeToast(toast.id)}
+                  action={toast.action}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </ToastContext.Provider>

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
 import clsx from "clsx";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
@@ -24,6 +26,7 @@ const roleColors: { [key: string]: string } = {
 
 const Messaging = () => {
   const { user } = useAuth();
+  const showToast = useToast();
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -97,8 +100,8 @@ const Messaging = () => {
       if (data.length > 0 && !selectedId) {
         setSelectedId(data[0].id);
       }
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading conversations');
     } finally {
       setLoading(false);
     }
@@ -109,8 +112,8 @@ const Messaging = () => {
     try {
       const data = await getConversationMessages(conversationId);
       setMessages(data);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading messages');
     } finally {
       setMessagesLoading(false);
     }
@@ -121,8 +124,8 @@ const Messaging = () => {
       const data = await getUsers();
       // Filter out current user from the list
       setUsers(data.filter((u: any) => u.id !== user?.id));
-    } catch (error) {
-      console.error('Failed to load users:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading users');
       setUsers([]);
     }
   };
@@ -154,7 +157,14 @@ const Messaging = () => {
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      setUploadError(error.response?.data?.message || error.message || 'Failed to send message');
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isPayloadTooLarge(error)) {
+        const sizeError = ErrorHandler.parseFileSizeError(errorDetails);
+        setUploadError(sizeError.message);
+      } else {
+        setUploadError(errorDetails.userMessage || 'Failed to send message');
+      }
     } finally {
       setSending(false);
     }
@@ -184,8 +194,8 @@ const Messaging = () => {
       setSelectedId(result.id);
       setShowNewDM(false);
       setDMTarget("");
-    } catch (error) {
-      console.error('Failed to create conversation:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'creating conversation');
     }
   };
 

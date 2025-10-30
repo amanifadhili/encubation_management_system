@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
 import { getTeamsReport, getInventoryReport, getProjectsReport, exportReport } from "../services/api";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -30,9 +31,8 @@ const Reports = () => {
       setTeamsReport(teams);
       setInventoryReport(inventory);
       setProjectsReport(projects);
-    } catch (error) {
-      console.error('Failed to load reports:', error);
-      showToast('Failed to load reports', 'error');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading reports');
     } finally {
       setLoading(false);
     }
@@ -43,9 +43,8 @@ const Reports = () => {
     try {
       await exportReport({ type: 'teams' });
       showToast("Report exported!", "success");
-    } catch (error) {
-      console.error('Failed to export report:', error);
-      showToast('Failed to export report', 'error');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'exporting report');
     }
   };
 

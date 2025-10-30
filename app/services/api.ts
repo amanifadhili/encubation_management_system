@@ -2,7 +2,8 @@
  * Real API service layer for connecting to backend.
  * All functions make HTTP requests to the backend API.
  */
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import { ErrorHandler } from '../utils/errorHandler';
 
 // Base URL for API calls
 const API_BASE_URL = 'http://localhost:3001/api';
@@ -15,6 +16,9 @@ const api = axios.create({
   },
 });
 
+// Track retry attempts to prevent infinite loops
+const retryMap = new Map<string, number>();
+
 // Request interceptor to add JWT token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -24,14 +28,61 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor for error handling
+/**
+ * Handle DELETE operations that return 204 No Content
+ * @param endpoint - API endpoint
+ * @returns Success indicator with status
+ */
+async function handleDelete(endpoint: string): Promise<{ success: boolean; status: number }> {
+  const response = await api.delete(endpoint);
+  // 204 has no body, 200 might have body (legacy support)
+  return { 
+    success: response.status === 204 || response.status === 200,
+    status: response.status
+  };
+}
+
+// Response interceptor with advanced error handling
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error: AxiosError) => {
+    const errorDetails = ErrorHandler.parse(error);
+    
+    // Handle 401 - Unauthorized (Session expired)
+    if (errorDetails.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
+      return Promise.reject(error);
     }
+    
+    // Generate retry key for tracking attempts
+    const retryKey = `${error.config?.method}-${error.config?.url}`;
+    const retryCount = retryMap.get(retryKey) || 0;
+    
+    // Handle 429 - Rate Limiting with automatic retry (max 3 attempts)
+    if (errorDetails.status === 429 && retryCount < 3) {
+      retryMap.set(retryKey, retryCount + 1);
+      await new Promise(resolve => 
+        setTimeout(resolve, errorDetails.retryAfter || 1000)
+      );
+      retryMap.delete(retryKey);
+      return api.request(error.config!);
+    }
+    
+    // Handle 503 - Service Unavailable with automatic retry (max 2 attempts)
+    if (errorDetails.status === 503 && retryCount < 2) {
+      retryMap.set(retryKey, retryCount + 1);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      retryMap.delete(retryKey);
+      return api.request(error.config!);
+    }
+    
+    // Clear retry count on success or non-retryable error
+    retryMap.delete(retryKey);
+    
+    // Attach parsed error details for use in components
+    (error as any).errorDetails = errorDetails;
+    
     return Promise.reject(error);
   }
 );
@@ -58,8 +109,7 @@ export async function updateIncubator(id: number, data: any) {
 }
 
 export async function deleteIncubator(id: number) {
-  const response = await api.delete(`/teams/${id}`);
-  return response.data;
+  return handleDelete(`/teams/${id}`);
 }
 
 export async function getIncubatorMembers(id: number) {
@@ -73,8 +123,7 @@ export async function addIncubatorMember(id: number, data: any) {
 }
 
 export async function removeIncubatorMember(id: number, memberId: number) {
-  const response = await api.delete(`/teams/${id}/members/${memberId}`);
-  return response.data;
+  return handleDelete(`/teams/${id}/members/${memberId}`);
 }
 
 // Projects API
@@ -99,8 +148,7 @@ export async function updateProject(id: number, data: any) {
 }
 
 export async function deleteProject(id: number) {
-  const response = await api.delete(`/projects/${id}`);
-  return response.data;
+  return handleDelete(`/projects/${id}`);
 }
 
 export async function uploadProjectFiles(id: number, files: FormData, onUploadProgress?: (progress: number) => void) {
@@ -122,8 +170,7 @@ export async function getProjectFiles(id: number) {
 }
 
 export async function deleteProjectFile(id: number, fileId: number) {
-  const response = await api.delete(`/projects/${id}/files/${fileId}`);
-  return response.data;
+  return handleDelete(`/projects/${id}/files/${fileId}`);
 }
 
 // Mentors API
@@ -148,8 +195,7 @@ export async function updateMentor(id: number, data: any) {
 }
 
 export async function deleteMentor(id: number) {
-  const response = await api.delete(`/mentors/${id}`);
-  return response.data;
+  return handleDelete(`/mentors/${id}`);
 }
 
 export async function assignMentorToTeam(mentorId: number, data: any) {
@@ -158,8 +204,7 @@ export async function assignMentorToTeam(mentorId: number, data: any) {
 }
 
 export async function removeMentorFromTeam(mentorId: number, teamId: number) {
-  const response = await api.delete(`/mentors/${mentorId}/assign/${teamId}`);
-  return response.data;
+  return handleDelete(`/mentors/${mentorId}/assign/${teamId}`);
 }
 
 // Inventory API
@@ -184,8 +229,7 @@ export async function updateInventoryItem(id: number, data: any) {
 }
 
 export async function deleteInventoryItem(id: number) {
-  const response = await api.delete(`/inventory/${id}`);
-  return response.data;
+  return handleDelete(`/inventory/${id}`);
 }
 
 export async function assignInventoryToTeam(id: number, data: any) {
@@ -194,8 +238,7 @@ export async function assignInventoryToTeam(id: number, data: any) {
 }
 
 export async function unassignInventoryFromTeam(id: number, teamId: number) {
-  const response = await api.delete(`/inventory/${id}/assign/${teamId}`);
-  return response.data;
+  return handleDelete(`/inventory/${id}/assign/${teamId}`);
 }
 
 // Material Requests API
@@ -220,8 +263,7 @@ export async function updateRequestStatus(id: number, data: any) {
 }
 
 export async function deleteRequest(id: number) {
-  const response = await api.delete(`/requests/${id}`);
-  return response.data;
+  return handleDelete(`/requests/${id}`);
 }
 
 // Announcements API
@@ -246,8 +288,7 @@ export async function updateAnnouncement(id: number, data: any) {
 }
 
 export async function deleteAnnouncement(id: number) {
-  const response = await api.delete(`/announcements/${id}`);
-  return response.data;
+  return handleDelete(`/announcements/${id}`);
 }
 
 // Notifications API
@@ -267,8 +308,7 @@ export async function markNotificationAsRead(id: number) {
 }
 
 export async function deleteNotification(id: number) {
-  const response = await api.delete(`/notifications/${id}`);
-  return response.data;
+  return handleDelete(`/notifications/${id}`);
 }
 
 // Reports API

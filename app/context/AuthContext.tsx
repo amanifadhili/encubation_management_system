@@ -35,14 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      const loggedInUser = await authService.login(email, password);
-      setUser(loggedInUser);
-      return !!loggedInUser;
-    } catch (error) {
-      console.error('Login failed:', error);
-      return false;
-    }
+    const loggedInUser = await authService.login(email, password);
+    setUser(loggedInUser);
+    return true;
   };
 
   const logout = async (): Promise<void> => {

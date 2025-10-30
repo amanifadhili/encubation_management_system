@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import {
@@ -11,6 +14,7 @@ import {
 
 const Announcements = () => {
   const { user } = useAuth();
+  const showToast = useToast();
   const canPost = user && (user.role === "manager" || user.role === "director");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,10 +30,26 @@ const Announcements = () => {
 
   const loadAnnouncements = async () => {
     try {
-      const data = await getAnnouncements();
+      const data = await withRetry(
+        () => getAnnouncements(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt) => {
+            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
       setAnnouncements(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load announcements:', error);
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isTimeout(error)) {
+        showToast('Request timed out. Please try again.', 'error');
+      } else {
+        showToast(errorDetails.userMessage || 'Failed to load announcements', 'error');
+      }
     } finally {
       setLoading(false);
     }

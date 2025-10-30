@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { ErrorHandler } from "../utils/errorHandler";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -26,14 +27,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        navigate("/dashboard");
-      } else {
+      await login(email, password);
+      navigate("/dashboard");
+    } catch (err: any) {
+      // Use comprehensive error handler for all status codes
+      const errorDetails = ErrorHandler.handleError(err, (msg) => setError(msg), 'login');
+      
+      // For login, 401 means invalid credentials
+      if (errorDetails.status === 401) {
         setError("Invalid email or password");
       }
-    } catch (err) {
-      setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
