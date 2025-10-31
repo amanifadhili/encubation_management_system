@@ -25,6 +25,15 @@ const roleColors: { [key: string]: string } = {
   default: "bg-gray-400 text-white"
 };
 
+// Role display names
+const roleDisplayNames: { [key: string]: string } = {
+  director: "Director",
+  manager: "Manager",
+  mentor: "Mentor",
+  incubator: "Incubator",
+  default: "User"
+};
+
 const Messaging = () => {
   const { user } = useAuth();
   const showToast = useToast();
@@ -54,7 +63,7 @@ const Messaging = () => {
     }
   }, [user]);
 
-  // Connect to socket when user is available
+  // Connect to socket when user is available (only once)
   useEffect(() => {
     if (user) {
       const token = localStorage.getItem('token');
@@ -73,13 +82,20 @@ const Messaging = () => {
 
         window.addEventListener('socket:message_received', handleNewMessage);
 
+        // Only remove event listener on cleanup, don't disconnect socket
         return () => {
           window.removeEventListener('socket:message_received', handleNewMessage);
-          socketService.disconnect();
         };
       }
     }
-  }, [user, selectedId]);
+  }, [user]); // Removed selectedId dependency to prevent reconnect loops
+
+  // Cleanup socket on unmount only
+  useEffect(() => {
+    return () => {
+      socketService.disconnect();
+    };
+  }, []);
 
   // Load messages when conversation is selected
   useEffect(() => {
@@ -193,11 +209,22 @@ const Messaging = () => {
         participants: [user!.id, dmTarget] // Both are string user IDs
       });
 
-      setConversations(prev => [...prev, result]);
+      // Reload conversations to get the properly formatted data with user objects
+      await loadConversations();
+
+      // Select the new conversation
       setSelectedId(result.id);
+
+      // Load messages for the new conversation
+      await loadMessages(result.id);
+
+      // Close modal and reset form
       setShowNewDM(false);
       setDMTarget("");
+
+      showToast('Conversation started successfully!', 'success');
     } catch (error: any) {
+      console.error('Conversation creation error:', error);
       ErrorHandler.handleError(error, showToast, 'creating conversation');
     } finally {
       setCreating(false);
@@ -210,10 +237,13 @@ const Messaging = () => {
   };
 
   const Avatar = ({ name, role }: { name: string; role: string }) => {
-    const initials = name.split(" ").map(n => n[0]).join("").toUpperCase();
+    const initials = name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
     return (
-      <span className={clsx("inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-lg shadow", roleColors[role] || roleColors.default)}>
-        {initials}
+      <span
+        className={clsx("inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shadow", roleColors[role] || roleColors.default)}
+        title={`${name} (${roleDisplayNames[role] || role})`}
+      >
+        {initials || '?'}
       </span>
     );
   };
@@ -252,8 +282,33 @@ const Messaging = () => {
             conversations.map(c => {
               // Show conversation name (other participant)
               const participants = c.participants || c.other_participants || [];
-              const otherParticipant = participants.find((p: string) => p !== user.id) || user.id;
-              const label = `User ${otherParticipant}`; // In real app, get user name
+
+              // Handle both old format (string IDs) and new format (user objects)
+              let otherParticipant: any = null;
+              let displayName = '';
+
+              if (participants.length > 0) {
+                // Find the other participant (not current user)
+                otherParticipant = participants.find((p: any) =>
+                  typeof p === 'string' ? p !== user.id : p.id !== user.id
+                );
+
+                if (otherParticipant) {
+                  if (typeof otherParticipant === 'string') {
+                    // Old format: just user ID string
+                    displayName = `User ${otherParticipant}`;
+                  } else {
+                    // New format: user object with name, email, role
+                    displayName = otherParticipant.name || otherParticipant.email?.split('@')[0] || `User ${otherParticipant.id}`;
+                  }
+                }
+              }
+
+              // Fallback if no other participant found
+              if (!displayName) {
+                displayName = 'Unknown User';
+              }
+
               const lastMsg = c.latest_message || c.messages?.[c.messages.length - 1];
               return (
                 <button
@@ -264,9 +319,16 @@ const Messaging = () => {
                   )}
                   onClick={() => setSelectedId(c.id)}
                 >
-                  <Avatar name={label} role="default" />
+                  <Avatar name={displayName} role={otherParticipant?.role || "default"} />
                   <div className="flex-1">
-                    <div className="font-semibold text-blue-900 truncate">{label}</div>
+                    <div className="font-semibold text-blue-900 truncate">
+                      {displayName}
+                      {otherParticipant && typeof otherParticipant === 'object' && otherParticipant.role && (
+                        <span className="ml-2 text-xs font-normal text-gray-500">
+                          ({roleDisplayNames[otherParticipant.role] || otherParticipant.role})
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-500 truncate">
                       {lastMsg ? lastMsg.content.slice(0, 30) : "No messages yet."}
                     </div>
@@ -294,7 +356,14 @@ const Messaging = () => {
             >
               <option value="">Select...</option>
               {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                <option key={u.id} value={u.id}>
+                  {u.name || u.email?.split('@')[0] || `User ${u.id}`}
+                  {u.role && (
+                    <span className="text-gray-500 ml-1">
+                      ({roleDisplayNames[u.role] || u.role})
+                    </span>
+                  )} - {u.email}
+                </option>
               ))}
             </select>
           </div>
@@ -324,15 +393,32 @@ const Messaging = () => {
         <div className="p-4 border-b flex items-center gap-3 bg-white">
           {selectedId ? (
             <>
-              <Avatar name="Chat" role="default" />
-              <div>
-                <div className="font-bold text-blue-900">
-                  Conversation
-                </div>
-                <div className="text-xs text-gray-500">
-                  Direct message
-                </div>
-              </div>
+              {(() => {
+                const conversation = conversations.find(c => c.id === selectedId);
+                const otherParticipant = conversation?.other_participants?.[0];
+                const displayName = otherParticipant?.name ||
+                  otherParticipant?.email?.split('@')[0] ||
+                  'Chat';
+
+                return (
+                  <>
+                    <Avatar name={displayName} role={otherParticipant?.role || "default"} />
+                    <div>
+                      <div className="font-bold text-blue-900">
+                        {displayName}
+                        {otherParticipant?.role && (
+                          <span className="ml-2 text-sm font-normal text-gray-500">
+                            ({roleDisplayNames[otherParticipant.role] || otherParticipant.role})
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Direct message
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </>
           ) : (
             <div className="text-gray-400">Select a conversation</div>
@@ -350,7 +436,7 @@ const Messaging = () => {
                   const isMe = senderId === user.id;
                   return (
                     <div key={msg.id || i} className={clsx("flex items-end gap-2", isMe ? "justify-end" : "justify-start")}>
-                      {!isMe && <Avatar name={msg.sender?.name || `User ${senderId}`} role={msg.sender?.role || "default"} />}
+                      {!isMe && <Avatar name={msg.sender?.name || msg.sender?.email?.split('@')[0] || `User ${senderId}`} role={msg.sender?.role || "default"} />}
                       <div>
                         <div className={clsx(
                           "px-4 py-2 rounded-lg shadow text-sm max-w-xs break-words",
