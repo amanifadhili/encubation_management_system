@@ -74,6 +74,8 @@ const Messaging = () => {
         const handleNewMessage = (event: any) => {
           const { data } = event.detail;
           console.log('Received new message:', data);
+          console.log('Current selectedId:', selectedId);
+          console.log('Message conversation_id:', data.conversation_id || data.conversationId);
 
           // Add message to current conversation if it's the selected one
           if (selectedId === data.conversation_id || selectedId === data.conversationId) {
@@ -82,10 +84,15 @@ const Messaging = () => {
               // Avoid duplicates by checking if message already exists
               const messageExists = prev.some(msg => msg.id === data.id);
               if (!messageExists) {
+                console.log('Message added to UI');
                 return [...prev, data];
+              } else {
+                console.log('Message already exists, skipping');
               }
               return prev;
             });
+          } else {
+            console.log('Message not for current conversation');
           }
 
           // Update conversation list to show latest message
@@ -96,6 +103,31 @@ const Messaging = () => {
         const handleMessageNotification = (event: any) => {
           const { data } = event.detail;
           console.log('Received message notification:', data);
+
+          // If this notification is for the currently selected conversation, treat it as a new message
+          if (selectedId === data.conversationId) {
+            console.log('Notification is for current conversation, adding as message');
+            setMessages(prev => {
+              // Avoid duplicates by checking if message already exists
+              const messageExists = prev.some(msg => msg.id === data.id);
+              if (!messageExists) {
+                console.log('Message notification added to UI');
+                return [...prev, {
+                  id: data.id,
+                  conversation_id: data.conversationId,
+                  sender_id: data.sender?.id,
+                  sender: data.sender,
+                  content: data.content,
+                  message_type: data.messageType,
+                  sent_at: data.sentAt || new Date().toISOString()
+                }];
+              } else {
+                console.log('Message notification already exists, skipping');
+              }
+              return prev;
+            });
+          }
+
           // Update conversation list to show notification indicator
           loadConversations();
         };

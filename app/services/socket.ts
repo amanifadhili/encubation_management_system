@@ -53,11 +53,17 @@ class SocketService {
       this.attemptReconnect();
     });
 
-    // Message events
-    this.socket.on('message_received', (data) => {
-      console.log('Message received:', data);
+    // Message events - listen for the correct event name from backend
+    this.socket.on('new_message', (data) => {
+      console.log('New message received:', data);
       // Emit custom event for components to listen
       window.dispatchEvent(new CustomEvent('socket:message_received', { detail: data }));
+    });
+
+    // Also listen for message_notification for other conversations
+    this.socket.on('message_notification', (data) => {
+      console.log('Message notification received:', data);
+      window.dispatchEvent(new CustomEvent('socket:message_notification', { detail: data }));
     });
 
     // Notification events
