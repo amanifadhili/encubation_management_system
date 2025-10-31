@@ -24,6 +24,9 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('API Request:', config.method?.toUpperCase(), config.url, '- Token present:', !!token);
+  } else {
+    console.log('API Request:', config.method?.toUpperCase(), config.url, '- No token found');
   }
   return config;
 });
@@ -332,6 +335,16 @@ export async function getProjectsReport(params?: any) {
   return response.data.success ? response.data.data : response.data;
 }
 
+export async function getAdvancedReports(params?: any) {
+  const response = await api.get('/reports/advanced', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+export async function getTimeSeriesAnalytics(params?: any) {
+  const response = await api.get('/reports/time-series', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
 export async function exportReport(data: any) {
   const response = await api.post('/reports/export', data);
   return response.data;
@@ -340,6 +353,18 @@ export async function exportReport(data: any) {
 // Dashboard Analytics API
 export async function getDashboardAnalytics() {
   const response = await api.get('/reports/dashboard/analytics');
+  return response.data.success ? response.data.data : response.data;
+}
+
+// System Metrics API
+export async function getSystemMetrics() {
+  const response = await api.get('/reports/system-metrics');
+  return response.data.success ? response.data.data : response.data;
+}
+
+// Cross-entity Analytics API
+export async function getCrossEntityAnalytics() {
+  const response = await api.get('/reports/cross-entity');
   return response.data.success ? response.data.data : response.data;
 }
 
