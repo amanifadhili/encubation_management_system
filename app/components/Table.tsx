@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { PageSkeleton } from "./loading";
 
 export interface TableColumn<T> {
   key: keyof T | string;
@@ -13,6 +14,8 @@ interface TableProps<T> {
   actions?: (row: T) => React.ReactNode;
   emptyMessage?: string;
   className?: string;
+  loading?: boolean;
+  skeletonCount?: number;
 }
 
 // Tooltip component for icon actions
@@ -36,7 +39,23 @@ const Tooltip: React.FC<{ label: string; children: React.ReactNode }> = ({ label
   );
 };
 
-function Table<T extends { id: number | string }>({ columns, data, actions, emptyMessage = "No data found.", className = "" }: TableProps<T>) {
+function Table<T extends { id: number | string }>({ 
+  columns, 
+  data, 
+  actions, 
+  emptyMessage = "No data found.", 
+  className = "",
+  loading = false,
+  skeletonCount = 5
+}: TableProps<T>) {
+  if (loading) {
+    return (
+      <div className={`overflow-x-auto rounded-lg shadow-lg bg-white ${className}`}>
+        <PageSkeleton count={skeletonCount} layout="table" />
+      </div>
+    );
+  }
+
   return (
     <div className={`overflow-x-auto rounded-lg shadow-lg bg-white ${className}`}>
       <table className="min-w-full">

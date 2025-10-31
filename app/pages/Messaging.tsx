@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
 import clsx from "clsx";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 import {
   getConversations,
   createConversation,
@@ -24,6 +27,7 @@ const roleColors: { [key: string]: string } = {
 
 const Messaging = () => {
   const { user } = useAuth();
+  const showToast = useToast();
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -38,6 +42,7 @@ const Messaging = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [creating, setCreating] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,8 +102,8 @@ const Messaging = () => {
       if (data.length > 0 && !selectedId) {
         setSelectedId(data[0].id);
       }
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading conversations');
     } finally {
       setLoading(false);
     }
@@ -109,8 +114,8 @@ const Messaging = () => {
     try {
       const data = await getConversationMessages(conversationId);
       setMessages(data);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading messages');
     } finally {
       setMessagesLoading(false);
     }
@@ -121,8 +126,8 @@ const Messaging = () => {
       const data = await getUsers();
       // Filter out current user from the list
       setUsers(data.filter((u: any) => u.id !== user?.id));
-    } catch (error) {
-      console.error('Failed to load users:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading users');
       setUsers([]);
     }
   };
@@ -154,7 +159,14 @@ const Messaging = () => {
       setUploadProgress(0);
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      setUploadError(error.response?.data?.message || error.message || 'Failed to send message');
+      const errorDetails = ErrorHandler.parse(error);
+      
+      if (ErrorHandler.isPayloadTooLarge(error)) {
+        const sizeError = ErrorHandler.parseFileSizeError(errorDetails);
+        setUploadError(sizeError.message);
+      } else {
+        setUploadError(errorDetails.userMessage || 'Failed to send message');
+      }
     } finally {
       setSending(false);
     }
@@ -175,6 +187,7 @@ const Messaging = () => {
   const handleStartDM = async () => {
     if (!dmTarget) return;
 
+    setCreating(true);
     try {
       const result = await createConversation({
         participants: [user!.id, dmTarget] // Both are string user IDs
@@ -184,8 +197,10 @@ const Messaging = () => {
       setSelectedId(result.id);
       setShowNewDM(false);
       setDMTarget("");
-    } catch (error) {
-      console.error('Failed to create conversation:', error);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'creating conversation');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -207,8 +222,10 @@ const Messaging = () => {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <div className="text-blue-700">Loading conversations...</div>
+      <div className="flex h-[80vh] items-center justify-center max-w-5xl mx-auto mt-8">
+        <div className="w-full">
+          <PageSkeleton count={5} layout="list" />
+        </div>
       </div>
     );
   }
@@ -219,12 +236,14 @@ const Messaging = () => {
       <aside className="w-64 bg-gray-50 border-r flex flex-col">
         <div className="p-4 border-b text-xl font-extrabold text-blue-900 flex items-center justify-between">
           Inbox
-          <button
-            className="ml-2 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-semibold"
+          <ButtonLoader
             onClick={() => setShowNewDM(true)}
-          >
-            + New Message
-          </button>
+            loading={false}
+            label="+ New"
+            variant="primary"
+            size="sm"
+            className="text-xs"
+          />
         </div>
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
@@ -280,12 +299,22 @@ const Messaging = () => {
             </select>
           </div>
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" type="button" onClick={() => { setShowNewDM(false); setDMTarget(""); }}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleStartDM} disabled={!dmTarget}>
-              Start
-            </Button>
+            <ButtonLoader
+              variant="secondary"
+              type="button"
+              onClick={() => { setShowNewDM(false); setDMTarget(""); }}
+              loading={false}
+              label="Cancel"
+            />
+            <ButtonLoader
+              type="button"
+              onClick={handleStartDM}
+              loading={creating}
+              label="Start"
+              loadingText="Creating..."
+              variant="primary"
+              disabled={!dmTarget}
+            />
           </div>
         </Modal>
       </aside>
@@ -313,7 +342,7 @@ const Messaging = () => {
         <div className="flex-1 overflow-y-auto px-4 py-6 bg-gradient-to-br from-blue-50 to-white">
           {selectedId ? (
             messagesLoading ? (
-              <div className="text-center text-gray-500">Loading messages...</div>
+              <PageSkeleton count={4} layout="list" />
             ) : (
               <div className="flex flex-col gap-4">
                 {messages.map((msg, i) => {
@@ -438,14 +467,16 @@ const Messaging = () => {
                 placeholder="Type a message..."
                 className="flex-1 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 autoFocus
+                disabled={sending}
               />
-              <button
+              <ButtonLoader
                 type="submit"
-                className="px-6 py-2 bg-blue-700 text-white rounded font-semibold shadow hover:bg-blue-800 transition disabled:opacity-50"
-                disabled={sending || (!message.trim() && !file)}
-              >
-                {sending ? "Sending..." : "Send"}
-              </button>
+                loading={sending}
+                label="Send"
+                loadingText="Sending..."
+                variant="primary"
+                disabled={!message.trim() && !file}
+              />
             </form>
           </>
         )}

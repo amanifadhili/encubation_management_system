@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { ErrorHandler } from "../utils/errorHandler";
+import { ButtonLoader, Spinner } from "../components/loading";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,7 +15,10 @@ const Login = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-blue-50">
-        <div className="text-blue-700">Loading...</div>
+        <div className="flex flex-col items-center gap-4">
+          <Spinner size="lg" color="blue" />
+          <div className="text-blue-700 font-medium">Checking authentication...</div>
+        </div>
       </div>
     );
   }
@@ -26,14 +31,16 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        navigate("/dashboard");
-      } else {
+      await login(email, password);
+      navigate("/dashboard");
+    } catch (err: any) {
+      // Use comprehensive error handler for all status codes
+      const errorDetails = ErrorHandler.handleError(err, (msg) => setError(msg), 'login');
+      
+      // For login, 401 means invalid credentials
+      if (errorDetails.status === 401) {
         setError("Invalid email or password");
       }
-    } catch (err) {
-      setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -51,6 +58,7 @@ const Login = () => {
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-blue-900 placeholder-blue-400 bg-blue-50"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              disabled={loading}
               required
               placeholder="Enter your email"
             />
@@ -62,25 +70,32 @@ const Login = () => {
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-blue-900 placeholder-blue-400 bg-blue-50"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              disabled={loading}
               required
               placeholder="Enter your password"
             />
           </div>
           {error && <div className="text-red-500 text-sm">{error}</div>}
-          <button
+          <ButtonLoader
+            loading={loading}
+            label="Sign In"
+            loadingText="Signing in..."
+            variant="primary"
             type="submit"
+            fullWidth={true}
+            className="bg-blue-700 hover:bg-blue-800"
             disabled={loading}
-            className="w-full bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+          />
         </form>
-        <button
+        <ButtonLoader
+          loading={false}
           onClick={() => navigate("/")}
-          className="mt-4 w-full bg-gray-200 text-blue-700 py-2 rounded font-semibold hover:bg-gray-300 transition"
-        >
-          Back Home
-        </button>
+          label="Back Home"
+          variant="secondary"
+          type="button"
+          fullWidth={true}
+          className="mt-4 bg-gray-200 text-blue-700 hover:bg-gray-300"
+        />
       </div>
     </div>
   );

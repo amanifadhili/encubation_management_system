@@ -19,38 +19,34 @@ export interface User {
 
 let currentUser: User | null = null;
 
-export async function login(email: string, password: string): Promise<User | null> {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-      email,
-      password
-    });
+export async function login(email: string, password: string): Promise<User> {
+  const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+    email,
+    password
+  });
 
-    if (response.data.success) {
-      const { token, user } = response.data.data;
+  if (response.data.success) {
+    const { token, user } = response.data.data;
 
-      // Store token in localStorage
-      localStorage.setItem('token', token);
+    // Store token in localStorage
+    localStorage.setItem('token', token);
 
-      // Set current user
-      currentUser = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        teamId: user.team_id,
-        // For incubator role, we might need to fetch additional team data
-        // But for now, keep it simple
-      };
+    // Set current user
+    currentUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      teamId: user.team_id,
+      // For incubator role, we might need to fetch additional team data
+      // But for now, keep it simple
+    };
 
-      return currentUser;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Login error:', error);
-    return null;
+    return currentUser;
   }
+
+  // If response is not successful, throw error
+  throw new Error(response.data.message || 'Login failed');
 }
 
 export async function logout(): Promise<void> {
