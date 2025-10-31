@@ -302,6 +302,11 @@ export async function createNotification(data: any) {
   return response.data;
 }
 
+export async function updateNotification(id: number, data: any) {
+  const response = await api.put(`/notifications/${id}`, data);
+  return response.data;
+}
+
 export async function markNotificationAsRead(id: number) {
   const response = await api.put(`/notifications/${id}/read`);
   return response.data;

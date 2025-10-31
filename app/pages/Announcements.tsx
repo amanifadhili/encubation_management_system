@@ -176,7 +176,7 @@ const Announcements = () => {
                 </div>
                 <div className="text-blue-800 mb-2">{a.content}</div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
-                  <span>Posted by: <span className="font-semibold">{a.author_id || 'System'}</span></span>
+                  <span>Posted by: <span className="font-semibold">{a.author?.name || 'System'}</span></span>
                   <span>{new Date(a.created_at).toLocaleDateString()}</span>
                 </div>
               </div>

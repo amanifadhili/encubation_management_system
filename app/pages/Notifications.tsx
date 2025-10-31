@@ -8,6 +8,7 @@ import { ButtonLoader, PageSkeleton } from "../components/loading";
 import {
   getNotifications,
   createNotification,
+  updateNotification,
   markNotificationAsRead,
   deleteNotification,
   getIncubators
@@ -48,6 +49,8 @@ const Notifications = () => {
   const loadNotifications = async () => {
     try {
       const data = await getNotifications();
+      // For managers, getNotifications returns sent notifications
+      // For incubators, getNotifications returns received notifications
       setNotifications(data);
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'loading notifications');
@@ -122,21 +125,26 @@ const Notifications = () => {
   };
   const cancelDelete = () => setDeleteIdx(null);
 
-  // Edit (only for sender/manager) - Note: Backend might not support editing
+  // Edit (only for sender/manager)
   const handleEdit = (idx: number) => {
     setEditIdx(idx);
     setEditMessage(notifications[idx].message);
   };
-  const confirmEdit = () => {
-    // For now, just update locally since backend might not support editing
+  const confirmEdit = async () => {
     if (editIdx === null) return;
     setEditing(true);
-    setTimeout(() => {
+    try {
+      const notificationId = notifications[editIdx].id;
+      await updateNotification(notificationId, { message: editMessage });
       setNotifications(prev => prev.map((n, i) => i === editIdx ? { ...n, message: editMessage } : n));
       setEditIdx(null);
       setEditMessage("");
+      showToast('Notification updated successfully', 'success');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'updating notification');
+    } finally {
       setEditing(false);
-    }, 300);
+    }
   };
   const cancelEdit = () => {
     setEditIdx(null);
@@ -154,10 +162,13 @@ const Notifications = () => {
         title: "Notification", // Backend expects title
         message: addMessage,
         recipient_type: "team",
-        recipient_id: parseInt(addRecipient)
+        recipient_id: addRecipient
       });
 
-      setNotifications(prev => [result, ...prev]);
+      // Add the new notification to the list (but only if user is manager, since managers see sent notifications)
+      if (isManager) {
+        setNotifications(prev => [result.data?.notification || result, ...prev]);
+      }
       setShowAddModal(false);
       setAddRecipient("");
       setAddMessage("");
@@ -236,9 +247,9 @@ const Notifications = () => {
                 </div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
                   {isManager ? (
-                    <span>To: <span className="font-semibold">Team {n.recipient_id}</span></span>
+                    <span>To: <span className="font-semibold">{teams.find(t => t.id === n.recipient_id)?.teamName || `Team ${n.recipient_id}`}</span></span>
                   ) : (
-                    <span>From: <span className="font-semibold">Manager {n.sender_id}</span></span>
+                    <span>From: <span className="font-semibold">{n.sender?.name || 'Manager'}</span></span>
                   )}
                   <span>{new Date(n.created_at).toLocaleString()}</span>
                 </div>
