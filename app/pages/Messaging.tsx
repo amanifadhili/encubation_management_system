@@ -73,22 +73,44 @@ const Messaging = () => {
         // Listen for new messages
         const handleNewMessage = (event: any) => {
           const { data } = event.detail;
-          if (selectedId === data.conversation_id) {
-            setMessages(prev => [...prev, data]);
+          console.log('Received new message:', data);
+
+          // Add message to current conversation if it's the selected one
+          if (selectedId === data.conversation_id || selectedId === data.conversationId) {
+            console.log('Adding message to current conversation');
+            setMessages(prev => {
+              // Avoid duplicates by checking if message already exists
+              const messageExists = prev.some(msg => msg.id === data.id);
+              if (!messageExists) {
+                return [...prev, data];
+              }
+              return prev;
+            });
           }
-          // Update conversation list if needed
+
+          // Update conversation list to show latest message
+          loadConversations();
+        };
+
+        // Listen for message notifications (for other conversations)
+        const handleMessageNotification = (event: any) => {
+          const { data } = event.detail;
+          console.log('Received message notification:', data);
+          // Update conversation list to show notification indicator
           loadConversations();
         };
 
         window.addEventListener('socket:message_received', handleNewMessage);
+        window.addEventListener('socket:message_notification', handleMessageNotification);
 
-        // Only remove event listener on cleanup, don't disconnect socket
+        // Only remove event listeners on cleanup, don't disconnect socket
         return () => {
           window.removeEventListener('socket:message_received', handleNewMessage);
+          window.removeEventListener('socket:message_notification', handleMessageNotification);
         };
       }
     }
-  }, [user]); // Removed selectedId dependency to prevent reconnect loops
+  }, [user, selectedId]); // Added selectedId back to update when conversation changes
 
   // Cleanup socket on unmount only
   useEffect(() => {
@@ -101,6 +123,9 @@ const Messaging = () => {
   useEffect(() => {
     if (selectedId) {
       loadMessages(selectedId);
+
+      // Join the conversation room when selected
+      socketService.getSocket()?.emit('join_conversation', selectedId);
     }
   }, [selectedId]);
 
@@ -171,12 +196,23 @@ const Messaging = () => {
           setUploadProgress(progress);
         });
       } else {
-        response = await sendMessage(selectedId, { content: messageContent });
+        // Use socket for real-time messaging instead of HTTP API
+        socketService.getSocket()?.emit('send_message', {
+          conversationId: selectedId,
+          content: messageContent
+        });
+
+        // Create optimistic response for immediate UI feedback
+        response = {
+          id: Date.now().toString(),
+          content: messageContent,
+          message_type: 'text'
+        };
       }
 
       // Add the sent message to the local state immediately for instant UI feedback
       const newMessage = {
-        id: response.id || Date.now().toString(), // Fallback ID if not provided
+        id: response.id || Date.now().toString(),
         conversation_id: selectedId,
         sender_id: user!.id,
         sender: {
