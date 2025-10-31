@@ -6,7 +6,7 @@ import axios, { AxiosError } from 'axios';
 import { ErrorHandler } from '../utils/errorHandler';
 
 // Base URL for API calls
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://encubation-backend.excellusi.com/api';
 
 // Create axios instance
 const api = axios.create({
