@@ -4,7 +4,6 @@ import { useToast } from "../components/Layout";
 import { ErrorHandler } from "../utils/errorHandler";
 import { getTeamsReport, getInventoryReport, getProjectsReport, exportReport } from "../services/api";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
 
 const Reports = () => {
@@ -49,16 +48,136 @@ const Reports = () => {
     loadReports(true);
   };
 
-  // Export as PDF (simplified)
+  // Export as PDF
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportReport({ type: 'teams' });
-      showToast("Report exported!", "success");
+      console.log('Starting report export...');
+      console.log('Sending request with:', { report_type: 'teams' });
+
+      const result = await exportReport({ report_type: 'teams' });
+      console.log('Export result received:', result);
+
+      if (result && result.success && result.data) {
+        console.log('Export successful, generating PDF with data:', result.data);
+
+        // Generate PDF using the data
+        const pdf = new jsPDF();
+
+        // Add title
+        pdf.setFontSize(20);
+        pdf.text('Teams Report', 20, 30);
+
+        // Add generation date
+        pdf.setFontSize(12);
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 45);
+
+        // Add summary
+        pdf.setFontSize(16);
+        pdf.text('Summary', 20, 65);
+
+        const summary = result.data.summary;
+        pdf.setFontSize(12);
+        let yPos = 80;
+        pdf.text(`Total Teams: ${summary.total_teams || 0}`, 20, yPos);
+        yPos += 10;
+        pdf.text(`Active Teams: ${summary.active_teams || 0}`, 20, yPos);
+        yPos += 10;
+        pdf.text(`Pending Teams: ${summary.pending_teams || 0}`, 20, yPos);
+        yPos += 10;
+        pdf.text(`Total Projects: ${summary.total_projects || 0}`, 20, yPos);
+        yPos += 10;
+        pdf.text(`Total Members: ${summary.total_members || 0}`, 20, yPos);
+        yPos += 10;
+        pdf.text(`Total Mentors: ${summary.total_mentors || 0}`, 20, yPos);
+
+        // Add teams table
+        yPos += 20;
+        pdf.setFontSize(16);
+        pdf.text('Teams Details', 20, yPos);
+        yPos += 10;
+
+        const teams = result.data.teams || [];
+        if (teams.length > 0) {
+          // Simple table implementation without autoTable
+          pdf.setFontSize(10);
+          const colWidth = 35;
+          const rowHeight = 8;
+
+          // Table headers
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Team Name', 20, yPos);
+          pdf.text('Company', 20 + colWidth, yPos);
+          pdf.text('Status', 20 + colWidth * 2, yPos);
+          pdf.text('Members', 20 + colWidth * 3, yPos);
+          pdf.text('Projects', 20 + colWidth * 4, yPos);
+          pdf.text('Mentors', 20 + colWidth * 5, yPos);
+
+          yPos += rowHeight;
+          pdf.setFont('helvetica', 'normal');
+
+          // Draw header line
+          pdf.line(20, yPos - 2, 20 + colWidth * 6, yPos - 2);
+
+          // Table data
+          teams.forEach((team: any) => {
+            if (yPos > 250) { // New page if needed
+              pdf.addPage();
+              yPos = 30;
+            }
+
+            pdf.text(team.team_name || 'N/A', 20, yPos);
+            pdf.text((team.company_name || 'N/A').substring(0, 8), 20 + colWidth, yPos);
+            pdf.text(team.status || 'N/A', 20 + colWidth * 2, yPos);
+            pdf.text(String(team.member_count || 0), 20 + colWidth * 3, yPos);
+            pdf.text(String(team.project_count || 0), 20 + colWidth * 4, yPos);
+            pdf.text(String(team.mentor_count || 0), 20 + colWidth * 5, yPos);
+
+            yPos += rowHeight;
+          });
+        }
+
+        // Save the PDF
+        const fileName = `teams_report_${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(fileName);
+
+        console.log('PDF generated and downloaded:', fileName);
+        showToast("Report exported and downloaded successfully!", "success");
+      } else {
+        console.error('Export failed with result:', result);
+        showToast("Report export failed. Check console for details.", "error");
+      }
     } catch (error: any) {
-      ErrorHandler.handleError(error, showToast, 'exporting report');
+      console.error('Export error details:', error);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error response status:', error.response?.status);
+      console.error('Error response headers:', error.response?.headers);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+
+      // Show more specific error message
+      if (error.response?.data?.message) {
+        showToast(`Export failed: ${error.response.data.message}`, "error");
+      } else if (error.response?.data?.details) {
+        showToast(`Export failed: ${error.response.data.details}`, "error");
+      } else {
+        ErrorHandler.handleError(error, showToast, 'exporting report');
+      }
     } finally {
       setExporting(false);
+    }
+  };
+
+  // Test function to check if backend is responding
+  const testBackendConnection = async () => {
+    try {
+      console.log('Testing backend connection...');
+      const result = await getTeamsReport();
+      console.log('Backend test result:', result);
+      showToast("Backend connection successful!", "success");
+    } catch (error: any) {
+      console.error('Backend test failed:', error);
+      showToast("Backend connection failed!", "error");
     }
   };
 
@@ -77,6 +196,13 @@ const Reports = () => {
               label="Refresh"
               loadingText="Refreshing..."
               variant="secondary"
+              size="md"
+            />
+            <ButtonLoader
+              onClick={testBackendConnection}
+              loading={false}
+              label="Test Backend"
+              variant="outline"
               size="md"
             />
             <ButtonLoader
