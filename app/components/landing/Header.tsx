@@ -42,7 +42,7 @@ const Header = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">I</span>
               </div>
-              <span className="text-xl font-bold text-blue-600">Incubation Hub</span>
+              <span className="text-xl font-bold text-blue-600">Career Development Unit</span>
             </Link>
           </motion.div>
 

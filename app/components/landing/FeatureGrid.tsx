@@ -15,43 +15,43 @@ import {
 const features = [
   {
     icon: Users,
-    title: "Team Collaboration",
-    description: "Connect entrepreneurs, mentors, and business advisors in a unified platform for seamless collaboration and knowledge sharing."
+    title: "Career Counseling",
+    description: "Personalized career guidance sessions with professional counselors to help students identify their strengths and career goals."
   },
   {
     icon: TrendingUp,
-    title: "Business Development Tracking",
-    description: "Monitor startup progress from ideation to market launch with comprehensive milestone tracking and performance analytics."
+    title: "Progress Tracking",
+    description: "Monitor student career development progress with comprehensive milestone tracking and achievement analytics."
   },
   {
     icon: MessageSquare,
-    title: "Expert Communication",
-    description: "Direct messaging and consultation booking with industry experts, mentors, and business development specialists."
+    title: "Mentor Communication",
+    description: "Direct messaging and consultation booking with career mentors, alumni, and industry professionals."
   },
   {
     icon: BarChart3,
-    title: "Impact Analytics",
-    description: "Real-time dashboards showing business growth metrics, funding secured, jobs created, and economic impact generated."
+    title: "Placement Analytics",
+    description: "Real-time dashboards showing placement rates, industry trends, and career success metrics for informed decision making."
   },
   {
     icon: Settings,
     title: "Resource Management",
-    description: "Efficient allocation and tracking of business development resources, funding opportunities, and incubation facilities."
+    description: "Efficient allocation and tracking of career development resources, workshops, and professional development opportunities."
   },
   {
     icon: FileText,
-    title: "Business Planning Tools",
-    description: "Integrated tools for business plan development, financial modeling, and pitch deck creation with expert feedback."
+    title: "Resume & Portfolio Tools",
+    description: "Integrated tools for resume building, portfolio development, and professional document creation with expert feedback."
   },
   {
     icon: Target,
-    title: "Funding & Investment",
-    description: "Connect startups with investors, track funding applications, and manage investment relationships throughout the growth journey."
+    title: "Job Matching & Placement",
+    description: "Advanced job matching algorithms, internship placement coordination, and employment opportunity connections."
   },
   {
     icon: Award,
-    title: "Success Recognition",
-    description: "Celebrate milestones, showcase success stories, and build a community of accomplished entrepreneurs and businesses."
+    title: "Achievement Recognition",
+    description: "Celebrate student achievements, showcase success stories, and recognize outstanding career development milestones."
   }
 ];
 
@@ -68,10 +68,10 @@ const FeatureGrid: React.FC = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Comprehensive Business Incubation Platform
+            Career Development & Guidance Services
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Everything you need to manage, track, and scale business incubation and innovation programs
+            Comprehensive tools and resources to support student career growth, professional development, and successful transitions to the workforce
           </p>
         </motion.div>
 

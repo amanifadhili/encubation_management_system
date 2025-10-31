@@ -41,10 +41,10 @@ const Landing = () => {
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">I</span>
                 </div>
-                <span className="text-xl font-bold">Incubation Hub</span>
+                <span className="text-xl font-bold">Career Development Unit</span>
               </div>
               <p className="text-gray-400 mb-4">
-                Transforming business ideas into successful enterprises through comprehensive incubation and innovation support.
+                Supporting student career growth and professional development through comprehensive guidance and incubation services.
               </p>
             </div>
             <div>
