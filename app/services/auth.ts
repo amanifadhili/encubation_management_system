@@ -10,8 +10,8 @@ export interface User {
   email: string;
   role: UserRole;
   teamId?: string;
-  teamName?: string;
   teamLeader?: any;
+  teamName?: string;
   members?: any[];
   mentor?: string;
   status?: string;
