@@ -62,10 +62,7 @@ const Messaging = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [messageReactions, setMessageReactions] = useState<{[key: string]: {emoji: string, users: string[]}[]}>({});
-  const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
   const [replyingTo, setReplyingTo] = useState<any>(null);
-  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -474,70 +471,7 @@ const Messaging = () => {
     }
   };
 
-  const handleReaction = async (messageId: string, emoji: string) => {
-    try {
-      // Optimistic update
-      setMessageReactions(prev => {
-        const messageReactions = prev[messageId] || [];
-        const existingReaction = messageReactions.find(r => r.emoji === emoji);
 
-        if (existingReaction) {
-          if (existingReaction.users.includes(user!.name)) {
-            // Remove user from reaction
-            existingReaction.users = existingReaction.users.filter(u => u !== user!.name);
-            if (existingReaction.users.length === 0) {
-              return {
-                ...prev,
-                [messageId]: messageReactions.filter(r => r.emoji !== emoji)
-              };
-            }
-          } else {
-            // Add user to existing reaction
-            existingReaction.users.push(user!.name);
-          }
-        } else {
-          // Add new reaction
-          messageReactions.push({ emoji, users: [user!.name] });
-        }
-
-        return {
-          ...prev,
-          [messageId]: messageReactions
-        };
-      });
-
-      // TODO: Call API to persist reaction
-      // await addMessageReaction(messageId, emoji);
-
-    } catch (error: any) {
-      console.error('Reaction error:', error);
-      ErrorHandler.handleError(error, showToast, 'adding reaction');
-    }
-  };
-
-  const handlePinMessage = async (messageId: string) => {
-    try {
-      const isPinned = pinnedMessages.includes(messageId);
-
-      // Optimistic update
-      setPinnedMessages(prev =>
-        isPinned
-          ? prev.filter(id => id !== messageId)
-          : [...prev, messageId]
-      );
-
-      // TODO: Call API to persist pin status
-      // await (isPinned ? unpinMessage(messageId) : pinMessage(messageId));
-
-      showToast(
-        isPinned ? 'Message unpinned' : 'Message pinned',
-        'success'
-      );
-    } catch (error: any) {
-      console.error('Pin message error:', error);
-      ErrorHandler.handleError(error, showToast, 'pinning message');
-    }
-  };
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
@@ -896,20 +830,11 @@ const Messaging = () => {
                 {messages.map((msg, i) => {
                   const senderId = msg.sender?.id || msg.sender_id;
                   const isMe = senderId === user.id;
-                  const isPinned = pinnedMessages.includes(msg.id);
-                  const reactions = messageReactions[msg.id] || [];
 
                   return (
                     <div key={msg.id || i} id={`message-${msg.id}`} className={clsx("flex items-end gap-2 group", isMe ? "justify-end" : "justify-start")}>
                       {!isMe && <Avatar name={msg.sender?.name || msg.sender?.email?.split('@')[0] || `User ${senderId}`} role={msg.sender?.role || "default"} />}
                       <div className="flex-1 max-w-xs">
-                        {isPinned && (
-                          <div className="flex items-center gap-1 text-xs text-blue-600 mb-1">
-                            <span>📌</span>
-                            <span>Pinned</span>
-                          </div>
-                        )}
-
                         <div className={clsx(
                           "px-4 py-2 rounded-lg shadow text-sm break-words relative",
                           isMe
@@ -947,81 +872,7 @@ const Messaging = () => {
                               )}
                             </div>
                           )}
-
-                          {/* Message actions */}
-                          <div className={clsx(
-                            "absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1",
-                            isMe ? "-left-20" : "-right-20"
-                          )}>
-                            <button
-                              onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
-                              className="bg-gray-800 text-white text-xs px-2 py-1 rounded hover:bg-gray-700"
-                              aria-label="Add reaction"
-                            >
-                              😊
-                            </button>
-                            <button
-                              onClick={() => handleReply(msg)}
-                              className="bg-gray-800 text-white text-xs px-2 py-1 rounded hover:bg-gray-700"
-                              aria-label="Reply to message"
-                            >
-                              ↩️
-                            </button>
-                            <button
-                              onClick={() => handlePinMessage(msg.id)}
-                              className={clsx(
-                                "text-xs px-2 py-1 rounded",
-                                isPinned
-                                  ? "bg-yellow-500 text-white hover:bg-yellow-600"
-                                  : "bg-gray-800 text-white hover:bg-gray-700"
-                              )}
-                              aria-label={isPinned ? "Unpin message" : "Pin message"}
-                            >
-                              📌
-                            </button>
-                          </div>
-
-                          {/* Reaction picker */}
-                          {showReactionPicker === msg.id && (
-                            <div className="absolute bottom-full mb-2 bg-white border rounded-lg shadow-lg p-2 flex gap-1">
-                              {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => {
-                                    handleReaction(msg.id, emoji);
-                                    setShowReactionPicker(null);
-                                  }}
-                                  className="text-lg hover:bg-gray-100 p-1 rounded"
-                                  aria-label={`React with ${emoji}`}
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </div>
-                          )}
                         </div>
-
-                        {/* Reactions */}
-                        {reactions.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {reactions.map((reaction, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => handleReaction(msg.id, reaction.emoji)}
-                                className={clsx(
-                                  "text-xs px-2 py-1 rounded-full border flex items-center gap-1",
-                                  reaction.users.includes(user!.name)
-                                    ? "bg-blue-100 border-blue-300 text-blue-800"
-                                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
-                                )}
-                                title={`${reaction.users.join(', ')} reacted with ${reaction.emoji}`}
-                              >
-                                <span>{reaction.emoji}</span>
-                                <span>{reaction.users.length}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
 
                         <div className={clsx("text-xs mt-1 flex items-center gap-1", isMe ? "justify-end text-blue-400" : "justify-start text-gray-400")}>
                           <span>{formatTime(msg.sent_at)}</span>
