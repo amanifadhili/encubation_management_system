@@ -1,7 +1,7 @@
 // Real authentication service using backend API
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://encubation-backend.excellusi.com/api';
 
 export type UserRole = 'director' | 'manager' | 'mentor' | 'incubator';
 export interface User {
