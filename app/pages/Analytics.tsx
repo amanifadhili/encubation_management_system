@@ -15,6 +15,7 @@ import { useToast } from "../components/Layout";
 import { ErrorHandler } from "../utils/errorHandler";
 import { withRetry } from "../utils/networkRetry";
 import { getDashboardAnalytics } from "../services/api";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
@@ -30,6 +31,7 @@ const Analytics = () => {
   const showToast = useToast();
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -37,7 +39,10 @@ const Analytics = () => {
     }
   }, [user]);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    }
     try {
       const data = await withRetry(
         () => getDashboardAnalytics(),
@@ -61,13 +66,32 @@ const Analytics = () => {
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    loadAnalytics(true);
   };
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-center text-blue-400 py-12">Loading analytics...</div>
+      <div className="p-8 space-y-8">
+        <div className="flex justify-between items-center mb-4">
+          <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+          <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+        </div>
+        <PageSkeleton count={4} layout="card" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white rounded shadow p-6">
+            <div className="h-6 bg-gray-200 rounded w-48 mb-4 animate-pulse"></div>
+            <div className="h-64 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+          <div className="bg-white rounded shadow p-6">
+            <div className="h-6 bg-gray-200 rounded w-48 mb-4 animate-pulse"></div>
+            <div className="h-64 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -82,7 +106,17 @@ const Analytics = () => {
 
   return (
     <div className="p-8 space-y-8">
-      <h1 className="text-2xl font-bold mb-4 text-blue-900">Analytics Dashboard</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-blue-900">Analytics Dashboard</h1>
+        <ButtonLoader
+          onClick={handleRefresh}
+          loading={refreshing}
+          label="Refresh"
+          loadingText="Refreshing..."
+          variant="primary"
+          size="md"
+        />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card title="Total Teams" value={analytics.summary?.total_teams || 0} />
         <Card title="Total Projects" value={analytics.summary?.total_projects || 0} />

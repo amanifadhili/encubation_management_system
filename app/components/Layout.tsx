@@ -7,6 +7,7 @@ import { getNotifications } from '../services/api';
 import { useToastManager } from '../hooks/useToast';
 import { OfflineBanner } from './OfflineBanner';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { ButtonLoader } from './loading';
 
 const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   director: [
@@ -77,10 +78,17 @@ export default function Layout() {
     }
   });
 
-  const handleLogout = () => {
-    logout();
-    showToast('Logged out successfully', 'success');
-    navigate('/login');
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      // Simulate logout delay for better UX
+      await new Promise(resolve => setTimeout(resolve, 500));
+      logout();
+      showToast('Logged out successfully', 'success');
+      navigate('/login');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   // Responsive sidebar state
@@ -88,6 +96,7 @@ export default function Layout() {
 
   // Notifications state for unread count
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Close sidebar on route change (mobile)
   React.useEffect(() => {
@@ -197,7 +206,15 @@ export default function Layout() {
                 </div>
               )}
               {/* Logout */}
-              <button onClick={handleLogout} className="ml-2 px-3 py-1 bg-gray-200 text-blue-700 rounded hover:bg-gray-300 font-semibold">Logout</button>
+              <ButtonLoader
+                loading={loggingOut}
+                onClick={handleLogout}
+                label="Logout"
+                loadingText="Logging out..."
+                variant="secondary"
+                size="sm"
+                className="ml-2 bg-gray-200 text-blue-700 hover:bg-gray-300"
+              />
             </div>
           </header>
           {/* Content Area */}

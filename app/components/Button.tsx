@@ -2,6 +2,12 @@ import React from "react";
 
 /**
  * Reusable Button component with variants and flexible props.
+ * 
+ * @deprecated Consider using ButtonLoader from './loading/ButtonLoader' for new implementations.
+ * ButtonLoader provides enhanced loading states, better accessibility, and consistent styling.
+ * 
+ * This component is maintained for backward compatibility with existing code.
+ * 
  * @param {React.ButtonHTMLAttributes<HTMLButtonElement> & {
  *   variant?: "primary" | "secondary" | "danger" | "icon",
  *   fullWidth?: boolean,

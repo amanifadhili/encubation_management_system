@@ -12,6 +12,7 @@ import "./app.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ErrorBoundary as CustomErrorBoundary } from "./components/ErrorBoundary";
 import { errorAnalytics } from "./utils/errorAnalytics";
+import { GlobalLoaderProvider } from "./components/loading";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -47,21 +48,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
-      <CustomErrorBoundary
-        onError={(error, errorInfo) => {
-          // Log all React component errors to analytics
-          errorAnalytics.logComponentError(
-            error, 
-            { componentStack: errorInfo.componentStack || '' }, 
-            {
-              page: 'App Root',
-              action: 'React Component Error'
-            }
-          );
-        }}
-      >
-        <Outlet />
-      </CustomErrorBoundary>
+      <GlobalLoaderProvider>
+        <CustomErrorBoundary
+          onError={(error, errorInfo) => {
+            // Log all React component errors to analytics
+            errorAnalytics.logComponentError(
+              error, 
+              { componentStack: errorInfo.componentStack || '' }, 
+              {
+                page: 'App Root',
+                action: 'React Component Error'
+              }
+            );
+          }}
+        >
+          <Outlet />
+        </CustomErrorBoundary>
+      </GlobalLoaderProvider>
     </AuthProvider>
   );
 }

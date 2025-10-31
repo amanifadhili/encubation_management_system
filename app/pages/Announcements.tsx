@@ -5,6 +5,7 @@ import { ErrorHandler } from "../utils/errorHandler";
 import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 import {
   getAnnouncements,
   createAnnouncement,
@@ -22,6 +23,10 @@ const Announcements = () => {
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+  
+  // Loading states for individual actions
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Load announcements on mount
   useEffect(() => {
@@ -71,6 +76,7 @@ const Announcements = () => {
     e.preventDefault();
     if (!form.title || !form.content || !user) return;
 
+    setSaving(true);
     try {
       if (editIdx !== null) {
         const announcementId = announcements[editIdx].id;
@@ -89,9 +95,12 @@ const Announcements = () => {
       setShowModal(false);
       setEditIdx(null);
       setForm({ title: "", content: "" });
+      showToast(editIdx !== null ? 'Announcement updated successfully' : 'Announcement posted successfully', 'success');
     } catch (error: any) {
       console.error('Failed to save announcement:', error);
-      // You could show a toast here
+      ErrorHandler.handleError(error, showToast, 'saving announcement');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -102,14 +111,18 @@ const Announcements = () => {
   const confirmDelete = async () => {
     if (deleteIdx === null) return;
 
+    setDeleting(true);
     try {
       const announcementId = announcements[deleteIdx].id;
       await deleteAnnouncement(announcementId);
       setAnnouncements(prev => prev.filter((_, i) => i !== deleteIdx));
       setDeleteIdx(null);
+      showToast('Announcement deleted successfully', 'success');
     } catch (error: any) {
       console.error('Failed to delete announcement:', error);
-      // You could show a toast here
+      ErrorHandler.handleError(error, showToast, 'deleting announcement');
+    } finally {
+      setDeleting(false);
     }
   };
   const cancelDelete = () => setDeleteIdx(null);
@@ -123,17 +136,18 @@ const Announcements = () => {
             <div className="text-white opacity-90 mb-2">View and post important announcements.</div>
           </div>
           {canPost && (
-            <button
-              className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+            <ButtonLoader
               onClick={() => openModal(null)}
-            >
-              + Post Announcement
-            </button>
+              loading={false}
+              label="+ Post Announcement"
+              variant="primary"
+              size="md"
+            />
           )}
         </div>
         <div className="space-y-6">
           {loading ? (
-            <div className="text-center text-blue-400 py-12">Loading announcements...</div>
+            <PageSkeleton count={3} layout="card" />
           ) : announcements.length === 0 ? (
             <div className="text-center text-blue-400 py-12">No announcements yet.</div>
           ) : (
@@ -143,20 +157,26 @@ const Announcements = () => {
                   <h2 className="text-xl font-bold text-blue-900">{a.title}</h2>
                   {canPost && (
                     <div className="flex gap-2">
-                      <button
-                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                      <ButtonLoader
                         onClick={() => openModal(idx)}
-                      >Edit</button>
-                      <button
-                        className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm"
+                        loading={false}
+                        label="Edit"
+                        variant="success"
+                        size="sm"
+                      />
+                      <ButtonLoader
                         onClick={() => handleDelete(idx)}
-                      >Delete</button>
+                        loading={false}
+                        label="Delete"
+                        variant="danger"
+                        size="sm"
+                      />
                     </div>
                   )}
                 </div>
                 <div className="text-blue-800 mb-2">{a.content}</div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
-                  <span>Posted by: <span className="font-semibold">{a.author_id || 'System'}</span></span>
+                  <span>Posted by: <span className="font-semibold">{a.author?.name || 'System'}</span></span>
                   <span>{new Date(a.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -180,6 +200,7 @@ const Announcements = () => {
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 required
+                disabled={saving}
               />
             </div>
             <div className="mb-4">
@@ -190,15 +211,24 @@ const Announcements = () => {
                 onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
                 rows={5}
                 required
+                disabled={saving}
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setEditIdx(null); }}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Save
-              </Button>
+              <ButtonLoader
+                variant="secondary"
+                type="button"
+                onClick={() => { setShowModal(false); setEditIdx(null); }}
+                loading={false}
+                label="Cancel"
+              />
+              <ButtonLoader
+                type="submit"
+                loading={saving}
+                label={editIdx !== null ? "Update" : "Post"}
+                loadingText={editIdx !== null ? "Updating..." : "Posting..."}
+                variant="primary"
+              />
             </div>
           </form>
         </Modal>
@@ -215,12 +245,21 @@ const Announcements = () => {
             <>
               <div className="mb-6 text-blue-900">Are you sure you want to delete <span className="font-semibold">{announcements[deleteIdx].title}</span>? This action cannot be undone.</div>
               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" type="button" onClick={cancelDelete}>
-                  Cancel
-                </Button>
-                <Button variant="danger" type="button" onClick={confirmDelete}>
-                  Delete
-                </Button>
+                <ButtonLoader
+                  variant="secondary"
+                  type="button"
+                  onClick={cancelDelete}
+                  loading={false}
+                  label="Cancel"
+                />
+                <ButtonLoader
+                  variant="danger"
+                  type="button"
+                  onClick={confirmDelete}
+                  loading={deleting}
+                  label="Delete"
+                  loadingText="Deleting..."
+                />
               </div>
             </>
           )}

@@ -8,6 +8,7 @@ import type { ValidationError } from "../components/ValidationErrors";
 import { FormField } from "../components/FormField";
 import { ErrorHandler } from "../utils/errorHandler";
 import { withRetry } from "../utils/networkRetry";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 import {
   getProjects,
   createProject,
@@ -69,6 +70,11 @@ const Projects = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [projectFiles, setProjectFiles] = useState<{ [projectId: number]: any[] }>({});
+  
+  // Loading states for different operations
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [commenting, setCommenting] = useState(false);
   
   // Validation error state
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -189,6 +195,7 @@ const Projects = () => {
 
     setUploadError(null);
     setValidationErrors([]);
+    setSubmitting(true);
     
     try {
       let result: any;
@@ -290,6 +297,8 @@ const Projects = () => {
       }
       
       setUploading(false);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -326,16 +335,28 @@ const Projects = () => {
   };
 
   // Comments
-  const handleAddComment = (projectId: number) => {
+  const handleAddComment = async (projectId: number) => {
     if (!commentText.trim() || !user) return;
-    setComments(prev => ({
-      ...prev,
-      [projectId]: [
-        { name: user.name, text: commentText, date: new Date().toLocaleString() },
-        ...(prev[projectId] || []),
-      ],
-    }));
-    setCommentText("");
+    
+    setCommenting(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setComments(prev => ({
+        ...prev,
+        [projectId]: [
+          { name: user.name, text: commentText, date: new Date().toLocaleString() },
+          ...(prev[projectId] || []),
+        ],
+      }));
+      setCommentText("");
+      showToast('Comment added successfully!', 'success');
+    } catch (error) {
+      showToast('Failed to add comment', 'error');
+    } finally {
+      setCommenting(false);
+    }
   };
 
   // Table columns: Project Name, Team, Category, Status, Progress, Actions
@@ -348,12 +369,13 @@ const Projects = () => {
             <div className="text-white opacity-90 mb-2">Manage and track team projects and progress.</div>
           </div>
           {isIncubator && (
-            <button
-              className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+            <ButtonLoader
+              loading={false}
               onClick={() => openModal(null)}
-            >
-              + Add Project
-            </button>
+              label="+ Add Project"
+              variant="primary"
+              className="bg-blue-700 hover:bg-blue-800"
+            />
           )}
         </div>
         {/* Filters and Search */}
@@ -389,7 +411,7 @@ const Projects = () => {
         <div className="bg-white rounded shadow p-4">
           <h2 className="text-xl font-semibold mb-4 text-blue-900">Project List</h2>
           {loading ? (
-            <div className="text-center py-8 text-blue-400">Loading projects...</div>
+            <PageSkeleton count={6} layout="table" />
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white border rounded">
@@ -481,6 +503,7 @@ const Projects = () => {
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 onBlur={() => handleFieldBlur('name')}
+                disabled={submitting || uploading}
                 required
               />
             </FormField>
@@ -500,6 +523,7 @@ const Projects = () => {
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 onBlur={() => handleFieldBlur('description')}
                 rows={4}
+                disabled={submitting || uploading}
                 required
               />
             </FormField>
@@ -517,6 +541,7 @@ const Projects = () => {
                 value={form.category}
                 onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                 onBlur={() => handleFieldBlur('category')}
+                disabled={submitting || uploading}
               >
                 {categories.slice(1).map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -537,6 +562,7 @@ const Projects = () => {
                 value={form.status}
                 onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                 onBlur={() => handleFieldBlur('status')}
+                disabled={submitting || uploading}
               >
                 {statusOptions.slice(1).map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
@@ -561,6 +587,7 @@ const Projects = () => {
                 value={form.progress}
                 onChange={e => setForm(f => ({ ...f, progress: Number(e.target.value) }))}
                 onBlur={() => handleFieldBlur('progress')}
+                disabled={submitting || uploading}
               />
             </FormField>
             {/* File upload (real) */}
@@ -572,6 +599,7 @@ const Projects = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 onChange={handleFileUpload}
                 accept="image/*,.pdf,.doc,.docx,.txt"
+                disabled={submitting || uploading}
               />
               {uploading && (
                 <div className="mt-2">
@@ -612,12 +640,21 @@ const Projects = () => {
               )}
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => { setShowModal(false); setEditIdx(null); }}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Save
-              </Button>
+              <ButtonLoader
+                loading={false}
+                onClick={() => { setShowModal(false); setEditIdx(null); }}
+                label="Cancel"
+                variant="secondary"
+                type="button"
+              />
+              <ButtonLoader
+                loading={submitting}
+                label={editIdx !== null ? "Update Project" : "Create Project"}
+                loadingText={editIdx !== null ? "Updating..." : "Creating..."}
+                variant="primary"
+                type="submit"
+                disabled={submitting || uploading}
+              />
             </div>
           </form>
         </Modal>
@@ -705,12 +742,18 @@ const Projects = () => {
                     placeholder="Add a comment..."
                     value={commentText}
                     onChange={e => setCommentText(e.target.value)}
+                    disabled={commenting}
                   />
-                  <Button
-                    className="mt-2"
-                    type="button"
+                  <ButtonLoader
+                    loading={commenting}
                     onClick={() => handleAddComment(filteredProjects[viewIdx].id)}
-                  >Post</Button>
+                    label="Post"
+                    loadingText="Posting..."
+                    variant="primary"
+                    type="button"
+                    className="mt-2"
+                    disabled={!commentText.trim()}
+                  />
                 </div>
                 {comments[filteredProjects[viewIdx].id] && comments[filteredProjects[viewIdx].id].length > 0 ? (
                   <ul className="space-y-2 mt-2">
@@ -726,9 +769,13 @@ const Projects = () => {
                 )}
               </div>
               <div className="flex gap-2 justify-end mt-6">
-                <Button variant="secondary" type="button" onClick={() => setViewIdx(null)}>
-                  Close
-                </Button>
+                <ButtonLoader
+                  loading={false}
+                  onClick={() => setViewIdx(null)}
+                  label="Close"
+                  variant="secondary"
+                  type="button"
+                />
               </div>
             </>
           )}

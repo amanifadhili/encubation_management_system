@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 
 // Mocked available materials (would be managed by manager in real app)
 const initialMaterials = [
@@ -26,6 +27,12 @@ const MaterialPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddMaterial, setShowAddMaterial] = useState(false);
   const [addMaterialForm, setAddMaterialForm] = useState({ name: "", description: "" });
+  
+  // Loading states for different operations
+  const [loading, setLoading] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [addingMaterial, setAddingMaterial] = useState(false);
 
   // Team context
   const teamId = user.role === "incubator" ? (user as any).teamId : undefined;
@@ -78,29 +85,56 @@ const MaterialPage = () => {
   };
 
   // Manager: approve/decline
-  const handleAction = (id: number, action: "Given" | "Declined") => {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
-    showToast(`Request ${action === "Given" ? "approved" : "declined"}!`, action === "Given" ? "success" : "error");
+  const handleAction = async (id: number, action: "Given" | "Declined") => {
+    if (action === "Given") {
+      setApproving(true);
+    } else {
+      setDeclining(true);
+    }
+    
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
+      showToast(`Request ${action === "Given" ? "approved" : "declined"}!`, action === "Given" ? "success" : "error");
+    } catch (error) {
+      showToast(`Failed to ${action === "Given" ? "approve" : "decline"} request`, "error");
+    } finally {
+      setApproving(false);
+      setDeclining(false);
+    }
   };
 
   // Manager: add new material
-  const handleAddMaterial = (e: React.FormEvent) => {
+  const handleAddMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addMaterialForm.name) {
       showToast("Please enter a material name.", "error");
       return;
     }
-    setMaterials(prev => [
-      ...prev,
-      {
-        id: Math.max(0, ...prev.map(m => m.id)) + 1,
-        name: addMaterialForm.name,
-        description: addMaterialForm.description,
-      },
-    ]);
-    setAddMaterialForm({ name: "", description: "" });
-    setShowAddMaterial(false);
-    showToast("Material added!", "success");
+    
+    setAddingMaterial(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      setMaterials(prev => [
+        ...prev,
+        {
+          id: Math.max(0, ...prev.map(m => m.id)) + 1,
+          name: addMaterialForm.name,
+          description: addMaterialForm.description,
+        },
+      ]);
+      setAddMaterialForm({ name: "", description: "" });
+      setShowAddMaterial(false);
+      showToast("Material added!", "success");
+    } catch (error) {
+      showToast("Failed to add material", "error");
+    } finally {
+      setAddingMaterial(false);
+    }
   };
 
   return (
@@ -113,12 +147,13 @@ const MaterialPage = () => {
         {/* Manager: Add new material */}
         {user.role === "manager" && (
           <div className="mb-6 flex justify-end">
-            <button
-              className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+            <ButtonLoader
+              loading={false}
               onClick={() => setShowAddMaterial(true)}
-            >
-              + Add Material
-            </button>
+              label="+ Add Material"
+              variant="primary"
+              className="bg-blue-700 hover:bg-blue-800"
+            />
           </div>
         )}
         {/* Table */}
@@ -126,12 +161,13 @@ const MaterialPage = () => {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-blue-900">{user.role === "manager" ? "All Material Requests" : "My Material Requests"}</h2>
             {user.role === "incubator" && (
-              <button
-                className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+              <ButtonLoader
+                loading={false}
                 onClick={() => setShowModal(true)}
-              >
-                + Request Material
-              </button>
+                label="+ Request Material"
+                variant="primary"
+                className="bg-blue-700 hover:bg-blue-800"
+              />
             )}
           </div>
           <div className="overflow-x-auto">
@@ -144,7 +180,13 @@ const MaterialPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {teamRequests.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={columns.length} className="p-4">
+                      <PageSkeleton count={3} layout="table" />
+                    </td>
+                  </tr>
+                ) : teamRequests.length === 0 ? (
                   <tr>
                     <td colSpan={columns.length} className="text-center py-8 text-blue-400">No material requests yet.</td>
                   </tr>
@@ -159,20 +201,28 @@ const MaterialPage = () => {
                       <td className="px-4 py-2 text-blue-900">{r.note}</td>
                       <td className="px-4 py-2">
                         {user.role === "manager" && r.status === "Requested" && (
-                          <>
-                            <button
-                              className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 mr-2"
+                          <div className="flex gap-2">
+                            <ButtonLoader
+                              loading={approving}
                               onClick={() => handleAction(r.id, "Given")}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                              label="Approve"
+                              loadingText="Approving..."
+                              variant="success"
+                              size="sm"
+                              className="bg-green-100 text-green-700 hover:bg-green-200"
+                              disabled={approving || declining}
+                            />
+                            <ButtonLoader
+                              loading={declining}
                               onClick={() => handleAction(r.id, "Declined")}
-                            >
-                              Decline
-                            </button>
-                          </>
+                              label="Decline"
+                              loadingText="Declining..."
+                              variant="danger"
+                              size="sm"
+                              className="bg-red-100 text-red-700 hover:bg-red-200"
+                              disabled={approving || declining}
+                            />
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -198,6 +248,7 @@ const MaterialPage = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={modalForm.materialId}
                 onChange={e => setModalForm(f => ({ ...f, materialId: e.target.value }))}
+                disabled={isSubmitting}
                 required
               >
                 <option value="">Select material...</option>
@@ -214,6 +265,7 @@ const MaterialPage = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={modalForm.quantity}
                 onChange={e => setModalForm(f => ({ ...f, quantity: Number(e.target.value) }))}
+                disabled={isSubmitting}
                 required
               />
             </div>
@@ -223,15 +275,25 @@ const MaterialPage = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={modalForm.note}
                 onChange={e => setModalForm(f => ({ ...f, note: e.target.value }))}
+                disabled={isSubmitting}
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                Submit Request
-              </Button>
+              <ButtonLoader
+                loading={false}
+                onClick={() => setShowModal(false)}
+                label="Cancel"
+                variant="secondary"
+                type="button"
+              />
+              <ButtonLoader
+                loading={isSubmitting}
+                label="Submit Request"
+                loadingText="Submitting..."
+                variant="primary"
+                type="submit"
+                disabled={isSubmitting}
+              />
             </div>
           </form>
         </Modal>
@@ -251,6 +313,7 @@ const MaterialPage = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={addMaterialForm.name}
                 onChange={e => setAddMaterialForm(f => ({ ...f, name: e.target.value }))}
+                disabled={addingMaterial}
                 required
               />
             </div>
@@ -260,15 +323,25 @@ const MaterialPage = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={addMaterialForm.description}
                 onChange={e => setAddMaterialForm(f => ({ ...f, description: e.target.value }))}
+                disabled={addingMaterial}
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => setShowAddMaterial(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Add Material
-              </Button>
+              <ButtonLoader
+                loading={false}
+                onClick={() => setShowAddMaterial(false)}
+                label="Cancel"
+                variant="secondary"
+                type="button"
+              />
+              <ButtonLoader
+                loading={addingMaterial}
+                label="Add Material"
+                loadingText="Adding..."
+                variant="primary"
+                type="submit"
+                disabled={addingMaterial}
+              />
             </div>
           </form>
         </Modal>

@@ -4,9 +4,11 @@ import { useToast } from "../components/Layout";
 import { ErrorHandler } from "../utils/errorHandler";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
+import { ButtonLoader, PageSkeleton } from "../components/loading";
 import {
   getNotifications,
   createNotification,
+  updateNotification,
   markNotificationAsRead,
   deleteNotification,
   getIncubators
@@ -28,6 +30,12 @@ const Notifications = () => {
   const [addRecipient, setAddRecipient] = useState("");
   const [addMessage, setAddMessage] = useState("");
   const [teams, setTeams] = useState<any[]>([]);
+  
+  // Loading states for individual actions
+  const [markingRead, setMarkingRead] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [sending, setSending] = useState(false);
 
   // Load notifications and teams on mount
   useEffect(() => {
@@ -41,6 +49,8 @@ const Notifications = () => {
   const loadNotifications = async () => {
     try {
       const data = await getNotifications();
+      // For managers, getNotifications returns sent notifications
+      // For incubators, getNotifications returns received notifications
       setNotifications(data);
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'loading notifications');
@@ -82,6 +92,7 @@ const Notifications = () => {
   // Mark as read/unread (only for teams)
   const toggleRead = async (notificationId: number) => {
     if (!isIncubator) return;
+    setMarkingRead(notificationId);
     try {
       await markNotificationAsRead(notificationId);
       setNotifications(prev => prev.map(n =>
@@ -89,6 +100,8 @@ const Notifications = () => {
       ));
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'updating notification');
+    } finally {
+      setMarkingRead(null);
     }
   };
 
@@ -98,6 +111,7 @@ const Notifications = () => {
   };
   const confirmDelete = async () => {
     if (deleteIdx === null) return;
+    setDeleting(true);
     try {
       await deleteNotification(deleteIdx);
       setNotifications(prev => prev.filter(n => n.id !== deleteIdx));
@@ -105,21 +119,32 @@ const Notifications = () => {
       showToast('Notification deleted successfully', 'success');
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'deleting notification');
+    } finally {
+      setDeleting(false);
     }
   };
   const cancelDelete = () => setDeleteIdx(null);
 
-  // Edit (only for sender/manager) - Note: Backend might not support editing
+  // Edit (only for sender/manager)
   const handleEdit = (idx: number) => {
     setEditIdx(idx);
     setEditMessage(notifications[idx].message);
   };
-  const confirmEdit = () => {
-    // For now, just update locally since backend might not support editing
+  const confirmEdit = async () => {
     if (editIdx === null) return;
-    setNotifications(prev => prev.map((n, i) => i === editIdx ? { ...n, message: editMessage } : n));
-    setEditIdx(null);
-    setEditMessage("");
+    setEditing(true);
+    try {
+      const notificationId = notifications[editIdx].id;
+      await updateNotification(notificationId, { message: editMessage });
+      setNotifications(prev => prev.map((n, i) => i === editIdx ? { ...n, message: editMessage } : n));
+      setEditIdx(null);
+      setEditMessage("");
+      showToast('Notification updated successfully', 'success');
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'updating notification');
+    } finally {
+      setEditing(false);
+    }
   };
   const cancelEdit = () => {
     setEditIdx(null);
@@ -131,21 +156,27 @@ const Notifications = () => {
     e.preventDefault();
     if (!addRecipient || !addMessage) return;
 
+    setSending(true);
     try {
       const result = await createNotification({
         title: "Notification", // Backend expects title
         message: addMessage,
         recipient_type: "team",
-        recipient_id: parseInt(addRecipient)
+        recipient_id: addRecipient
       });
 
-      setNotifications(prev => [result, ...prev]);
+      // Add the new notification to the list (but only if user is manager, since managers see sent notifications)
+      if (isManager) {
+        setNotifications(prev => [result.data?.notification || result, ...prev]);
+      }
       setShowAddModal(false);
       setAddRecipient("");
       setAddMessage("");
       showToast('Notification sent successfully', 'success');
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'creating notification');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -158,17 +189,18 @@ const Notifications = () => {
             <div className="text-white opacity-90 mb-2">{isManager ? "View, create, edit, and delete notifications you sent to teams." : isIncubator ? "View and manage notifications sent to your team." : "No notifications available."}</div>
           </div>
           {isManager && (
-            <button
-              className="px-4 py-2 bg-blue-700 text-white rounded font-semibold hover:bg-blue-800"
+            <ButtonLoader
               onClick={() => setShowAddModal(true)}
-            >
-              + Add Notification
-            </button>
+              loading={false}
+              label="+ Add Notification"
+              variant="primary"
+              size="md"
+            />
           )}
         </div>
         <div className="space-y-4">
           {loading ? (
-            <div className="text-center text-blue-400 py-12">Loading notifications...</div>
+            <PageSkeleton count={5} layout="list" />
           ) : notifications.length === 0 ? (
             <div className="text-center text-blue-400 py-12">No notifications.</div>
           ) : (
@@ -181,30 +213,43 @@ const Notifications = () => {
                   </div>
                   <div className="flex gap-2">
                     {isIncubator && (
-                      <button
-                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs"
+                      <ButtonLoader
                         onClick={() => toggleRead(n.id)}
-                      >{n.read_status ? "Mark as Unread" : "Mark as Read"}</button>
+                        loading={markingRead === n.id}
+                        label={n.read_status ? "Mark as Unread" : "Mark as Read"}
+                        loadingText="Updating..."
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      />
                     )}
                     {isManager && (
                       <>
-                        <button
-                          className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-xs"
+                        <ButtonLoader
                           onClick={() => handleEdit(idx)}
-                        >Edit</button>
-                        <button
-                          className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs"
+                          loading={false}
+                          label="Edit"
+                          variant="success"
+                          size="sm"
+                          className="text-xs"
+                        />
+                        <ButtonLoader
                           onClick={() => handleDelete(n.id)}
-                        >Delete</button>
+                          loading={false}
+                          label="Delete"
+                          variant="danger"
+                          size="sm"
+                          className="text-xs"
+                        />
                       </>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
                   {isManager ? (
-                    <span>To: <span className="font-semibold">Team {n.recipient_id}</span></span>
+                    <span>To: <span className="font-semibold">{teams.find(t => t.id === n.recipient_id)?.teamName || `Team ${n.recipient_id}`}</span></span>
                   ) : (
-                    <span>From: <span className="font-semibold">Manager {n.sender_id}</span></span>
+                    <span>From: <span className="font-semibold">{n.sender?.name || 'Manager'}</span></span>
                   )}
                   <span>{new Date(n.created_at).toLocaleString()}</span>
                 </div>
@@ -229,6 +274,7 @@ const Notifications = () => {
                 value={addRecipient}
                 onChange={e => setAddRecipient(e.target.value)}
                 required
+                disabled={sending}
               >
                 <option value="">Select team...</option>
                 {teams.map(team => (
@@ -243,15 +289,24 @@ const Notifications = () => {
                 value={addMessage}
                 onChange={e => setAddMessage(e.target.value)}
                 required
+                disabled={sending}
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" type="button" onClick={() => setShowAddModal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Send
-              </Button>
+              <ButtonLoader
+                variant="secondary"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                loading={false}
+                label="Cancel"
+              />
+              <ButtonLoader
+                type="submit"
+                loading={sending}
+                label="Send"
+                loadingText="Sending..."
+                variant="primary"
+              />
             </div>
           </form>
         </Modal>
@@ -271,15 +326,25 @@ const Notifications = () => {
               value={editMessage}
               onChange={e => setEditMessage(e.target.value)}
               required
+              disabled={editing}
             />
           </div>
           <div className="flex gap-2 justify-end">
-            <Button variant="secondary" type="button" onClick={cancelEdit}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={confirmEdit}>
-              Save
-            </Button>
+            <ButtonLoader
+              variant="secondary"
+              type="button"
+              onClick={cancelEdit}
+              loading={false}
+              label="Cancel"
+            />
+            <ButtonLoader
+              type="button"
+              onClick={confirmEdit}
+              loading={editing}
+              label="Save"
+              loadingText="Saving..."
+              variant="primary"
+            />
           </div>
         </Modal>
         {/* Delete Confirmation Modal */}
@@ -295,12 +360,21 @@ const Notifications = () => {
             <>
               <div className="mb-6 text-blue-900">Are you sure you want to delete this notification? This action cannot be undone.</div>
               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" type="button" onClick={cancelDelete}>
-                  Cancel
-                </Button>
-                <Button variant="danger" type="button" onClick={confirmDelete}>
-                  Delete
-                </Button>
+                <ButtonLoader
+                  variant="secondary"
+                  type="button"
+                  onClick={cancelDelete}
+                  loading={false}
+                  label="Cancel"
+                />
+                <ButtonLoader
+                  variant="danger"
+                  type="button"
+                  onClick={confirmDelete}
+                  loading={deleting}
+                  label="Delete"
+                  loadingText="Deleting..."
+                />
               </div>
             </>
           )}

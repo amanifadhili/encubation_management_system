@@ -5,6 +5,7 @@
 import React from 'react';
 import Modal from './Modal';
 import Button from './Button';
+import { ButtonLoader } from './loading';
 
 export interface ConflictDetails {
   field?: string;
@@ -23,6 +24,8 @@ export interface ConflictDialogProps {
   allowOverwrite?: boolean;
   allowMerge?: boolean;
   className?: string;
+  loading?: boolean;
+  resolvingAction?: 'overwrite' | 'merge' | 'view' | null;
 }
 
 export function ConflictDialog({
@@ -33,7 +36,9 @@ export function ConflictDialog({
   onViewExisting,
   allowOverwrite = false,
   allowMerge = false,
-  className = ''
+  className = '',
+  loading = false,
+  resolvingAction = null
 }: ConflictDialogProps) {
   const { field, value, conflictType = 'duplicate', message, existingResource } = conflictDetails;
 
@@ -141,38 +146,48 @@ export function ConflictDialog({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 justify-end pt-4 border-t">
-          <Button
-            variant="secondary"
+          <ButtonLoader
+            loading={false}
             onClick={() => handleResolve('cancel')}
-          >
-            Cancel
-          </Button>
+            label="Cancel"
+            variant="secondary"
+            disabled={loading}
+          />
           
           {onViewExisting && (
-            <Button
+            <ButtonLoader
+              loading={resolvingAction === 'view'}
               onClick={onViewExisting}
+              label="View Existing"
+              loadingText="Loading..."
+              variant="primary"
               className="bg-blue-600 hover:bg-blue-700"
-            >
-              View Existing
-            </Button>
+              disabled={loading}
+            />
           )}
           
           {allowMerge && (
-            <Button
+            <ButtonLoader
+              loading={resolvingAction === 'merge'}
               onClick={() => handleResolve('merge')}
+              label="Merge Changes"
+              loadingText="Merging..."
+              variant="success"
               className="bg-green-600 hover:bg-green-700"
-            >
-              Merge Changes
-            </Button>
+              disabled={loading}
+            />
           )}
           
           {allowOverwrite && (
-            <Button
+            <ButtonLoader
+              loading={resolvingAction === 'overwrite'}
               onClick={() => handleResolve('overwrite')}
+              label="Overwrite"
+              loadingText="Overwriting..."
+              variant="danger"
               className="bg-red-600 hover:bg-red-700"
-            >
-              Overwrite
-            </Button>
+              disabled={loading}
+            />
           )}
         </div>
       </div>
