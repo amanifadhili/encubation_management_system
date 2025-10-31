@@ -152,31 +152,60 @@ const Messaging = () => {
     e.preventDefault();
     if ((!message.trim() && !file) || !selectedId || sending) return;
 
+    const messageContent = message.trim();
+    const fileToSend = file;
+
     setSending(true);
     setUploadError(null);
     setUploadProgress(0);
-    try {
-      if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('conversationId', selectedId);
-        formData.append('content', message || 'File shared');
 
-        await sendFileMessage(selectedId, formData, (progress) => {
+    try {
+      let response;
+      if (fileToSend) {
+        const formData = new FormData();
+        formData.append('file', fileToSend);
+        formData.append('conversationId', selectedId);
+        formData.append('content', messageContent || 'File shared');
+
+        response = await sendFileMessage(selectedId, formData, (progress) => {
           setUploadProgress(progress);
         });
       } else {
-        await sendMessage(selectedId, { content: message });
+        response = await sendMessage(selectedId, { content: messageContent });
       }
 
+      // Add the sent message to the local state immediately for instant UI feedback
+      const newMessage = {
+        id: response.id || Date.now().toString(), // Fallback ID if not provided
+        conversation_id: selectedId,
+        sender_id: user!.id,
+        sender: {
+          id: user!.id,
+          name: user!.name,
+          email: user!.email,
+          role: user!.role
+        },
+        content: fileToSend ? (messageContent || 'File shared') : messageContent,
+        message_type: fileToSend ? 'file' : 'text',
+        file_path: fileToSend ? response.file_path : null,
+        file_name: fileToSend ? fileToSend.name : null,
+        file_size: fileToSend ? fileToSend.size : null,
+        sent_at: new Date().toISOString()
+      };
+
+      // Add message to local state immediately
+      setMessages(prev => [...prev, newMessage]);
+
+      // Clear input fields
       setMessage("");
       setFile(null);
       setFilePreview(null);
       setUploadProgress(0);
+
     } catch (error: any) {
       console.error('Failed to send message:', error);
       const errorDetails = ErrorHandler.parse(error);
-      
+
       if (ErrorHandler.isPayloadTooLarge(error)) {
         const sizeError = ErrorHandler.parseFileSizeError(errorDetails);
         setUploadError(sizeError.message);
