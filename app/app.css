@@ -74,6 +74,9 @@ html,
 body {
   @apply bg-white dark:bg-gray-950;
 
+  /* Default readable text color: dark on light backgrounds, light in dark mode */
+  @apply text-gray-900 dark:text-gray-100;
+
   @media (prefers-color-scheme: dark) {
     color-scheme: dark;
   }
@@ -163,9 +166,19 @@ body {
 
 /* Glassmorphism effect */
 .glass {
-  background: rgba(255, 255, 255, 0.1);
+  /* Improved contrast for light backgrounds while keeping glassy feel in dark mode */
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  /* Light mode: subtle dark tint so text on top remains readable. Dark mode: maintain lighter tint. */
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
 }
 
 /* Modern button styles */

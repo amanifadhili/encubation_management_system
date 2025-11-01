@@ -6,7 +6,7 @@ import axios, { AxiosError } from 'axios';
 import { ErrorHandler } from '../utils/errorHandler';
 
 // Base URL for API calls
-const API_BASE_URL = 'http://encubation-backend.excellusi.com/api';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 // Create axios instance
 const api = axios.create({
@@ -52,7 +52,13 @@ api.interceptors.response.use(
     const errorDetails = ErrorHandler.parse(error);
     
     // Handle 401 - Unauthorized (Session expired)
-    if (errorDetails.status === 401) {
+    // Only redirect to login if it's a genuine authentication failure
+    // Not for permission errors or other 401 responses
+    if (errorDetails.status === 401 && (
+      errorDetails.message?.includes('Invalid or expired token') ||
+      errorDetails.message?.includes('Access token is required') ||
+      errorDetails.message?.includes('User not found')
+    )) {
       localStorage.removeItem('token');
       window.location.href = '/login';
       return Promise.reject(error);
@@ -421,9 +427,23 @@ export async function getUsers(params?: any) {
   return response.data.success ? response.data.data : response.data;
 }
 
-export async function getUser(id: number) {
+export async function getUser(id: string) {
   const response = await api.get(`/users/${id}`);
   return response.data.success ? response.data.data : response.data;
+}
+
+export async function createUser(data: any) {
+  const response = await api.post('/users', data);
+  return response.data;
+}
+
+export async function updateUser(id: string, data: any) {
+  const response = await api.put(`/users/${id}`, data);
+  return response.data;
+}
+
+export async function deleteUser(id: string) {
+  return handleDelete(`/users/${id}`);
 }
 
 // Legacy functions for backward compatibility (will be removed)
