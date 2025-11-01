@@ -19,7 +19,9 @@ export default [
       route("/announcements", "pages/Announcements.tsx"),
       route("/notifications", "pages/Notifications.tsx"),
       route("/analytics", "pages/Analytics.tsx"),
+      route("/users", "pages/UserManagement.tsx"),
       route("/manage-team", "pages/ManageTeam.tsx"),
+      route("/director-dashboard", "pages/DirectorDashboard.tsx"),
     ]),
   ]),
 ] satisfies RouteConfig;

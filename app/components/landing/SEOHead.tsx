@@ -13,9 +13,11 @@ const SEOHead: React.FC<SEOHeadProps> = ({
   description = "Empower your Business Incubation and Innovation Hub with our comprehensive management platform. From startup ideation to market-ready enterprises, streamline every step of business development.",
   keywords = "business incubation, innovation hub, startup support, entrepreneurship, business development, South Africa",
   image = "/og-image.jpg",
-  url = window.location.href
+  url
 }) => {
   React.useEffect(() => {
+    const finalUrl = url || window.location.href;
+
     // Update document title
     document.title = title;
 
@@ -43,7 +45,7 @@ const SEOHead: React.FC<SEOHeadProps> = ({
     updateMetaTag('og:title', title, true);
     updateMetaTag('og:description', description, true);
     updateMetaTag('og:image', image, true);
-    updateMetaTag('og:url', url, true);
+    updateMetaTag('og:url', finalUrl, true);
     updateMetaTag('og:type', 'website', true);
     updateMetaTag('og:site_name', 'Business Incubation and Innovation Hub', true);
 
@@ -64,7 +66,7 @@ const SEOHead: React.FC<SEOHeadProps> = ({
       "@type": "Organization",
       "name": "Business Incubation and Innovation Hub",
       "description": description,
-      "url": url,
+      "url": finalUrl,
       "logo": image,
       "sameAs": [
         // Add social media URLs when available

@@ -1,60 +1,64 @@
-import React, { useState, createContext, useContext, useEffect } from 'react';
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import Toast from './Toast';
-import type { ToastType } from './Toast';
-import { getNotifications } from '../services/api';
-import { useToastManager } from '../hooks/useToast';
-import { OfflineBanner } from './OfflineBanner';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { ButtonLoader } from './loading';
+import React, { useState, createContext, useContext, useEffect } from "react";
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import Toast from "./Toast";
+import type { ToastType } from "./Toast";
+import { getNotifications } from "../services/api";
+import { useToastManager } from "../hooks/useToast";
+import { OfflineBanner } from "./OfflineBanner";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { ButtonLoader } from "./loading";
 
 const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   director: [
-    { name: 'Dashboard', to: '/dashboard' },
-    { name: 'Reports', to: '/reports' },
-    { name: 'Projects', to: '/projects' },
-    { name: 'Mentors', to: '/mentors' },
-    { name: 'Incubators', to: '/incubators' },
-    { name: 'Inventory', to: '/inventory' },
-    { name: 'Announcements', to: '/announcements' },
-    { name: 'Messaging', to: '/messaging' },
+    { name: "Dashboard", to: "/dashboard" },
+    { name: "Users", to: "/users" },
+    { name: "Reports", to: "/reports" },
+    { name: "Projects", to: "/projects" },
+    { name: "Mentors", to: "/mentors" },
+    { name: "Incubators", to: "/incubators" },
+    { name: "Inventory", to: "/inventory" },
+    { name: "Announcements", to: "/announcements" },
+    { name: "Messaging", to: "/messaging" },
   ],
   manager: [
-    { name: 'Dashboard', to: '/dashboard' },
-    { name: 'Incubators', to: '/incubators' },
-    { name: 'Mentors', to: '/mentors' },
-    { name: 'Projects', to: '/projects' },
-    { name: 'Material', to: '/requests' },
-    { name: 'Inventory', to: '/inventory' },
-    { name: 'Announcements', to: '/announcements' },
-    { name: 'Notifications', to: '/notifications' },
-    { name: 'Messaging', to: '/messaging' },
-    { name: 'Reports', to: '/reports' },
+    { name: "Dashboard", to: "/dashboard" },
+    { name: "Incubators", to: "/incubators" },
+    { name: "Mentors", to: "/mentors" },
+    { name: "Projects", to: "/projects" },
+    { name: "Material", to: "/requests" },
+    { name: "Inventory", to: "/inventory" },
+    { name: "Announcements", to: "/announcements" },
+    { name: "Notifications", to: "/notifications" },
+    { name: "Messaging", to: "/messaging" },
+    { name: "Reports", to: "/reports" },
   ],
   mentor: [
-    { name: 'Dashboard', to: '/dashboard' },
-    { name: 'Teams', to: '/incubators' },
-    { name: 'Projects', to: '/projects' },
-    { name: 'Messaging', to: '/messaging' },
+    { name: "Dashboard", to: "/dashboard" },
+    { name: "Teams", to: "/incubators" },
+    { name: "Projects", to: "/projects" },
+    { name: "Messaging", to: "/messaging" },
   ],
   incubator: [
-    { name: 'Dashboard', to: '/dashboard' },
-    { name: 'Manage Team', to: '/manage-team' },
-    { name: 'Projects', to: '/projects' },
-    { name: 'Mentor', to: '/mentors' },
-    { name: 'Material', to: '/requests' },
-    { name: 'Messaging', to: '/messaging' },
-    { name: 'Announcements', to: '/announcements' },
-    { name: 'Notifications', to: '/notifications' },
+    { name: "Dashboard", to: "/dashboard" },
+    { name: "Manage Team", to: "/manage-team" },
+    { name: "Projects", to: "/projects" },
+    { name: "Mentor", to: "/mentors" },
+    { name: "Material", to: "/requests" },
+    { name: "Messaging", to: "/messaging" },
+    { name: "Announcements", to: "/announcements" },
+    { name: "Notifications", to: "/notifications" },
   ],
 };
 
 // Toast context for children to trigger notifications
 type ToastContextType = (
-  message: string, 
+  message: string,
   type?: ToastType,
-  options?: { duration?: number; action?: { label: string; onClick: () => void } }
+  options?: {
+    duration?: number;
+    action?: { label: string; onClick: () => void };
+  }
 ) => void;
 export const ToastContext = createContext<ToastContextType>(() => {});
 export const useToast = () => useContext(ToastContext);
@@ -71,21 +75,23 @@ export default function Layout() {
   // Online/offline status monitoring
   useOnlineStatus({
     onOnline: () => {
-      showToast('Connection restored!', 'success');
+      showToast("Connection restored!", "success");
     },
     onOffline: () => {
-      showToast('You are offline. Some features may be unavailable.', 'error', { duration: 5000 });
-    }
+      showToast("You are offline. Some features may be unavailable.", "error", {
+        duration: 5000,
+      });
+    },
   });
 
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
       // Simulate logout delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       logout();
-      showToast('Logged out successfully', 'success');
-      navigate('/login');
+      showToast("Logged out successfully", "success");
+      navigate("/login");
     } finally {
       setLoggingOut(false);
     }
@@ -115,19 +121,23 @@ export default function Layout() {
       const data = await getNotifications();
       setNotifications(data || []);
     } catch (error) {
-      console.error('Failed to load notifications:', error);
+      console.error("Failed to load notifications:", error);
       setNotifications([]);
     }
   };
 
   // Unread notification badge logic
-  const unreadCount = notifications.filter(n => !n.read_status).length;
+  const unreadCount = notifications.filter((n) => !n.read_status).length;
 
   return (
     <ToastContext.Provider value={showToast}>
       {/* Offline Banner - Fixed at top */}
-      <OfflineBanner position="top" showReconnected={true} reconnectedDuration={3000} />
-      
+      <OfflineBanner
+        position="top"
+        showReconnected={true}
+        reconnectedDuration={3000}
+      />
+
       <div className="flex h-screen bg-gray-100">
         {/* Sidebar (responsive) */}
         {/* Mobile Hamburger */}
@@ -140,7 +150,9 @@ export default function Layout() {
         </button>
         {/* Sidebar Drawer for mobile */}
         <div
-          className={`fixed inset-0 z-40 md:static md:translate-x-0 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:flex md:flex-col md:w-64 bg-white shadow-md`}
+          className={`fixed inset-0 z-40 md:static md:translate-x-0 transition-transform duration-300 ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } md:relative md:flex md:flex-col md:w-64 bg-white shadow-md`}
           style={{ minWidth: 0 }}
         >
           {/* Overlay for mobile */}
@@ -152,7 +164,9 @@ export default function Layout() {
           )}
           <aside className="h-full flex flex-col relative z-40 md:z-auto">
             <div className="h-16 flex items-center justify-center border-b">
-              <span className="text-xl font-bold text-blue-600">Incubation Hub</span>
+              <span className="text-xl font-bold text-blue-600">
+                Incubation Hub
+              </span>
               {/* Close button for mobile */}
               <button
                 className="md:hidden absolute right-4 top-4 text-blue-700 text-2xl"
@@ -176,7 +190,9 @@ export default function Layout() {
                 ))}
               </ul>
             </nav>
-            <div className="p-4 border-t text-xs text-gray-400">© 2024 University</div>
+            <div className="p-4 border-t text-xs text-gray-400">
+              © 2024 University
+            </div>
           </aside>
         </div>
         {/* Main Content */}
@@ -184,25 +200,40 @@ export default function Layout() {
           {/* Header */}
           <header className="h-16 bg-white shadow flex items-center px-4 md:px-6 justify-between sticky top-0 z-30">
             <div className="text-lg font-semibold text-blue-900 truncate">
-              {user ? user.role.charAt(0).toUpperCase() + user.role.slice(1) + ' Dashboard' : 'Dashboard'}
+              {user
+                ? user.role.charAt(0).toUpperCase() +
+                  user.role.slice(1) +
+                  " Dashboard"
+                : "Dashboard"}
             </div>
             <div className="flex items-center space-x-4">
               {/* Notification bell clickable */}
-              <button className="relative focus:outline-none" onClick={() => navigate('/notifications')}>
-                <span className="material-icons text-blue-700">notifications</span>
+              <button
+                className="relative focus:outline-none"
+                onClick={() => navigate("/notifications")}
+              >
+                <span className="material-icons text-blue-700">
+                  notifications
+                </span>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">{unreadCount}</span>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
+                    {unreadCount}
+                  </span>
                 )}
               </button>
               {/* User info */}
               {user && (
                 <span className="text-blue-800 font-semibold hidden sm:inline">
-                  {user.role === 'incubator' ? (user as any).teamName : user.name}
+                  {user.role === "incubator"
+                    ? (user as any).teamName
+                    : user.name}
                 </span>
               )}
               {user && (
                 <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center font-bold text-blue-700">
-                  {(user.role === 'incubator' ? (user as any).teamName?.[0] : user.name?.[0]) || 'U'}
+                  {(user.role === "incubator"
+                    ? (user as any).teamName?.[0]
+                    : user.name?.[0]) || "U"}
                 </div>
               )}
               {/* Logout */}
@@ -221,14 +252,14 @@ export default function Layout() {
           <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
             <Outlet />
           </main>
-          
+
           {/* Toast Container - Fixed position for multiple toasts */}
           <div className="fixed top-6 right-6 z-50 space-y-3 pointer-events-none">
             {toasts.map((toast) => (
               <div key={toast.id} className="pointer-events-auto">
-                <Toast 
-                  message={toast.message} 
-                  type={toast.type} 
+                <Toast
+                  message={toast.message}
+                  type={toast.type}
                   onClose={() => removeToast(toast.id)}
                   action={toast.action}
                 />
@@ -239,4 +270,4 @@ export default function Layout() {
       </div>
     </ToastContext.Provider>
   );
-} 
+}

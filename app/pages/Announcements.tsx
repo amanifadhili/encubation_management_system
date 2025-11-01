@@ -10,7 +10,7 @@ import {
   getAnnouncements,
   createAnnouncement,
   updateAnnouncement,
-  deleteAnnouncement
+  deleteAnnouncement,
 } from "../services/api";
 
 const Announcements = () => {
@@ -23,7 +23,7 @@ const Announcements = () => {
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
-  
+
   // Loading states for individual actions
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -35,25 +35,25 @@ const Announcements = () => {
 
   const loadAnnouncements = async () => {
     try {
-      const data = await withRetry(
-        () => getAnnouncements(),
-        {
-          maxRetries: 3,
-          initialDelay: 1000,
-          onRetry: (attempt) => {
-            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
-          }
-        }
-      );
+      const data = await withRetry(() => getAnnouncements(), {
+        maxRetries: 3,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          showToast(`Retrying... (${attempt}/3)`, "info", { duration: 2000 });
+        },
+      });
       setAnnouncements(data);
     } catch (error: any) {
-      console.error('Failed to load announcements:', error);
+      console.error("Failed to load announcements:", error);
       const errorDetails = ErrorHandler.parse(error);
-      
+
       if (ErrorHandler.isTimeout(error)) {
-        showToast('Request timed out. Please try again.', 'error');
+        showToast("Request timed out. Please try again.", "error");
       } else {
-        showToast(errorDetails.userMessage || 'Failed to load announcements', 'error');
+        showToast(
+          errorDetails.userMessage || "Failed to load announcements",
+          "error"
+        );
       }
     } finally {
       setLoading(false);
@@ -64,7 +64,10 @@ const Announcements = () => {
   const openModal = (idx: number | null = null) => {
     setEditIdx(idx);
     if (idx !== null) {
-      setForm({ title: announcements[idx].title, content: announcements[idx].content });
+      setForm({
+        title: announcements[idx].title,
+        content: announcements[idx].content,
+      });
     } else {
       setForm({ title: "", content: "" });
     }
@@ -82,23 +85,34 @@ const Announcements = () => {
         const announcementId = announcements[editIdx].id;
         await updateAnnouncement(announcementId, {
           title: form.title,
-          content: form.content
+          content: form.content,
         });
-        setAnnouncements(prev => prev.map((a, i) => i === editIdx ? { ...a, title: form.title, content: form.content } : a));
+        setAnnouncements((prev) =>
+          prev.map((a, i) =>
+            i === editIdx
+              ? { ...a, title: form.title, content: form.content }
+              : a
+          )
+        );
       } else {
         const result = await createAnnouncement({
           title: form.title,
-          content: form.content
+          content: form.content,
         });
-        setAnnouncements(prev => [result, ...prev]);
+        setAnnouncements((prev) => [result, ...prev]);
       }
       setShowModal(false);
       setEditIdx(null);
       setForm({ title: "", content: "" });
-      showToast(editIdx !== null ? 'Announcement updated successfully' : 'Announcement posted successfully', 'success');
+      showToast(
+        editIdx !== null
+          ? "Announcement updated successfully"
+          : "Announcement posted successfully",
+        "success"
+      );
     } catch (error: any) {
-      console.error('Failed to save announcement:', error);
-      ErrorHandler.handleError(error, showToast, 'saving announcement');
+      console.error("Failed to save announcement:", error);
+      ErrorHandler.handleError(error, showToast, "saving announcement");
     } finally {
       setSaving(false);
     }
@@ -115,12 +129,12 @@ const Announcements = () => {
     try {
       const announcementId = announcements[deleteIdx].id;
       await deleteAnnouncement(announcementId);
-      setAnnouncements(prev => prev.filter((_, i) => i !== deleteIdx));
+      setAnnouncements((prev) => prev.filter((_, i) => i !== deleteIdx));
       setDeleteIdx(null);
-      showToast('Announcement deleted successfully', 'success');
+      showToast("Announcement deleted successfully", "success");
     } catch (error: any) {
-      console.error('Failed to delete announcement:', error);
-      ErrorHandler.handleError(error, showToast, 'deleting announcement');
+      console.error("Failed to delete announcement:", error);
+      ErrorHandler.handleError(error, showToast, "deleting announcement");
     } finally {
       setDeleting(false);
     }
@@ -132,8 +146,12 @@ const Announcements = () => {
       <div className="max-w-3xl mx-auto">
         <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Announcement Board</h1>
-            <div className="text-white opacity-90 mb-2">View and post important announcements.</div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Announcement Board
+            </h1>
+            <div className="text-gray-700 dark:text-white opacity-90 mb-2">
+              View and post important announcements.
+            </div>
           </div>
           {canPost && (
             <ButtonLoader
@@ -149,10 +167,15 @@ const Announcements = () => {
           {loading ? (
             <PageSkeleton count={3} layout="card" />
           ) : announcements.length === 0 ? (
-            <div className="text-center text-blue-400 py-12">No announcements yet.</div>
+            <div className="text-center text-blue-400 py-12">
+              No announcements yet.
+            </div>
           ) : (
             announcements.map((a: any, idx: number) => (
-              <div key={a.id} className="bg-white rounded shadow p-4 flex flex-col gap-2 relative">
+              <div
+                key={a.id}
+                className="bg-white rounded shadow p-4 flex flex-col gap-2 relative"
+              >
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-blue-900">{a.title}</h2>
                   {canPost && (
@@ -176,7 +199,12 @@ const Announcements = () => {
                 </div>
                 <div className="text-blue-800 mb-2">{a.content}</div>
                 <div className="flex items-center gap-4 text-xs text-blue-500">
-                  <span>Posted by: <span className="font-semibold">{a.author?.name || 'System'}</span></span>
+                  <span>
+                    Posted by:{" "}
+                    <span className="font-semibold">
+                      {a.author?.name || "System"}
+                    </span>
+                  </span>
                   <span>{new Date(a.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -187,28 +215,39 @@ const Announcements = () => {
         <Modal
           title={editIdx !== null ? "Edit Announcement" : "Post Announcement"}
           open={showModal}
-          onClose={() => { setShowModal(false); setEditIdx(null); }}
+          onClose={() => {
+            setShowModal(false);
+            setEditIdx(null);
+          }}
           actions={null}
           role="dialog"
           aria-modal="true"
         >
           <form onSubmit={handleSave}>
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Title</label>
+              <label className="block mb-1 font-semibold text-blue-800">
+                Title
+              </label>
               <input
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
                 required
                 disabled={saving}
               />
             </div>
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Content</label>
+              <label className="block mb-1 font-semibold text-blue-800">
+                Content
+              </label>
               <textarea
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={form.content}
-                onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, content: e.target.value }))
+                }
                 rows={5}
                 required
                 disabled={saving}
@@ -218,7 +257,10 @@ const Announcements = () => {
               <ButtonLoader
                 variant="secondary"
                 type="button"
-                onClick={() => { setShowModal(false); setEditIdx(null); }}
+                onClick={() => {
+                  setShowModal(false);
+                  setEditIdx(null);
+                }}
                 loading={false}
                 label="Cancel"
               />
@@ -243,7 +285,13 @@ const Announcements = () => {
         >
           {deleteIdx !== null && (
             <>
-              <div className="mb-6 text-blue-900">Are you sure you want to delete <span className="font-semibold">{announcements[deleteIdx].title}</span>? This action cannot be undone.</div>
+              <div className="mb-6 text-blue-900">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">
+                  {announcements[deleteIdx].title}
+                </span>
+                ? This action cannot be undone.
+              </div>
               <div className="flex gap-2 justify-end">
                 <ButtonLoader
                   variant="secondary"
@@ -269,4 +317,4 @@ const Announcements = () => {
   );
 };
 
-export default Announcements; 
+export default Announcements;
