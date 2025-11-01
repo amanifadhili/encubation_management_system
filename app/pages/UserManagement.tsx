@@ -18,7 +18,7 @@ interface User {
   name: string;
   email: string;
   role: string;
-  createdAt: string;
+  created_at: string;
 }
 
 interface TableColumn {
@@ -30,7 +30,7 @@ interface TableColumn {
 interface UserFormData {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: string;
 }
 
@@ -56,7 +56,7 @@ export default function UserManagement() {
     name: "",
     email: "",
     password: "",
-    role: "manager",
+    role: "incubator",
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const showToast = useToast();
@@ -91,7 +91,15 @@ export default function UserManagement() {
       }
     } catch (error: any) {
       if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
+        // Convert array format to Record format
+        const errorRecord: Record<string, string[]> = {};
+        error.response.data.errors.forEach((err: any) => {
+          if (!errorRecord[err.field]) {
+            errorRecord[err.field] = [];
+          }
+          errorRecord[err.field].push(err.message);
+        });
+        setErrors(errorRecord);
       } else {
         showToast("Failed to create user", "error");
       }
@@ -103,7 +111,12 @@ export default function UserManagement() {
 
     try {
       setErrors({});
-      const response = await updateUser(selectedUser.id, formData);
+      // Don't send password if it's empty (allows updating without changing password)
+      const updateData: Partial<UserFormData> = { ...formData };
+      if (!updateData.password || updateData.password.trim() === "") {
+        delete updateData.password;
+      }
+      const response = await updateUser(selectedUser.id, updateData);
       if (response.success) {
         setUsers(
           users.map((user) =>
@@ -115,7 +128,15 @@ export default function UserManagement() {
       }
     } catch (error: any) {
       if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
+        // Convert array format to Record format
+        const errorRecord: Record<string, string[]> = {};
+        error.response.data.errors.forEach((err: any) => {
+          if (!errorRecord[err.field]) {
+            errorRecord[err.field] = [];
+          }
+          errorRecord[err.field].push(err.message);
+        });
+        setErrors(errorRecord);
       } else {
         showToast("Failed to update user", "error");
       }
