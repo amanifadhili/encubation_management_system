@@ -6,6 +6,7 @@ export interface TableColumn<T> {
   label: string;
   render?: (row: T) => React.ReactNode;
   className?: string;
+  sortable?: boolean;
 }
 
 interface TableProps<T> {
@@ -16,13 +17,20 @@ interface TableProps<T> {
   className?: string;
   loading?: boolean;
   skeletonCount?: number;
+  onSort?: (key: string, order: "asc" | "desc") => void;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 // Tooltip component for icon actions
-const Tooltip: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
+const Tooltip: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => {
   const [visible, setVisible] = useState(false);
   return (
-    <span className="relative inline-block"
+    <span
+      className="relative inline-block"
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
       onFocus={() => setVisible(true)}
@@ -39,48 +47,103 @@ const Tooltip: React.FC<{ label: string; children: React.ReactNode }> = ({ label
   );
 };
 
-function Table<T extends { id: number | string }>({ 
-  columns, 
-  data, 
-  actions, 
-  emptyMessage = "No data found.", 
+function Table<T extends { id: number | string }>({
+  columns,
+  data,
+  actions,
+  emptyMessage = "No data found.",
   className = "",
   loading = false,
-  skeletonCount = 5
+  skeletonCount = 5,
+  onSort,
+  sortBy,
+  sortOrder,
 }: TableProps<T>) {
+  const handleSort = (key: string) => {
+    if (onSort && columns.find((col) => col.key === key)?.sortable) {
+      const newOrder = sortBy === key && sortOrder === "asc" ? "desc" : "asc";
+      onSort(key, newOrder);
+    }
+  };
+
+  const getSortIcon = (key: string) => {
+    if (!onSort || !columns.find((col) => col.key === key)?.sortable)
+      return null;
+    if (sortBy !== key) {
+      return <span className="text-gray-400 ml-1">↕</span>;
+    }
+    return (
+      <span className="text-blue-700 ml-1">
+        {sortOrder === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
   if (loading) {
     return (
-      <div className={`overflow-x-auto rounded-lg shadow-lg bg-white ${className}`}>
+      <div
+        className={`overflow-x-auto rounded-lg shadow-lg bg-white ${className}`}
+      >
         <PageSkeleton count={skeletonCount} layout="table" />
       </div>
     );
   }
 
   return (
-    <div className={`overflow-x-auto rounded-lg shadow-lg bg-white ${className}`}>
+    <div
+      className={`overflow-x-auto rounded-lg shadow-lg bg-white ${className}`}
+    >
       <table className="min-w-full">
         <thead className="bg-blue-100 border-b-2 border-blue-300">
           <tr>
             {columns.map((col) => (
-              <th key={col.key as string} className={`px-4 py-3 text-left text-blue-900 font-bold ${col.className || ""}`}>{col.label}</th>
+              <th
+                key={col.key as string}
+                className={`px-4 py-3 text-left text-blue-900 font-bold ${
+                  col.className || ""
+                } ${
+                  col.sortable
+                    ? "cursor-pointer hover:bg-blue-200 transition"
+                    : ""
+                }`}
+                onClick={() => handleSort(col.key as string)}
+              >
+                {col.label}
+                {getSortIcon(col.key as string)}
+              </th>
             ))}
-            {actions && <th className="px-4 py-3 text-left text-blue-900 font-bold">Actions</th>}
+            {actions && (
+              <th className="px-4 py-3 text-left text-blue-900 font-bold">
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-8 text-blue-400">{emptyMessage}</td>
+              <td
+                colSpan={columns.length + (actions ? 1 : 0)}
+                className="text-center py-8 text-blue-400"
+              >
+                {emptyMessage}
+              </td>
             </tr>
           ) : (
             data.map((row) => (
               <tr key={row.id} className="border-b hover:bg-blue-50 transition">
                 {columns.map((col) => (
-                  <td key={col.key as string} className={`px-4 py-3 ${col.className || ""}`}>
-                    {col.render ? col.render(row) : (row[col.key as keyof T] as React.ReactNode)}
+                  <td
+                    key={col.key as string}
+                    className={`px-4 py-3 ${col.className || ""}`}
+                  >
+                    {col.render
+                      ? col.render(row)
+                      : (row[col.key as keyof T] as React.ReactNode)}
                   </td>
                 ))}
-                {actions && <td className="px-4 py-3 space-x-2">{actions(row)}</td>}
+                {actions && (
+                  <td className="px-4 py-3 space-x-2">{actions(row)}</td>
+                )}
               </tr>
             ))
           )}
@@ -90,4 +153,4 @@ function Table<T extends { id: number | string }>({
   );
 }
 
-export default Table; 
+export default Table;
