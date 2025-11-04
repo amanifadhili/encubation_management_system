@@ -45,5 +45,22 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
     "vite-tsconfig-paths": "^5.1.4"
-  }
+  },
+  "version": "1.0.0",
+  "description": "A comprehensive React.js-based platform for managing creative student teams, mentors, and incubation projects. Built with modern web technologies and designed for educational institutions to foster innovation and entrepreneurship.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amanifadhili/encubation_management_system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amanifadhili/encubation_management_system/issues"
+  },
+  "homepage": "https://github.com/amanifadhili/encubation_management_system#readme"
 }
