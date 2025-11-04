@@ -20,6 +20,7 @@ export interface ReportData {
   details?: any[];
   metrics?: any;
   charts?: any[];
+  filters?: any;
   generated_at?: string;
 }
 
@@ -137,23 +138,60 @@ export class ExportManager {
     pdf.setFontSize(11);
     pdf.setFont('helvetica', 'normal');
 
+    // Add filter information if available
+    if (data.filters) {
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Applied Filters:', 20, yPosition);
+      yPosition += 8;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      
+      const filterLines = [
+        `Report Type: ${data.filters.report_type || 'N/A'}`,
+        `Date Range: ${data.filters.date_from || 'All'} to ${data.filters.date_to || 'All'}`,
+        `Status: ${data.filters.status || 'All'}`,
+        `Category: ${data.filters.category || 'All'}`,
+        `Sort By: ${data.filters.sort_by || 'N/A'} (${data.filters.sort_order || 'N/A'})`
+      ];
+
+      filterLines.forEach(line => {
+        pdf.text(`  ${line}`, 25, yPosition);
+        yPosition += 7;
+      });
+      yPosition += 5;
+    }
+
+    pdf.setFontSize(11);
     if (data.summary) {
       const summary = data.summary;
 
-      // Key highlights
-      const highlights = [
-        `Total Teams: ${summary.total_teams || 0}`,
-        `Active Teams: ${summary.active_teams || 0}`,
-        `Total Projects: ${summary.total_projects || 0}`,
-        `Project Completion Rate: ${summary.project_completion_rate ? summary.project_completion_rate.toFixed(1) + '%' : 'N/A'}`,
-        `Total Users: ${summary.total_users || 0}`,
-        `System Health: Excellent`
-      ];
+      // Key highlights - dynamically build based on what's available
+      const highlights: string[] = [];
+      
+      if (summary.total_teams !== undefined) highlights.push(`Total Teams: ${summary.total_teams}`);
+      if (summary.active_teams !== undefined) highlights.push(`Active Teams: ${summary.active_teams}`);
+      if (summary.total_projects !== undefined) highlights.push(`Total Projects: ${summary.total_projects}`);
+      if (summary.active_projects !== undefined) highlights.push(`Active Projects: ${summary.active_projects}`);
+      if (summary.completed_projects !== undefined) highlights.push(`Completed Projects: ${summary.completed_projects}`);
+      if (summary.total_inventory !== undefined) highlights.push(`Total Inventory: ${summary.total_inventory}`);
+      if (summary.assigned_quantity !== undefined) highlights.push(`Assigned Items: ${summary.assigned_quantity}`);
+      if (summary.available_quantity !== undefined) highlights.push(`Available Items: ${summary.available_quantity}`);
+      if (summary.total !== undefined) highlights.push(`Total Records: ${summary.total}`);
+      if (summary.active !== undefined) highlights.push(`Active: ${summary.active}`);
+      if (summary.pending !== undefined) highlights.push(`Pending: ${summary.pending}`);
+      if (summary.completed !== undefined) highlights.push(`Completed: ${summary.completed}`);
+      if (summary.project_completion_rate !== undefined) {
+        highlights.push(`Project Completion Rate: ${summary.project_completion_rate.toFixed(1)}%`);
+      }
+      if (summary.total_users !== undefined) highlights.push(`Total Users: ${summary.total_users}`);
 
-      highlights.forEach(highlight => {
-        pdf.text(`• ${highlight}`, 25, yPosition);
-        yPosition += 8;
-      });
+      if (highlights.length > 0) {
+        highlights.forEach(highlight => {
+          pdf.text(`• ${highlight}`, 25, yPosition);
+          yPosition += 8;
+        });
+      }
     }
 
     return yPosition + 10;
@@ -203,7 +241,7 @@ export class ExportManager {
   }
 
   /**
-   * Add detailed data tables
+   * Add detailed data tables with all columns
    */
   private static addDetailedTables(pdf: jsPDF, details: any[], yPosition: number): number {
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -214,29 +252,60 @@ export class ExportManager {
     yPosition += 15;
 
     if (details.length > 0) {
-      // Prepare table data
-      const tableData = details.map((item, index) => [
-        index + 1,
-        item.name || item.team_name || item.title || 'N/A',
-        item.status || 'N/A',
-        item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A',
-        item.metrics ? JSON.stringify(item.metrics) : 'N/A'
-      ]);
+      // Get all unique keys from all items to build comprehensive columns
+      const allKeys = new Set<string>();
+      details.forEach(item => {
+        Object.keys(item).forEach(key => allKeys.add(key));
+      });
+
+      // Exclude certain keys that shouldn't be in the table
+      const excludeKeys = new Set(['id', 'metrics']);
+      const columns = Array.from(allKeys).filter(key => !excludeKeys.has(key));
+
+      // Build headers
+      const headers = columns.map(key => {
+        // Format header names
+        return key
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+      });
+
+      // Build table data
+      const tableData = details.map((item, index) => {
+        return columns.map(col => {
+          const value = item[col];
+          if (value === null || value === undefined) return 'N/A';
+          if (typeof value === 'object') return JSON.stringify(value).substring(0, 50);
+          return String(value);
+        });
+      });
+
+      // Calculate column widths dynamically
+      const numColumns = columns.length;
+      const availableWidth = pageWidth - 40; // Margins
+      const baseWidth = availableWidth / numColumns;
+      const columnStyles: any = {};
+      
+      columns.forEach((col, index) => {
+        // Give more width to name/title columns
+        if (col.includes('name') || col.includes('title') || col.includes('email')) {
+          columnStyles[index] = { cellWidth: baseWidth * 1.5 };
+        } else if (col.includes('description')) {
+          columnStyles[index] = { cellWidth: baseWidth * 2 };
+        } else {
+          columnStyles[index] = { cellWidth: baseWidth };
+        }
+      });
 
       (pdf as any).autoTable({
         startY: yPosition,
-        head: [['#', 'Name', 'Status', 'Created', 'Metrics']],
+        head: [headers],
         body: tableData,
         theme: 'striped',
-        styles: { fontSize: 8, cellPadding: 2 },
+        styles: { fontSize: 7, cellPadding: 2 },
         headStyles: { fillColor: [59, 130, 246], textColor: 255 },
-        columnStyles: {
-          0: { cellWidth: 15 },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 25 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 'auto' }
-        }
+        columnStyles: columnStyles,
+        margin: { left: 20, right: 20 }
       });
 
       return (pdf as any).lastAutoTable.finalY + 15;
@@ -268,6 +337,12 @@ export class ExportManager {
     const workbook = XLSX.utils.book_new();
     const title = options.title || 'Incubation Management Report';
 
+    // Filters sheet (if available)
+    if (data.filters) {
+      const filtersSheet = XLSX.utils.json_to_sheet([data.filters]);
+      XLSX.utils.book_append_sheet(workbook, filtersSheet, 'Filters');
+    }
+
     // Summary sheet
     if (data.summary) {
       const summarySheet = XLSX.utils.json_to_sheet([data.summary]);
@@ -280,7 +355,7 @@ export class ExportManager {
       XLSX.utils.book_append_sheet(workbook, metricsSheet, 'Metrics');
     }
 
-    // Details sheet
+    // Details sheet - include all columns
     if (data.details && data.details.length > 0) {
       const detailsSheet = XLSX.utils.json_to_sheet(data.details);
       XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Details');
@@ -298,6 +373,13 @@ export class ExportManager {
     let csvContent = '';
     const title = options.title || 'Incubation Management Report';
 
+    // Filter information
+    if (data.filters) {
+      csvContent += 'Applied Filters\n';
+      csvContent += Object.entries(data.filters).map(([key, value]) => `${key},${value}`).join('\n');
+      csvContent += '\n\n';
+    }
+
     // Summary data
     if (data.summary) {
       csvContent += 'Summary\n';
@@ -312,13 +394,25 @@ export class ExportManager {
       csvContent += '\n\n';
     }
 
-    // Details data
+    // Details data - include all columns
     if (data.details && data.details.length > 0) {
       csvContent += 'Details\n';
-      const headers = Object.keys(data.details[0]).join(',');
+      // Get all unique keys from all items
+      const allKeys = new Set<string>();
+      data.details.forEach(item => {
+        Object.keys(item).forEach(key => allKeys.add(key));
+      });
+      const headers = Array.from(allKeys).join(',');
       csvContent += headers + '\n';
       data.details.forEach(item => {
-        const values = Object.values(item).join(',');
+        const values = Array.from(allKeys).map(key => {
+          const value = item[key];
+          // Handle values that might contain commas
+          if (value && typeof value === 'string' && value.includes(',')) {
+            return `"${value}"`;
+          }
+          return value ?? '';
+        }).join(',');
         csvContent += values + '\n';
       });
     }
