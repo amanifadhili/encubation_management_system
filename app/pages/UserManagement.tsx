@@ -93,14 +93,48 @@ export default function UserManagement() {
       if (roleFilter !== "all") params.role = roleFilter;
 
       const response = await getUsers(params);
-      // Backend now returns { data: users[], pagination: { page, limit, total, pages } }
-      setUsers(response.data || []);
-      if (response.pagination) {
-        setTotalPages(response.pagination.pages || 1);
-        setTotal(response.pagination.total || 0);
+      console.log("Users API Response:", response);
+
+      // Backend returns { success: true, data: users[], pagination: { page, limit, total, pages } }
+      if (response.success && response.data) {
+        setUsers(response.data || []);
+        if (response.pagination) {
+          setTotalPages(response.pagination.pages || 1);
+          setTotal(response.pagination.total || 0);
+        } else {
+          // Fallback if pagination is missing
+          setTotalPages(1);
+          setTotal(response.data?.length || 0);
+        }
+      } else if (response.data) {
+        // Handle case where response might be directly the data array
+        setUsers(Array.isArray(response.data) ? response.data : []);
+        if (response.pagination) {
+          setTotalPages(response.pagination.pages || 1);
+          setTotal(response.pagination.total || 0);
+        } else {
+          setTotalPages(1);
+          setTotal(Array.isArray(response.data) ? response.data.length : 0);
+        }
+      } else {
+        // If response structure is unexpected
+        console.error("Unexpected response structure:", response);
+        setUsers([]);
+        setTotalPages(1);
+        setTotal(0);
+        showToast("Unexpected response format from server", "error");
       }
-    } catch (error) {
-      showToast("Failed to load users", "error");
+    } catch (error: any) {
+      console.error("Failed to load users:", error);
+      showToast(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to load users",
+        "error"
+      );
+      setUsers([]);
+      setTotalPages(1);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -356,7 +390,7 @@ export default function UserManagement() {
               setRoleFilter(e.target.value);
               setPage(1); // Reset to first page when filtering
             }}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded text-gray-900"
           >
             <option value="all">All Roles</option>
             <option value="director">Director</option>
@@ -422,7 +456,7 @@ export default function UserManagement() {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border rounded text-gray-900"
               />
             </FormField>
 
@@ -437,7 +471,7 @@ export default function UserManagement() {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border rounded text-gray-900"
               />
             </FormField>
 
@@ -456,7 +490,7 @@ export default function UserManagement() {
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border rounded text-gray-900"
               />
             </FormField>
 
@@ -575,7 +609,7 @@ export default function UserManagement() {
                 name="role"
                 value={formData.role}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded"
+                className="w-full p-2 border rounded text-gray-900"
               >
                 <option value="director">Director</option>
                 <option value="manager">Manager</option>
