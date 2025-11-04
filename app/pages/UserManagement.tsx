@@ -280,13 +280,23 @@ export default function UserManagement() {
         </button>
       ),
     },
-    { key: "email", label: "Email", sortable: true },
+    {
+      key: "email",
+      label: "Email",
+      sortable: true,
+      render: (user: User) => (
+        <span className="text-blue-600 font-medium">{user.email}</span>
+      ),
+    },
     {
       key: "role",
       label: "Role",
       sortable: true,
-      render: (user: User) =>
-        user.role.charAt(0).toUpperCase() + user.role.slice(1),
+      render: (user: User) => (
+        <span className="text-blue-600 font-medium">
+          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+        </span>
+      ),
     },
     {
       key: "actions",
