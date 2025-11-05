@@ -293,8 +293,10 @@ const Messaging = () => {
   const loadUsers = async () => {
     try {
       const data = await getUsers();
+      // Ensure data is an array before filtering
+      const usersArray = Array.isArray(data) ? data : (data?.users || data?.data?.users || data?.data || []);
       // Filter out current user from the list
-      setUsers(data.filter((u: any) => u.id !== user?.id));
+      setUsers(usersArray.filter((u: any) => u.id !== user?.id));
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'loading users');
       setUsers([]);

@@ -456,7 +456,8 @@ export async function sendFileMessage(id: string, file: FormData, onUploadProgre
 // Users API
 export async function getUsers(params?: any) {
   const response = await api.get('/users', { params });
-  return response.data;
+  // Handle different response formats
+  return response.data.success ? response.data.data.users || response.data.data : response.data.users || response.data;
 }
 
 export async function getUser(id: string) {
