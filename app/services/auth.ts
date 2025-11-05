@@ -1,7 +1,21 @@
 // Real authentication service using backend API
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+// API Base URL - from .env file only
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Debug: Log the API base URL being used
+console.log('🔧 Auth API Configuration:', {
+  'VITE_API_BASE_URL from env': import.meta.env.VITE_API_BASE_URL,
+  'Final API_BASE_URL': API_BASE_URL
+});
+
+// Validate that API_BASE_URL is set
+if (!API_BASE_URL) {
+  console.error('❌ VITE_API_BASE_URL is not set in .env file!');
+  console.error('💡 Please create a .env file with: VITE_API_BASE_URL=http://encubation-backend.excellusi.com/api');
+  throw new Error('VITE_API_BASE_URL is required in .env file');
+}
 
 export type UserRole = 'director' | 'manager' | 'mentor' | 'incubator';
 export interface User {
@@ -20,10 +34,18 @@ export interface User {
 let currentUser: User | null = null;
 
 export async function login(email: string, password: string): Promise<User> {
-  const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-    email,
-    password
+  const loginUrl = `${API_BASE_URL}/auth/login`;
+  console.log('🔐 Attempting login:', {
+    url: loginUrl,
+    email: email,
+    apiBaseUrl: API_BASE_URL
   });
+
+  try {
+    const response = await axios.post(loginUrl, {
+      email,
+      password
+    });
 
   if (response.data.success) {
     const { token, user } = response.data.data;
@@ -45,8 +67,20 @@ export async function login(email: string, password: string): Promise<User> {
     return currentUser;
   }
 
-  // If response is not successful, throw error
-  throw new Error(response.data.message || 'Login failed');
+    // If response is not successful, throw error
+    throw new Error(response.data.message || 'Login failed');
+  } catch (error: any) {
+    console.error('❌ Login error:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      request: error.request ? 'Request made but no response' : 'No request made',
+      url: loginUrl
+    });
+    throw error;
+  }
 }
 
 export async function logout(): Promise<void> {
