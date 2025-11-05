@@ -457,6 +457,24 @@ export async function updateEmailPreferences(data: any) {
   return response.data.success ? response.data.data.preferences : response.data;
 }
 
+export async function getEmailStatistics(startDate?: string, endDate?: string) {
+  const params: any = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  const response = await api.get('/email/statistics', { params });
+  return response.data;
+}
+
+export async function verifyEmailConnection() {
+  const response = await api.get('/email/verify');
+  return response.data;
+}
+
+export async function clearEmailCache() {
+  const response = await api.post('/email/clear-cache');
+  return response.data;
+}
+
 // Legacy functions for backward compatibility (will be removed)
 export async function getManagers() {
   // Managers are users with role 'manager' - might need separate endpoint
