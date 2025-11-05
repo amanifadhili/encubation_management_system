@@ -3,7 +3,15 @@
  */
 import { io, Socket } from 'socket.io-client';
 
+// Socket URL - from .env file only
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
+
+// Validate that SOCKET_URL is set
+if (!SOCKET_URL) {
+  console.error('❌ VITE_SOCKET_URL is not set in .env file!');
+  console.error('💡 Please create a .env file with: VITE_SOCKET_URL=http://encubation-backend.excellusi.com');
+  throw new Error('VITE_SOCKET_URL is required in .env file');
+}
 
 class SocketService {
   private socket: Socket | null = null;
