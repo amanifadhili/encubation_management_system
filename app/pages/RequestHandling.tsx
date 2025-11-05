@@ -10,20 +10,9 @@ import {
   getRequests,
   updateRequestStatus,
   createRequest,
+  getInventory,
+  createInventoryItem,
 } from "../services/api";
-
-// Mocked available materials (would be managed by manager in real app)
-const initialMaterials = [
-  {
-    id: 1,
-    name: "Coffee Maker",
-    description: "Automatic drip coffee machine.",
-  },
-  { id: 2, name: "Office Chair", description: "Ergonomic adjustable chair." },
-  { id: 3, name: "Computer", description: "Desktop PC with monitor." },
-  { id: 4, name: "Table", description: "Large office table." },
-  { id: 5, name: "Coffee Cups", description: "Set of 6 ceramic cups." },
-];
 
 const MaterialPage = () => {
   const { user } = useAuth();
@@ -37,7 +26,7 @@ const MaterialPage = () => {
     return <div className="text-red-600 font-semibold">Access denied.</div>;
 
   // State
-  const [materials, setMaterials] = useState(initialMaterials);
+  const [materials, setMaterials] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]); // { id, materialId, name, description, status, date, note, quantity, teamId }
   const [showModal, setShowModal] = useState(false);
   const [modalForm, setModalForm] = useState({
@@ -54,6 +43,7 @@ const MaterialPage = () => {
 
   // Loading states for different operations
   const [loading, setLoading] = useState(true);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [approving, setApproving] = useState<string | number | null>(null);
   const [declining, setDeclining] = useState<string | number | null>(null);
   const [addingMaterial, setAddingMaterial] = useState(false);
@@ -63,12 +53,35 @@ const MaterialPage = () => {
   const isManagerOrDirector =
     user.role === "manager" || user.role === "director";
 
-  // Load requests on mount
+  // Load materials and requests on mount
   useEffect(() => {
     if (user) {
+      loadMaterials();
       loadRequests();
     }
   }, [user]);
+
+  // Load materials from backend
+  const loadMaterials = async () => {
+    setLoadingMaterials(true);
+    try {
+      const data = await withRetry(() => getInventory(), {
+        maxRetries: 3,
+        initialDelay: 1000,
+        onRetry: (attempt) => {
+          showToast(`Retrying... (${attempt}/3)`, "info", { duration: 2000 });
+        },
+      });
+
+      // Handle different response formats
+      const materialsData = data?.items || data?.data?.items || data || [];
+      setMaterials(materialsData);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, "loading materials");
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
 
   const loadRequests = async () => {
     setLoading(true);
@@ -222,7 +235,7 @@ const MaterialPage = () => {
     }
   };
 
-  // Manager: add new material
+  // Manager/Director: add new material
   const handleAddMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addMaterialForm.name) {
@@ -232,17 +245,22 @@ const MaterialPage = () => {
 
     setAddingMaterial(true);
     try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
-      setMaterials((prev) => [
-        ...prev,
+      await withRetry(
+        () =>
+          createInventoryItem({
+            name: addMaterialForm.name,
+            description: addMaterialForm.description,
+            total_quantity: 1,
+            status: "available",
+          }),
         {
-          id: Math.max(0, ...prev.map((m) => m.id)) + 1,
-          name: addMaterialForm.name,
-          description: addMaterialForm.description,
-        },
-      ]);
+          maxRetries: 3,
+          initialDelay: 1000,
+        }
+      );
+
+      // Reload materials to get updated data
+      await loadMaterials();
       setAddMaterialForm({ name: "", description: "" });
       setShowAddMaterial(false);
       showToast("Material added!", "success");
@@ -430,10 +448,14 @@ const MaterialPage = () => {
                 onChange={(e) =>
                   setModalForm((f) => ({ ...f, materialId: e.target.value }))
                 }
-                disabled={isSubmitting}
+                disabled={isSubmitting || loadingMaterials}
                 required
               >
-                <option value="">Select material...</option>
+                <option value="">
+                  {loadingMaterials
+                    ? "Loading materials..."
+                    : "Select material..."}
+                </option>
                 {materials.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
