@@ -21,6 +21,7 @@ import {
   FolderIcon,
   CubeIcon,
   ClipboardDocumentListIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
@@ -126,14 +127,24 @@ const Analytics = () => {
 
   if (!analytics) {
     return (
-      <div className="p-8">
-        <div className="text-center text-blue-400 py-12">No analytics data available</div>
+      <div className="p-4 sm:p-6 md:p-8">
+        <div className="text-center py-8 sm:py-12 fade-in">
+          <div className="w-16 h-16 sm:w-24 sm:h-24 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center shadow-sm">
+            <ChartBarIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
+          </div>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+            No analytics data available
+          </h3>
+          <p className="text-sm sm:text-base text-gray-600 mb-6 max-w-md mx-auto">
+            Analytics data will appear here once activities are recorded in the system.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8 fade-in">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-blue-900">Analytics Dashboard</h1>
         <ButtonLoader

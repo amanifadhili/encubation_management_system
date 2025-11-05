@@ -58,9 +58,10 @@ export function FormField({
       <label 
         htmlFor={name} 
         className="block mb-1.5 sm:mb-2 font-semibold text-gray-700 text-sm sm:text-base"
+        aria-required={required}
       >
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-red-500 ml-1" aria-label="required">*</span>}
       </label>
       
       <div className={`relative ${hasError ? 'ring-2 ring-red-500 rounded-xl' : hasSuccess ? 'ring-2 ring-green-500 rounded-xl' : ''}`}>

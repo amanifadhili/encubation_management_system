@@ -42,8 +42,9 @@ const Modal: React.FC<ModalProps> = ({ title, open, onClose, children, actions, 
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">{title}</h2>
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[44px] min-w-[44px] flex items-center justify-center"
                 aria-label="Close Modal"
+                aria-disabled={loading}
                 disabled={loading}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

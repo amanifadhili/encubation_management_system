@@ -55,6 +55,8 @@ const Button: React.FC<ButtonProps> = ({
         className,
       ].join(" ")}
       disabled={disabled || loading}
+      aria-disabled={disabled || loading}
+      aria-busy={loading}
       {...props}
     >
       {loading ? (

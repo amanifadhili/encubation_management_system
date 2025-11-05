@@ -54,6 +54,8 @@ export const ButtonLoader: React.FC<ButtonLoaderProps> = ({
       onClick={onClick}
       disabled={isDisabled}
       form={form}
+      aria-disabled={isDisabled}
+      aria-busy={loading}
       className={`
         inline-flex items-center justify-center gap-2
         rounded-xl font-semibold

@@ -90,10 +90,10 @@ function Table<T extends { id: number | string }>({
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm bg-white">
       {/* Mobile: Horizontal scroll */}
-      <div className="overflow-x-auto -mx-4 sm:mx-0">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="overflow-x-auto -mx-4 sm:mx-0" role="region" aria-label="Table data" tabIndex={0}>
+        <table className="min-w-full divide-y divide-gray-200" role="table" aria-label="Data table">
           <thead className="bg-gray-50">
-            <tr>
+            <tr role="row">
               {columns.map((col) => (
                 <th
                   key={col.key as string}
@@ -105,16 +105,18 @@ function Table<T extends { id: number | string }>({
                       : ""
                     }
                   `}
-                  onClick={() => handleSort(col.key as string)}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>{col.label}</span>
-                    {getSortIcon(col.key as string)}
-                  </div>
-                </th>
+                onClick={() => handleSort(col.key as string)}
+                aria-sort={sortBy === col.key ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}
+                aria-label={col.sortable ? `Sort by ${col.label}` : col.label}
+              >
+                <div className="flex items-center gap-2">
+                  <span>{col.label}</span>
+                  {getSortIcon(col.key as string)}
+                </div>
+              </th>
               ))}
               {actions && (
-                <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider" scope="col">
                   Actions
                 </th>
               )}
@@ -127,13 +129,14 @@ function Table<T extends { id: number | string }>({
                   colSpan={columns.length + (actions ? 1 : 0)}
                   className="px-4 sm:px-6 py-8 text-center"
                 >
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mb-4">
+                  <div className="flex flex-col items-center justify-center py-8 sm:py-12 fade-in">
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
                       <svg
-                        className="w-8 h-8 text-gray-400"
+                        className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
+                        aria-hidden="true"
                       >
                         <path
                           strokeLinecap="round"
@@ -143,7 +146,9 @@ function Table<T extends { id: number | string }>({
                         />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-gray-900">{emptyMessage}</p>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2" role="status" aria-live="polite">
+                      {emptyMessage}
+                    </h3>
                   </div>
                 </td>
               </tr>
@@ -152,6 +157,7 @@ function Table<T extends { id: number | string }>({
                 <tr
                   key={row.id}
                   className="hover:bg-blue-50/50 transition-colors duration-150"
+                  role="row"
                 >
                   {columns.map((col) => (
                     <td
