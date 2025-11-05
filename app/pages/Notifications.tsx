@@ -18,7 +18,7 @@ import socketService from "../services/socket";
 const Notifications = () => {
   const { user } = useAuth();
   const showToast = useToast();
-  const isManager = user?.role === "manager";
+  const isManager = user?.role === "manager" || user?.role === "director";
   const isIncubator = user?.role === "incubator";
 
   const [notifications, setNotifications] = useState<any[]>([]);

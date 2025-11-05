@@ -28,7 +28,7 @@ const StockManagement = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const isManager = user?.role === "manager";
+  const isManager = user?.role === "manager" || user?.role === "director";
 
   // Load inventory on mount
   useEffect(() => {

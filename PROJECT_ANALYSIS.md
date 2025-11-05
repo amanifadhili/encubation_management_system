@@ -125,13 +125,18 @@ encubation_management_system/
 ### User Roles & Permissions
 
 #### 1. Director
-- **Access Level**: Full system access
+- **Access Level**: Full system access with all Manager privileges
 - **Capabilities**:
   - View all teams, projects, and reports
+  - Manage teams (CRUD operations)
+  - Manage inventory (CRUD operations)
+  - Approve/decline material requests
+  - Send notifications to teams
   - Manage mentors and announcements
   - Access comprehensive analytics
   - View all messaging conversations
-- **Restrictions**: Cannot send notifications or manage inventory directly
+  - Has all Manager CRUD privileges
+- **Restrictions**: None - has full system access including all Manager operations
 
 #### 2. Manager
 - **Access Level**: Operational management

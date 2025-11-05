@@ -240,23 +240,27 @@ npm run start           # Start production server
 | Feature | Director | Manager | Mentor | Incubator |
 |---------|----------|---------|--------|-----------|
 | Dashboard | ✅ Global | ✅ Managed | ✅ Assigned | ✅ Team |
-| Incubators | ✅ View All | ✅ CRUD | ✅ Assigned | ❌ |
+| Incubators | ✅ CRUD | ✅ CRUD | ✅ Assigned | ❌ |
 | Mentors | ✅ CRUD | ✅ View | ❌ | ✅ View Assigned |
 | Projects | ✅ View All | ✅ View All | ✅ Assigned | ✅ CRUD Own |
-| Material | ❌ | ✅ Manage | ❌ | ✅ Request |
-| Inventory | ✅ View All | ✅ CRUD | ❌ | ✅ View Assigned |
+| Material | ✅ Manage | ✅ Manage | ❌ | ✅ Request |
+| Inventory | ✅ CRUD | ✅ CRUD | ❌ | ✅ View Assigned |
 | Reports | ✅ All | ✅ Managed | ❌ | ❌ |
 | Announcements | ✅ CRUD | ✅ CRUD | ❌ | ✅ View |
-| Notifications | ❌ | ✅ Send | ❌ | ✅ Receive |
+| Notifications | ✅ Send | ✅ Send | ❌ | ✅ Receive |
 | Messaging | ✅ All | ✅ All | ✅ Assigned | ✅ Assigned |
 
 ### Permission Details
 
 #### Director
-- Full system access
+- Full system access with all Manager privileges
 - Can view all teams, projects, and reports
+- Can manage teams (CRUD operations)
+- Can manage inventory (CRUD operations)
+- Can approve/decline material requests
+- Can send notifications to teams
 - Can manage mentors and announcements
-- Cannot send notifications or manage inventory
+- Has all Manager CRUD privileges
 
 #### Manager
 - Manages assigned teams

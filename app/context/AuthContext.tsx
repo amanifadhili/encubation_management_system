@@ -8,6 +8,11 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUser: (userData: Partial<authService.User>) => void;
   loading: boolean;
+  // Role helper functions
+  isManagerOrDirector: () => boolean;
+  isDirector: () => boolean;
+  isManager: () => boolean;
+  canPerformManagerOperations: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,8 +60,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(prev => (prev ? { ...prev, ...userData } : null));
   };
 
+  // Role helper functions
+  const isManagerOrDirector = (): boolean => {
+    return user?.role === 'manager' || user?.role === 'director';
+  };
+
+  const isDirector = (): boolean => {
+    return user?.role === 'director';
+  };
+
+  const isManager = (): boolean => {
+    return user?.role === 'manager';
+  };
+
+  const canPerformManagerOperations = (): boolean => {
+    return isManagerOrDirector();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      updateUser, 
+      loading,
+      isManagerOrDirector,
+      isDirector,
+      isManager,
+      canPerformManagerOperations
+    }}>
       {children}
     </AuthContext.Provider>
   );

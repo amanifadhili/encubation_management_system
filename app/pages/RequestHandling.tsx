@@ -17,7 +17,7 @@ const initialMaterials = [
 const MaterialPage = () => {
   const { user } = useAuth();
   const showToast = useToast();
-  if (!user || (user.role !== "incubator" && user.role !== "manager")) return <div className="text-red-600 font-semibold">Access denied.</div>;
+  if (!user || (user.role !== "incubator" && user.role !== "manager" && user.role !== "director")) return <div className="text-red-600 font-semibold">Access denied.</div>;
 
   // State
   const [materials, setMaterials] = useState(initialMaterials);
@@ -144,8 +144,8 @@ const MaterialPage = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Material Requests</h1>
           <div className="text-white opacity-90 mb-2">Request materials for your team and track their status.</div>
         </div>
-        {/* Manager: Add new material */}
-        {user.role === "manager" && (
+        {/* Manager/Director: Add new material */}
+        {(user.role === "manager" || user.role === "director") && (
           <div className="mb-6 flex justify-end">
             <ButtonLoader
               loading={false}
@@ -159,7 +159,7 @@ const MaterialPage = () => {
         {/* Table */}
         <div className="bg-white rounded shadow p-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-blue-900">{user.role === "manager" ? "All Material Requests" : "My Material Requests"}</h2>
+            <h2 className="text-xl font-semibold text-blue-900">{(user.role === "manager" || user.role === "director") ? "All Material Requests" : "My Material Requests"}</h2>
             {user.role === "incubator" && (
               <ButtonLoader
                 loading={false}
@@ -200,7 +200,7 @@ const MaterialPage = () => {
                       <td className="px-4 py-2 text-blue-900">{r.quantity}</td>
                       <td className="px-4 py-2 text-blue-900">{r.note}</td>
                       <td className="px-4 py-2">
-                        {user.role === "manager" && r.status === "Requested" && (
+                        {(user.role === "manager" || user.role === "director") && r.status === "Requested" && (
                           <div className="flex gap-2">
                             <ButtonLoader
                               loading={approving}
