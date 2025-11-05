@@ -3,7 +3,7 @@
  */
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
 class SocketService {
   private socket: Socket | null = null;
