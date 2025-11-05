@@ -16,9 +16,18 @@ const Header = () => {
 
   const handleNavClick = (href: string) => {
     if (href.startsWith('#')) {
-      const element = document.getElementById(href.substring(1));
+      const elementId = href.substring(1);
+      const element = document.getElementById(elementId);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+        // Account for fixed header height (64px = h-16)
+        const headerHeight = 64;
+        const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - headerHeight;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
       }
     }
     setIsMobileMenuOpen(false);
