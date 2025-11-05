@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
+import { ErrorHandler } from "../utils/errorHandler";
+import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import { getRequests, updateRequestStatus, createRequest } from "../services/api";
 
 // Mocked available materials (would be managed by manager in real app)
 const initialMaterials = [
@@ -29,21 +32,62 @@ const MaterialPage = () => {
   const [addMaterialForm, setAddMaterialForm] = useState({ name: "", description: "" });
   
   // Loading states for different operations
-  const [loading, setLoading] = useState(false);
-  const [approving, setApproving] = useState(false);
-  const [declining, setDeclining] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState<number | null>(null);
+  const [declining, setDeclining] = useState<number | null>(null);
   const [addingMaterial, setAddingMaterial] = useState(false);
 
   // Team context
   const teamId = user.role === "incubator" ? (user as any).teamId : undefined;
+  const isManagerOrDirector = user.role === "manager" || user.role === "director";
+
+  // Load requests on mount
+  useEffect(() => {
+    if (user) {
+      loadRequests();
+    }
+  }, [user]);
+
+  const loadRequests = async () => {
+    setLoading(true);
+    try {
+      const data = await withRetry(
+        () => getRequests(),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+          onRetry: (attempt) => {
+            showToast(`Retrying... (${attempt}/3)`, 'info', { duration: 2000 });
+          }
+        }
+      );
+      
+      // Handle different response formats
+      const requestsData = data?.requests || data?.data?.requests || data || [];
+      setRequests(requestsData);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'loading material requests');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filtered requests for team
   const teamRequests = user.role === "incubator"
-    ? requests.filter(r => r.teamId === teamId)
+    ? requests.filter(r => r.team?.id === teamId || r.team_id === teamId)
     : requests;
 
-  // Table columns
-  const columns = [
+  // Table columns - different for managers/directors vs incubators
+  const columns = isManagerOrDirector ? [
+    { key: "team", label: "Team", className: "font-semibold text-blue-800" },
+    { key: "name", label: "Material", className: "font-semibold text-blue-800" },
+    { key: "description", label: "Description", className: "text-blue-700" },
+    { key: "status", label: "Status", className: "text-blue-700" },
+    { key: "date", label: "Date", className: "text-blue-700" },
+    { key: "quantity", label: "Qty", className: "text-blue-700" },
+    { key: "note", label: "Note", className: "text-blue-700" },
+    { key: "actions", label: "Actions", className: "text-blue-700" },
+  ] : [
     { key: "name", label: "Material", className: "font-semibold text-blue-800" },
     { key: "description", label: "Description", className: "text-blue-700" },
     { key: "status", label: "Status", className: "text-blue-700" },
@@ -53,56 +97,66 @@ const MaterialPage = () => {
     { key: "actions", label: "Actions", className: "text-blue-700" },
   ];
 
-  // Request new material
-  const handleRequestMaterial = (e: React.FormEvent) => {
+  // Request new material (Incubator only)
+  const handleRequestMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalForm.materialId) {
       showToast("Please select a material.", "error");
       return;
     }
     setIsSubmitting(true);
-    const material = materials.find(m => m.id === Number(modalForm.materialId));
-    setTimeout(() => {
-      setRequests(prev => [
-        ...prev,
-        {
-          id: Math.max(0, ...prev.map(r => r.id)) + 1,
-          materialId: material.id,
-          name: material.name,
+    try {
+      const material = materials.find(m => m.id === Number(modalForm.materialId));
+      await withRetry(
+        () => createRequest({
+          item_name: material.name,
           description: material.description,
-          status: "Requested",
-          date: new Date().toISOString().slice(0, 10),
-          note: modalForm.note,
-          quantity: modalForm.quantity,
-          teamId,
-        },
-      ]);
+          notes: modalForm.note,
+          quantity: modalForm.quantity
+        }),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+        }
+      );
+      
       setShowModal(false);
-      setIsSubmitting(false);
       setModalForm({ materialId: "", note: "", quantity: 1 });
       showToast("Material request submitted!", "success");
-    }, 700);
+      // Reload requests to show the new one
+      await loadRequests();
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'submitting material request');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Manager: approve/decline
-  const handleAction = async (id: number, action: "Given" | "Declined") => {
-    if (action === "Given") {
-      setApproving(true);
+  // Manager/Director: approve/decline
+  const handleAction = async (id: string | number, action: "approved" | "declined") => {
+    if (action === "approved") {
+      setApproving(id);
     } else {
-      setDeclining(true);
+      setDeclining(id);
     }
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await withRetry(
+        () => updateRequestStatus(id, { status: action }),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+        }
+      );
       
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
-      showToast(`Request ${action === "Given" ? "approved" : "declined"}!`, action === "Given" ? "success" : "error");
-    } catch (error) {
-      showToast(`Failed to ${action === "Given" ? "approve" : "decline"} request`, "error");
+      // Reload requests to get updated data
+      await loadRequests();
+      showToast(`Request ${action === "approved" ? "approved" : "declined"}!`, action === "approved" ? "success" : "info");
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, `${action === "approved" ? "approving" : "declining"} request`);
     } finally {
-      setApproving(false);
-      setDeclining(false);
+      setApproving(null);
+      setDeclining(null);
     }
   };
 
@@ -142,20 +196,12 @@ const MaterialPage = () => {
       <div className="max-w-5xl mx-auto">
         <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-6 mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Material Requests</h1>
-          <div className="text-white opacity-90 mb-2">Request materials for your team and track their status.</div>
-        </div>
-        {/* Manager/Director: Add new material */}
-        {(user.role === "manager" || user.role === "director") && (
-          <div className="mb-6 flex justify-end">
-            <ButtonLoader
-              loading={false}
-              onClick={() => setShowAddMaterial(true)}
-              label="+ Add Material"
-              variant="primary"
-              className="bg-blue-700 hover:bg-blue-800"
-            />
+          <div className="text-white opacity-90 mb-2">
+            {isManagerOrDirector 
+              ? "Review and approve material requests from teams." 
+              : "Request materials for your team and track their status."}
           </div>
-        )}
+        </div>
         {/* Table */}
         <div className="bg-white rounded shadow p-4">
           <div className="flex justify-between items-center mb-4">
@@ -188,45 +234,76 @@ const MaterialPage = () => {
                   </tr>
                 ) : teamRequests.length === 0 ? (
                   <tr>
-                    <td colSpan={columns.length} className="text-center py-8 text-blue-400">No material requests yet.</td>
+                    <td colSpan={columns.length} className="text-center py-8 text-blue-400">
+                      {isManagerOrDirector 
+                        ? "No pending material requests to review." 
+                        : "No material requests yet."}
+                    </td>
                   </tr>
                 ) : (
-                  teamRequests.map((r, idx) => (
-                    <tr key={r.id} className="border-b hover:bg-blue-50 transition">
-                      <td className="px-4 py-2 text-blue-900">{r.name}</td>
-                      <td className="px-4 py-2 text-blue-900">{r.description}</td>
-                      <td className="px-4 py-2 text-blue-900">{r.status}</td>
-                      <td className="px-4 py-2 text-blue-900">{r.date}</td>
-                      <td className="px-4 py-2 text-blue-900">{r.quantity}</td>
-                      <td className="px-4 py-2 text-blue-900">{r.note}</td>
-                      <td className="px-4 py-2">
-                        {(user.role === "manager" || user.role === "director") && r.status === "Requested" && (
-                          <div className="flex gap-2">
-                            <ButtonLoader
-                              loading={approving}
-                              onClick={() => handleAction(r.id, "Given")}
-                              label="Approve"
-                              loadingText="Approving..."
-                              variant="success"
-                              size="sm"
-                              className="bg-green-100 text-green-700 hover:bg-green-200"
-                              disabled={approving || declining}
-                            />
-                            <ButtonLoader
-                              loading={declining}
-                              onClick={() => handleAction(r.id, "Declined")}
-                              label="Decline"
-                              loadingText="Declining..."
-                              variant="danger"
-                              size="sm"
-                              className="bg-red-100 text-red-700 hover:bg-red-200"
-                              disabled={approving || declining}
-                            />
-                          </div>
+                  teamRequests.map((r, idx) => {
+                    const requestId = r.id;
+                    const itemName = r.item_name || r.name || 'N/A';
+                    const itemDescription = r.description || 'N/A';
+                    const requestStatus = r.status || 'pending';
+                    const requestDate = r.requested_at ? new Date(r.requested_at).toLocaleDateString() : (r.date || 'N/A');
+                    const requestQuantity = r.quantity || 1;
+                    const requestNote = r.notes || r.note || '';
+                    const teamName = r.team?.team_name || r.team_name || 'N/A';
+                    const isPending = requestStatus === 'pending' || requestStatus === 'Pending';
+                    const isApproving = approving === requestId;
+                    const isDeclining = declining === requestId;
+                    
+                    return (
+                      <tr key={requestId} className="border-b hover:bg-blue-50 transition">
+                        {isManagerOrDirector && (
+                          <td className="px-4 py-2 text-blue-900 font-medium">{teamName}</td>
                         )}
-                      </td>
-                    </tr>
-                  ))
+                        <td className="px-4 py-2 text-blue-900">{itemName}</td>
+                        <td className="px-4 py-2 text-blue-900">{itemDescription}</td>
+                        <td className="px-4 py-2">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            requestStatus === 'approved' || requestStatus === 'Approved' 
+                              ? 'bg-green-100 text-green-700' 
+                              : requestStatus === 'declined' || requestStatus === 'Declined'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {requestStatus}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-blue-900">{requestDate}</td>
+                        <td className="px-4 py-2 text-blue-900">{requestQuantity}</td>
+                        <td className="px-4 py-2 text-blue-900">{requestNote}</td>
+                        <td className="px-4 py-2">
+                          {isManagerOrDirector && isPending && (
+                            <div className="flex gap-2">
+                              <ButtonLoader
+                                loading={isApproving}
+                                onClick={() => handleAction(requestId, "approved")}
+                                label="Approve"
+                                loadingText="Approving..."
+                                variant="success"
+                                size="sm"
+                                className="bg-green-100 text-green-700 hover:bg-green-200"
+                                disabled={isApproving || isDeclining}
+                              />
+                              <ButtonLoader
+                                loading={isDeclining}
+                                onClick={() => handleAction(requestId, "declined")}
+                                label="Decline"
+                                loadingText="Declining..."
+                                variant="danger"
+                                size="sm"
+                                className="bg-red-100 text-red-700 hover:bg-red-200"
+                                disabled={isApproving || isDeclining}
+                              />
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
