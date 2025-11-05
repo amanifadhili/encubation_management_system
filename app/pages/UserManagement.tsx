@@ -10,6 +10,7 @@ import Modal from "../components/Modal";
 import { FormField } from "../components/FormField";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 
 interface User {
   id: string;
@@ -54,8 +55,13 @@ export default function UserManagement() {
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailUser, setDetailUser] = useState<User | null>(null);
+  
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -208,20 +214,30 @@ export default function UserManagement() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    setDeleteModalOpen(true);
+  };
 
-    setDeletingUserId(userId);
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+
+    setDeleting(true);
+    setDeletingUserId(userToDelete.id);
     try {
-      const response = await deleteUser(userId);
+      const response = await deleteUser(userToDelete.id);
       if (response.success) {
         showToast("User deleted successfully", "success");
+        setDeleteModalOpen(false);
+        setUserToDelete(null);
         // Reload to refresh pagination
         loadUsers();
       }
     } catch (error) {
       showToast("Failed to delete user", "error");
+      // Don't close modal on error so user can retry
     } finally {
+      setDeleting(false);
       setDeletingUserId(null);
     }
   };
@@ -352,11 +368,10 @@ export default function UserManagement() {
             Edit
           </Button>
           <Button
-            onClick={() => handleDeleteUser(user.id)}
+            onClick={() => handleDeleteClick(user)}
             variant="danger"
             className="text-sm"
-            loading={deletingUserId === user.id}
-            disabled={!!deletingUserId}
+            disabled={deleting}
           >
             Delete
           </Button>
@@ -716,6 +731,20 @@ export default function UserManagement() {
           </div>
         )}
       </Modal>
+      
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setUserToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        itemName={userToDelete?.name}
+        itemType="user"
+        loading={deleting}
+        description="This will permanently delete the user account and all associated data. This action cannot be undone."
+      />
     </div>
   );
 }

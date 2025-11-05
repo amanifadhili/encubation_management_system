@@ -54,8 +54,8 @@ const MaterialPage = () => {
 
   // Loading states for different operations
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState<number | null>(null);
-  const [declining, setDeclining] = useState<number | null>(null);
+  const [approving, setApproving] = useState<string | number | null>(null);
+  const [declining, setDeclining] = useState<string | number | null>(null);
   const [addingMaterial, setAddingMaterial] = useState(false);
 
   // Team context
@@ -151,6 +151,11 @@ const MaterialPage = () => {
       const material = materials.find(
         (m) => m.id === Number(modalForm.materialId)
       );
+      if (!material) {
+        showToast("Material not found.", "error");
+        setIsSubmitting(false);
+        return;
+      }
       await withRetry(
         () =>
           createRequest({
@@ -189,10 +194,15 @@ const MaterialPage = () => {
     }
 
     try {
-      await withRetry(() => updateRequestStatus(id, { status: action }), {
-        maxRetries: 3,
-        initialDelay: 1000,
-      });
+      // Convert id to number if it's a string (CUID)
+      const requestId = typeof id === "string" ? Number(id) : id;
+      await withRetry(
+        () => updateRequestStatus(requestId, { status: action }),
+        {
+          maxRetries: 3,
+          initialDelay: 1000,
+        }
+      );
 
       // Reload requests to get updated data
       await loadRequests();
