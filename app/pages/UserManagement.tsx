@@ -49,7 +49,6 @@ export default function UserManagement() {
   const [formData, setFormData] = useState<UserFormData>({
     name: "",
     email: "",
-    password: "",
     role: "incubator",
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -101,34 +100,49 @@ export default function UserManagement() {
       const response = await getUsers(params);
       console.log("Users API Response:", response);
 
-      // Backend returns { success: true, data: users[], pagination: { page, limit, total, pages } }
-      if (response.success && response.data) {
-        setUsers(response.data || []);
-        if (response.pagination) {
-          setTotalPages(response.pagination.pages || 1);
-          setTotal(response.pagination.total || 0);
+      // Handle different response formats
+      let users: User[] = [];
+      let pagination: any = null;
+
+      // If response is directly an array
+      if (Array.isArray(response)) {
+        users = response;
+        pagination = null;
+      }
+      // If response has success and data structure
+      else if (response.success && response.data) {
+        users = Array.isArray(response.data) ? response.data : [];
+        pagination = response.pagination || null;
+      }
+      // If response has data property (could be array or object with users array)
+      else if (response.data) {
+        if (Array.isArray(response.data)) {
+          users = response.data;
+        } else if (Array.isArray(response.data.users)) {
+          users = response.data.users;
         } else {
-          // Fallback if pagination is missing
-          setTotalPages(1);
-          setTotal(response.data?.length || 0);
+          users = [];
         }
-      } else if (response.data) {
-        // Handle case where response might be directly the data array
-        setUsers(Array.isArray(response.data) ? response.data : []);
-        if (response.pagination) {
-          setTotalPages(response.pagination.pages || 1);
-          setTotal(response.pagination.total || 0);
-        } else {
-          setTotalPages(1);
-          setTotal(Array.isArray(response.data) ? response.data.length : 0);
-        }
+        pagination = response.pagination || null;
+      }
+      // If response has users property
+      else if (Array.isArray(response.users)) {
+        users = response.users;
+        pagination = response.pagination || null;
+      }
+      // Fallback: empty array
+      else {
+        users = [];
+        pagination = null;
+      }
+
+      setUsers(users);
+      if (pagination) {
+        setTotalPages(pagination.pages || 1);
+        setTotal(pagination.total || users.length);
       } else {
-        // If response structure is unexpected
-        console.error("Unexpected response structure:", response);
-        setUsers([]);
         setTotalPages(1);
-        setTotal(0);
-        showToast("Unexpected response format from server", "error");
+        setTotal(users.length);
       }
     } catch (error: any) {
       console.error("Failed to load users:", error);
@@ -151,13 +165,14 @@ export default function UserManagement() {
     setIsSubmitting(true);
     try {
       setErrors({});
-      const response = await createUser(formData);
-      if (response.success) {
-        showToast("User created successfully", "success");
-        handleCloseModal();
-        // Reload to refresh pagination
-        loadUsers();
-      }
+      // Don't send password - backend will generate it and send via email
+      const { password, ...userData } = formData;
+      await createUser(userData);
+      // Success - backend will generate password and send via email
+      showToast("User created successfully. Password sent to email.", "success");
+      handleCloseModal();
+      // Reload to refresh pagination
+      loadUsers();
     } catch (error: any) {
       if (error.response?.data?.errors) {
         // Convert array format to Record format
@@ -188,13 +203,12 @@ export default function UserManagement() {
       if (!updateData.password || updateData.password.trim() === "") {
         delete updateData.password;
       }
-      const response = await updateUser(selectedUser.id, updateData);
-      if (response.success) {
-        showToast("User updated successfully", "success");
-        handleCloseModal();
-        // Reload to refresh pagination
-        loadUsers();
-      }
+      await updateUser(selectedUser.id, updateData);
+      // Success
+      showToast("User updated successfully", "success");
+      handleCloseModal();
+      // Reload to refresh pagination
+      loadUsers();
     } catch (error: any) {
       if (error.response?.data?.errors) {
         // Convert array format to Record format
@@ -248,7 +262,6 @@ export default function UserManagement() {
     setFormData({
       name: "",
       email: "",
-      password: "",
       role: "incubator",
     });
     setIsModalOpen(true);
@@ -260,7 +273,6 @@ export default function UserManagement() {
     setFormData({
       name: user.name,
       email: user.email,
-      password: "",
       role: user.role,
     });
     setIsModalOpen(true);
@@ -272,7 +284,6 @@ export default function UserManagement() {
     setFormData({
       name: "",
       email: "",
-      password: "",
       role: "incubator",
     });
     setErrors({});
@@ -490,129 +501,7 @@ export default function UserManagement() {
               />
             </FormField>
 
-            <FormField
-              label={
-                modalMode === "create"
-                  ? "Password"
-                  : "New Password (leave blank to keep current)"
-              }
-              name="password"
-              error={errors.password?.[0]}
-              required={modalMode === "create"}
-            >
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
-              />
-            </FormField>
-
-            {modalMode === "create" && formData.password && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">
-                    Password Strength
-                  </span>
-                  <span
-                    className={`text-sm font-semibold ${
-                      checkPasswordStrength(formData.password).strength === 5
-                        ? "text-green-600"
-                        : checkPasswordStrength(formData.password).strength >= 3
-                        ? "text-yellow-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {checkPasswordStrength(formData.password).strength === 5
-                      ? "Strong"
-                      : checkPasswordStrength(formData.password).strength >= 3
-                      ? "Medium"
-                      : "Weak"}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all ${
-                      checkPasswordStrength(formData.password).strength === 5
-                        ? "bg-green-600"
-                        : checkPasswordStrength(formData.password).strength >= 3
-                        ? "bg-yellow-600"
-                        : "bg-red-600"
-                    }`}
-                    style={{
-                      width: `${
-                        (checkPasswordStrength(formData.password).strength /
-                          5) *
-                        100
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="mt-2 text-xs text-gray-600 space-y-1">
-                  <div
-                    className={
-                      checkPasswordStrength(formData.password).checks.length
-                        ? "text-green-600"
-                        : ""
-                    }
-                  >
-                    {checkPasswordStrength(formData.password).checks.length
-                      ? "✓"
-                      : "○"}{" "}
-                    At least 8 characters
-                  </div>
-                  <div
-                    className={
-                      checkPasswordStrength(formData.password).checks.uppercase
-                        ? "text-green-600"
-                        : ""
-                    }
-                  >
-                    {checkPasswordStrength(formData.password).checks.uppercase
-                      ? "✓"
-                      : "○"}{" "}
-                    One uppercase letter
-                  </div>
-                  <div
-                    className={
-                      checkPasswordStrength(formData.password).checks.lowercase
-                        ? "text-green-600"
-                        : ""
-                    }
-                  >
-                    {checkPasswordStrength(formData.password).checks.lowercase
-                      ? "✓"
-                      : "○"}{" "}
-                    One lowercase letter
-                  </div>
-                  <div
-                    className={
-                      checkPasswordStrength(formData.password).checks.number
-                        ? "text-green-600"
-                        : ""
-                    }
-                  >
-                    {checkPasswordStrength(formData.password).checks.number
-                      ? "✓"
-                      : "○"}{" "}
-                    One number
-                  </div>
-                  <div
-                    className={
-                      checkPasswordStrength(formData.password).checks.special
-                        ? "text-green-600"
-                        : ""
-                    }
-                  >
-                    {checkPasswordStrength(formData.password).checks.special
-                      ? "✓"
-                      : "○"}{" "}
-                    One special character
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Password field removed - password will be auto-generated and sent via email */}
 
             <FormField
               label="Role"

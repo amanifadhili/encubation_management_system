@@ -457,7 +457,31 @@ export async function sendFileMessage(id: string, file: FormData, onUploadProgre
 export async function getUsers(params?: any) {
   const response = await api.get('/users', { params });
   // Handle different response formats
-  return response.data.success ? response.data.data.users || response.data.data : response.data.users || response.data;
+  const data = response.data;
+  
+  // If response is directly an array
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  // If response has success and data structure
+  if (data.success && data.data) {
+    // Could be array or object with users property
+    return Array.isArray(data.data) ? data.data : (data.data.users || data.data);
+  }
+  
+  // If response has data property
+  if (data.data) {
+    return Array.isArray(data.data) ? data.data : (data.data.users || data.data);
+  }
+  
+  // If response has users property
+  if (Array.isArray(data.users)) {
+    return data.users;
+  }
+  
+  // Fallback: return data as-is
+  return data;
 }
 
 export async function getUser(id: string) {
