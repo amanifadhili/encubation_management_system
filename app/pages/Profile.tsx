@@ -251,13 +251,22 @@ const Profile = () => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
-                formErrors.name ? "border-red-500" : "border-gray-300"
+              className={`w-full px-4 py-2.5 sm:py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 bg-white shadow-sm hover:shadow-md ${
+                formErrors.name ? "border-red-500 bg-red-50" : "border-gray-200"
               }`}
               placeholder="Enter your full name"
             />
             {formErrors.name && (
-              <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+              <div className="flex items-center gap-1.5 mt-1.5 p-2 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path 
+                    fillRule="evenodd" 
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+                <span>{formErrors.name}</span>
+              </div>
             )}
           </div>
 
@@ -275,13 +284,22 @@ const Profile = () => {
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
-                formErrors.email ? "border-red-500" : "border-gray-300"
+              className={`w-full px-4 py-2.5 sm:py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 bg-white shadow-sm hover:shadow-md ${
+                formErrors.email ? "border-red-500 bg-red-50" : "border-gray-200"
               }`}
               placeholder="Enter your email address"
             />
             {formErrors.email && (
-              <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+              <div className="flex items-center gap-1.5 mt-1.5 p-2 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path 
+                    fillRule="evenodd" 
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+                <span>{formErrors.email}</span>
+              </div>
             )}
           </div>
 

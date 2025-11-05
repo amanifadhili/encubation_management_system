@@ -16,15 +16,43 @@ import { ErrorHandler } from "../utils/errorHandler";
 import { withRetry } from "../utils/networkRetry";
 import { getDashboardAnalytics } from "../services/api";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import {
+  UsersIcon,
+  FolderIcon,
+  CubeIcon,
+  ClipboardDocumentListIcon,
+} from "@heroicons/react/24/outline";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
-const Card = ({ title, value }: { title: string; value: React.ReactNode }) => (
-  <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-4 flex-1 min-w-[180px]">
-    <div className="text-lg font-semibold text-white opacity-90">{title}</div>
-    <div className="text-3xl font-bold text-white mt-2">{value}</div>
-  </div>
-);
+// Icon mapping for metric cards
+const cardIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  "Total Teams": UsersIcon,
+  "Total Projects": FolderIcon,
+  "Total Inventory": CubeIcon,
+  "Total Requests": ClipboardDocumentListIcon,
+};
+
+const Card = ({ title, value }: { title: string; value: React.ReactNode }) => {
+  const Icon = cardIconMap[title] || FolderIcon;
+  return (
+    <div className="group relative bg-white rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-blue-200">
+      {/* Solid color accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-blue-600 rounded-t-2xl" />
+      
+      {/* Icon with solid color */}
+      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center mb-3 sm:mb-4 shadow-md group-hover:scale-110 transition-transform duration-300">
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+      </div>
+      
+      {/* Content */}
+      <div className="space-y-1">
+        <p className="text-xs sm:text-sm font-medium text-gray-600">{title}</p>
+        <p className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</p>
+      </div>
+    </div>
+  );
+};
 
 const Analytics = () => {
   const { user } = useAuth();
@@ -117,15 +145,15 @@ const Analytics = () => {
           size="md"
         />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card title="Total Teams" value={analytics.summary?.total_teams || 0} />
         <Card title="Total Projects" value={analytics.summary?.total_projects || 0} />
         <Card title="Total Inventory" value={analytics.summary?.total_inventory || 0} />
         <Card title="Total Requests" value={analytics.summary?.total_requests || 0} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-        <div className="bg-white rounded shadow p-6">
-          <h2 className="text-lg font-semibold mb-4 text-blue-900">Project Categories</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mt-6 sm:mt-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">Project Categories</h2>
           {analytics.detailed?.project_categories && analytics.detailed.project_categories.length > 0 ? (
             <Pie
               data={{
@@ -143,8 +171,8 @@ const Analytics = () => {
             <div className="text-center text-gray-500 py-8">No project data available</div>
           )}
         </div>
-        <div className="bg-white rounded shadow p-6">
-          <h2 className="text-lg font-semibold mb-4 text-blue-900">Recent Activity</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">Recent Activity</h2>
           <div className="text-center text-gray-500 py-8">
             Analytics charts will be implemented based on real data from the backend
           </div>

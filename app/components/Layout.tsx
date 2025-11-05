@@ -8,6 +8,41 @@ import { useToastManager } from "../hooks/useToast";
 import { OfflineBanner } from "./OfflineBanner";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { ButtonLoader } from "./loading";
+import {
+  HomeIcon,
+  UsersIcon,
+  ChartBarIcon,
+  FolderIcon,
+  AcademicCapIcon,
+  BuildingOfficeIcon,
+  CubeIcon,
+  MegaphoneIcon,
+  ChatBubbleLeftRightIcon,
+  UserCircleIcon,
+  BellIcon,
+  Bars3Icon,
+  XMarkIcon,
+  ArrowRightOnRectangleIcon,
+} from "@heroicons/react/24/outline";
+
+// Icon mapping for navigation items
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  Dashboard: HomeIcon,
+  Users: UsersIcon,
+  Reports: ChartBarIcon,
+  Projects: FolderIcon,
+  Mentors: AcademicCapIcon,
+  Incubators: BuildingOfficeIcon,
+  Teams: BuildingOfficeIcon,
+  Inventory: CubeIcon,
+  Announcements: MegaphoneIcon,
+  Messaging: ChatBubbleLeftRightIcon,
+  Notifications: BellIcon,
+  Profile: UserCircleIcon,
+  "Manage Team": UsersIcon,
+  Mentor: AcademicCapIcon,
+  Material: CubeIcon,
+};
 
 const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   director: [
@@ -142,114 +177,172 @@ export default function Layout() {
         reconnectedDuration={3000}
       />
 
-      <div className="flex h-screen bg-gray-100">
+      <div className="flex h-screen bg-gray-50">
         {/* Sidebar (responsive) */}
         {/* Mobile Hamburger */}
         <button
-          className="md:hidden fixed top-4 left-4 z-50 bg-white rounded-full p-2 shadow border border-blue-100"
+          className="md:hidden fixed top-4 left-4 z-50 bg-white rounded-xl p-2.5 shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors"
           onClick={() => setSidebarOpen(true)}
           aria-label="Open sidebar"
         >
-          <span className="material-icons text-blue-700 text-2xl">menu</span>
+          <Bars3Icon className="w-6 h-6 text-gray-700" />
         </button>
         {/* Sidebar Drawer for mobile */}
         <div
           className={`fixed inset-0 z-40 md:static md:translate-x-0 transition-transform duration-300 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } md:relative md:flex md:flex-col md:w-64 bg-white shadow-md`}
+          } md:relative md:flex md:flex-col md:w-64 bg-white shadow-lg border-r border-gray-200`}
           style={{ minWidth: 0 }}
         >
           {/* Overlay for mobile */}
           {sidebarOpen && (
             <div
-              className="fixed inset-0 bg-black bg-opacity-30 z-30 md:hidden"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden transition-opacity"
               onClick={() => setSidebarOpen(false)}
             />
           )}
           <aside className="h-full flex flex-col relative z-40 md:z-auto">
-            <div className="h-16 flex items-center justify-center border-b">
-              <span className="text-xl font-bold text-blue-600">
-                Incubation Hub
-              </span>
+            {/* Logo/Brand */}
+            <div className="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-gray-200 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <span className="text-white text-lg font-bold">IH</span>
+                </div>
+                <span className="text-lg font-bold text-gray-900 hidden sm:block">
+                  Incubation Hub
+                </span>
+              </div>
               {/* Close button for mobile */}
               <button
-                className="md:hidden absolute right-4 top-4 text-blue-700 text-2xl"
+                className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
                 onClick={() => setSidebarOpen(false)}
                 aria-label="Close sidebar"
               >
-                <span className="material-icons">close</span>
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
+            {/* Navigation */}
             <nav className="flex-1 py-4 overflow-y-auto">
-              <ul className="space-y-2">
-                {links.map((link) => (
-                  <li key={link.to}>
-                    <Link
-                      to={link.to}
-                      className="block px-6 py-2 rounded hover:bg-blue-50 text-blue-800 font-medium"
-                    >
-                      {link.name}
-                    </Link>
-                  </li>
-                ))}
+              <ul className="space-y-1 px-2 sm:px-3">
+                {links.map((link) => {
+                  const isActive = location.pathname === link.to;
+                  const Icon = iconMap[link.name] || HomeIcon;
+                  return (
+                    <li key={link.to}>
+                      <Link
+                        to={link.to}
+                        className={`
+                          group relative flex items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl
+                          transition-all duration-200 text-sm sm:text-base font-medium
+                          min-h-[44px]
+                          ${isActive 
+                            ? 'bg-blue-600 text-white shadow-md' 
+                            : 'text-gray-700 hover:bg-gray-100 hover:text-blue-700'
+                          }
+                        `}
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        {/* Icon */}
+                        <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-blue-600'}`} />
+                        <span className="truncate">{link.name}</span>
+                        
+                        {/* Active indicator */}
+                        {isActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 sm:h-8 bg-white rounded-r-full" />
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </nav>
-            <div className="p-4 border-t text-xs text-gray-400">
-              © 2024 University
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <p className="text-xs text-gray-500 text-center">© 2024 University</p>
             </div>
           </aside>
         </div>
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="h-16 bg-white shadow flex items-center px-4 md:px-6 justify-between sticky top-0 z-30">
-            <div className="text-lg font-semibold text-blue-900 truncate">
-              {user
-                ? user.role.charAt(0).toUpperCase() +
-                  user.role.slice(1) +
-                  " Dashboard"
-                : "Dashboard"}
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Notification bell clickable */}
-              <button
-                className="relative focus:outline-none"
-                onClick={() => navigate("/notifications")}
-              >
-                <span className="material-icons text-blue-700">
-                  notifications
+          <header className="h-14 sm:h-16 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm sticky top-0 z-30">
+            <div className="flex items-center justify-between px-4 sm:px-6 h-full">
+              {/* Title/Breadcrumbs */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                  {user
+                    ? user.role.charAt(0).toUpperCase() +
+                      user.role.slice(1) +
+                      " Dashboard"
+                    : "Dashboard"}
                 </span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {/* User info */}
-              {user && (
-                <span className="text-blue-800 font-semibold hidden sm:inline">
-                  {user.role === "incubator"
-                    ? (user as any).teamName
-                    : user.name}
-                </span>
-              )}
-              {user && (
-                <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center font-bold text-blue-700">
-                  {(user.role === "incubator"
-                    ? (user as any).teamName?.[0]
-                    : user.name?.[0]) || "U"}
+              </div>
+              
+              {/* Actions */}
+              <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                {/* Notifications */}
+                <button
+                  className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  onClick={() => navigate("/notifications")}
+                  aria-label="Notifications"
+                >
+                  <BellIcon className="w-5 h-5 text-gray-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                  )}
+                  {unreadCount > 0 && unreadCount < 10 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                  {unreadCount > 9 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1 min-w-[18px] h-4 flex items-center justify-center">
+                      9+
+                    </span>
+                  )}
+                </button>
+                
+                {/* User menu */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {user && (
+                    <div className="hidden sm:flex sm:items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]">
+                        {user.role === "incubator"
+                          ? (user as any).teamName
+                          : user.name}
+                      </span>
+                    </div>
+                  )}
+                  {user && (
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                      {(user.role === "incubator"
+                        ? (user as any).teamName?.[0]
+                        : user.name?.[0]) || "U"}
+                    </div>
+                  )}
                 </div>
-              )}
-              {/* Logout */}
-              <ButtonLoader
-                loading={loggingOut}
-                onClick={handleLogout}
-                label="Logout"
-                loadingText="Logging out..."
-                variant="secondary"
-                size="sm"
-                className="ml-2 bg-gray-200 text-blue-700 hover:bg-gray-300"
-              />
+                
+                {/* Logout */}
+                <ButtonLoader
+                  loading={loggingOut}
+                  onClick={handleLogout}
+                  label="Logout"
+                  loadingText="Logging out..."
+                  variant="secondary"
+                  size="sm"
+                  className="hidden sm:inline-flex bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  icon={<ArrowRightOnRectangleIcon className="w-4 h-4" />}
+                />
+                {/* Mobile logout button */}
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="sm:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  aria-label="Logout"
+                >
+                  <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </header>
           {/* Content Area */}

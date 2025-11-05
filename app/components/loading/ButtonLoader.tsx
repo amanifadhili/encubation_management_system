@@ -17,17 +17,17 @@ export interface ButtonLoaderProps {
 }
 
 const variantClasses = {
-  primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
-  secondary: 'bg-gray-600 hover:bg-gray-700 text-white focus:ring-gray-500',
-  danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
-  success: 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500',
-  outline: 'bg-transparent border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+  primary: 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] focus:ring-blue-500',
+  secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-sm hover:shadow focus:ring-gray-400',
+  danger: 'bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] focus:ring-red-500',
+  success: 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] focus:ring-green-500',
+  outline: 'bg-transparent border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-400',
 };
 
 const sizeClasses = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-base',
-  lg: 'px-6 py-3 text-lg',
+  sm: 'px-3 py-1.5 text-sm sm:px-4 sm:py-2',
+  md: 'px-4 py-2.5 text-base sm:px-5 sm:py-3',
+  lg: 'px-6 py-3 text-lg sm:px-8 sm:py-4',
 };
 
 export const ButtonLoader: React.FC<ButtonLoaderProps> = ({
@@ -56,7 +56,7 @@ export const ButtonLoader: React.FC<ButtonLoaderProps> = ({
       form={form}
       className={`
         inline-flex items-center justify-center gap-2
-        rounded-lg font-medium
+        rounded-xl font-semibold
         transition-all duration-200
         focus:outline-none focus:ring-2 focus:ring-offset-2
         disabled:opacity-50 disabled:cursor-not-allowed

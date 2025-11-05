@@ -456,7 +456,7 @@ export default function UserManagement() {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded text-gray-900"
+                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
               />
             </FormField>
 
@@ -471,7 +471,7 @@ export default function UserManagement() {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded text-gray-900"
+                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
               />
             </FormField>
 
@@ -490,7 +490,7 @@ export default function UserManagement() {
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded text-gray-900"
+                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
               />
             </FormField>
 
@@ -609,7 +609,7 @@ export default function UserManagement() {
                 name="role"
                 value={formData.role}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded text-gray-900"
+                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
               >
                 <option value="director">Director</option>
                 <option value="manager">Manager</option>
