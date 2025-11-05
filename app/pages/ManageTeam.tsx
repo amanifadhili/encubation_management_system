@@ -136,7 +136,7 @@ const ManageTeam = () => {
                       <td className="px-4 py-2 text-blue-900">
                         {editIdx === idx ? (
                           <input
-                            className="px-2 py-1 rounded border w-full"
+                            className="px-2 py-1 rounded border w-full text-gray-900"
                             value={editForm.name}
                             onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                             disabled={editing}
@@ -149,7 +149,7 @@ const ManageTeam = () => {
                       <td className="px-4 py-2 text-blue-900">
                         {editIdx === idx ? (
                           <input
-                            className="px-2 py-1 rounded border w-full"
+                            className="px-2 py-1 rounded border w-full text-gray-900"
                             value={editForm.email}
                             onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
                             disabled={editing}
