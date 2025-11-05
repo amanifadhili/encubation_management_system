@@ -105,8 +105,8 @@ const MentorManagement = () => {
     }
   };
 
-  // Only managers can modify
-  const canModify = Boolean(user && user.role === "manager");
+  // Managers and Directors can modify
+  const canModify = Boolean(user && (user.role === "manager" || user.role === "director"));
 
   // Filtered and paginated data
   const filtered = mentors.filter(
@@ -344,7 +344,7 @@ const MentorManagement = () => {
             onChange={v => { setSearch(v); setPage(1); }}
             placeholder="Search by name, expertise, or email..."
           />
-          <RoleGuard allowed={["manager"]}>
+          <RoleGuard allowed={["manager", "director"]}>
             <button
               className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
               onClick={openAddModal}

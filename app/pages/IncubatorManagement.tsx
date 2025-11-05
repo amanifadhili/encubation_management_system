@@ -151,8 +151,8 @@ const IncubatorManagement = () => {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Only managers can modify
-  const canModify = Boolean(user && user.role === "manager");
+  // Managers and Directors can modify
+  const canModify = Boolean(user && (user.role === "manager" || user.role === "director"));
 
   const openAddModal = () => {
     setForm({ ...defaultForm, members: [] });
