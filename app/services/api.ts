@@ -446,6 +446,17 @@ export async function deleteUser(id: string) {
   return handleDelete(`/users/${id}`);
 }
 
+// Profile API
+export async function getProfile() {
+  const response = await api.get('/users/profile');
+  return response.data;
+}
+
+export async function updateProfile(data: any) {
+  const response = await api.put('/users/profile', data);
+  return response.data;
+}
+
 // Email Preferences API
 export async function getEmailPreferences() {
   const response = await api.get('/email-preferences');
