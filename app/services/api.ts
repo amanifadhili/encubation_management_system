@@ -446,6 +446,17 @@ export async function deleteUser(id: string) {
   return handleDelete(`/users/${id}`);
 }
 
+// Email Preferences API
+export async function getEmailPreferences() {
+  const response = await api.get('/email-preferences');
+  return response.data.success ? response.data.data.preferences : response.data;
+}
+
+export async function updateEmailPreferences(data: any) {
+  const response = await api.put('/email-preferences', data);
+  return response.data.success ? response.data.data.preferences : response.data;
+}
+
 // Legacy functions for backward compatibility (will be removed)
 export async function getManagers() {
   // Managers are users with role 'manager' - might need separate endpoint

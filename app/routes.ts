@@ -22,6 +22,7 @@ export default [
       route("/users", "pages/UserManagement.tsx"),
       route("/manage-team", "pages/ManageTeam.tsx"),
       route("/director-dashboard", "pages/DirectorDashboard.tsx"),
+      route("/email-preferences", "pages/EmailPreferences.tsx"),
     ]),
   ]),
 ] satisfies RouteConfig;
