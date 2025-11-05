@@ -8,17 +8,26 @@ import { ButtonLoader, PageSkeleton } from "../components/loading";
 const ManageTeam = () => {
   const { user } = useAuth();
   const showToast = useToast();
-  if (!user || user.role !== "incubator") return <div className="text-red-600 font-semibold">Access denied.</div>;
+  if (!user || user.role !== "incubator")
+    return <div className="text-red-600 font-semibold">Access denied.</div>;
   const teamId = (user as any).teamId;
   const [members, setMembers] = useState<any[]>([]);
   const [teamLeaderEmail, setTeamLeaderEmail] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ name: "", email: "", role: "Member" });
+  const [addForm, setAddForm] = useState({
+    name: "",
+    email: "",
+    role: "Member",
+  });
   const [editIdx, setEditIdx] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", role: "Member" });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    role: "Member",
+  });
   const [removingIdx, setRemovingIdx] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   // Loading states for individual actions
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -33,7 +42,10 @@ const ManageTeam = () => {
     }
     setAdding(true);
     setTimeout(() => {
-      setMembers(prev => [...prev, { name: addForm.name, email: addForm.email, role: "Member" }]);
+      setMembers((prev) => [
+        ...prev,
+        { name: addForm.name, email: addForm.email, role: "Member" },
+      ]);
       setAddForm({ name: "", email: "", role: "Member" });
       setShowAddModal(false);
       setAdding(false);
@@ -57,7 +69,13 @@ const ManageTeam = () => {
     }
     setEditing(true);
     setTimeout(() => {
-      setMembers(prev => prev.map((m, i) => i === idx ? { name: editForm.name, email: editForm.email, role: "Member" } : m));
+      setMembers((prev) =>
+        prev.map((m, i) =>
+          i === idx
+            ? { name: editForm.name, email: editForm.email, role: "Member" }
+            : m
+        )
+      );
       setEditIdx(null);
       setEditForm({ name: "", email: "", role: "Member" });
       setEditing(false);
@@ -70,7 +88,7 @@ const ManageTeam = () => {
   const handleRemoveMember = (idx: number) => {
     setRemoving(true);
     setTimeout(() => {
-      setMembers(prev => prev.filter((_, i) => i !== idx));
+      setMembers((prev) => prev.filter((_, i) => i !== idx));
       setRemovingIdx(null);
       setRemoving(false);
       showToast("Member removed!", "info");
@@ -96,49 +114,78 @@ const ManageTeam = () => {
     <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
       <div className="max-w-5xl mx-auto">
         <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-6 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Manage Team</h1>
-          <div className="text-white opacity-90 mb-2">Add, edit, and manage your team members and leader.</div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            Manage Team
+          </h1>
+          <div className="text-white opacity-90 mb-2">
+            Add, edit, and manage your team members and leader.
+          </div>
         </div>
         {/* Team summary card */}
         <div className="mb-8 p-4 bg-white rounded shadow flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="font-semibold text-blue-800">Team ID:</div>
             <div className="text-lg font-bold text-blue-900">{teamId}</div>
-            <div className="mt-2 text-blue-700"><span className="font-semibold">Role:</span> Incubator</div>
+            <div className="mt-2 text-blue-700">
+              <span className="font-semibold">Role:</span> Incubator
+            </div>
           </div>
           <div>
-            <div className="font-semibold text-blue-800">Current Team Leader:</div>
-            <div className="text-blue-900">{teamLeaderEmail ? members.find((m: any) => m.email === teamLeaderEmail)?.name || teamLeaderEmail : <span className="italic text-blue-400">Not assigned yet.</span>}</div>
+            <div className="font-semibold text-blue-800">
+              Current Team Leader:
+            </div>
+            <div className="text-blue-900">
+              {teamLeaderEmail ? (
+                members.find((m: any) => m.email === teamLeaderEmail)?.name ||
+                teamLeaderEmail
+              ) : (
+                <span className="italic text-blue-400">Not assigned yet.</span>
+              )}
+            </div>
           </div>
         </div>
         {/* Members table */}
         <div className="bg-white rounded shadow p-4">
-          <h2 className="text-xl font-semibold mb-4 text-blue-900">Team Members</h2>
+          <h2 className="text-xl font-semibold mb-4 text-blue-900">
+            Team Members
+          </h2>
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border rounded">
               <thead className="bg-blue-100">
                 <tr>
                   <th className="px-4 py-2 text-left text-blue-900">Name</th>
                   <th className="px-4 py-2 text-left text-blue-900">Email</th>
-                  <th className="px-4 py-2 text-left text-blue-900">Team Leader</th>
+                  <th className="px-4 py-2 text-left text-blue-900">
+                    Team Leader
+                  </th>
                   <th className="px-4 py-2 text-left text-blue-900">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {members.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-blue-400">No members yet. Add your team members.</td>
+                    <td colSpan={4} className="text-center py-8 text-blue-400">
+                      No members yet. Add your team members.
+                    </td>
                   </tr>
                 ) : (
                   members.map((m, idx) => (
-                    <tr key={idx} className="border-b hover:bg-blue-50 transition">
+                    <tr
+                      key={idx}
+                      className="border-b hover:bg-blue-50 transition"
+                    >
                       {/* Name */}
                       <td className="px-4 py-2 text-blue-900">
                         {editIdx === idx ? (
                           <input
-                            className="px-2 py-1 rounded border w-full"
+                            className="px-2 py-1 rounded border w-full text-gray-900"
                             value={editForm.name}
-                            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                name: e.target.value,
+                              }))
+                            }
                             disabled={editing}
                           />
                         ) : (
@@ -149,9 +196,14 @@ const ManageTeam = () => {
                       <td className="px-4 py-2 text-blue-900">
                         {editIdx === idx ? (
                           <input
-                            className="px-2 py-1 rounded border w-full"
+                            className="px-2 py-1 rounded border w-full text-gray-900"
                             value={editForm.email}
-                            onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                email: e.target.value,
+                              }))
+                            }
                             disabled={editing}
                           />
                         ) : (
@@ -166,7 +218,11 @@ const ManageTeam = () => {
                           checked={teamLeaderEmail === m.email}
                           onChange={() => handleSetLeader(m.email)}
                           disabled={editing || adding || removing || saving}
-                          title={teamLeaderEmail === m.email ? "Current Team Leader" : "Set as Team Leader"}
+                          title={
+                            teamLeaderEmail === m.email
+                              ? "Current Team Leader"
+                              : "Set as Team Leader"
+                          }
                         />
                       </td>
                       {/* Actions */}
@@ -226,20 +282,28 @@ const ManageTeam = () => {
             aria-modal="true"
           >
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Name</label>
+              <label className="block mb-1 font-semibold text-blue-800">
+                Name
+              </label>
               <input
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={addForm.name}
-                onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                onChange={(e) =>
+                  setAddForm((f) => ({ ...f, name: e.target.value }))
+                }
                 disabled={adding}
               />
             </div>
             <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Email</label>
+              <label className="block mb-1 font-semibold text-blue-800">
+                Email
+              </label>
               <input
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                 value={addForm.email}
-                onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))}
+                onChange={(e) =>
+                  setAddForm((f) => ({ ...f, email: e.target.value }))
+                }
                 disabled={adding}
               />
             </div>
@@ -272,7 +336,13 @@ const ManageTeam = () => {
           >
             {removingIdx !== null && (
               <>
-                <div className="mb-4 text-blue-900">Are you sure you want to remove <span className="font-semibold">{members[removingIdx].name}</span> from your team?</div>
+                <div className="mb-4 text-blue-900">
+                  Are you sure you want to remove{" "}
+                  <span className="font-semibold">
+                    {members[removingIdx].name}
+                  </span>{" "}
+                  from your team?
+                </div>
                 <div className="flex gap-2 justify-end">
                   <ButtonLoader
                     variant="secondary"
@@ -317,4 +387,4 @@ const ManageTeam = () => {
   );
 };
 
-export default ManageTeam; 
+export default ManageTeam;

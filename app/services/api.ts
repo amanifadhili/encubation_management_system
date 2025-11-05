@@ -446,6 +446,46 @@ export async function deleteUser(id: string) {
   return handleDelete(`/users/${id}`);
 }
 
+// Profile API
+export async function getProfile() {
+  const response = await api.get('/users/profile');
+  return response.data;
+}
+
+export async function updateProfile(data: any) {
+  const response = await api.put('/users/profile', data);
+  return response.data;
+}
+
+// Email Preferences API
+export async function getEmailPreferences() {
+  const response = await api.get('/email-preferences');
+  return response.data.success ? response.data.data.preferences : response.data;
+}
+
+export async function updateEmailPreferences(data: any) {
+  const response = await api.put('/email-preferences', data);
+  return response.data.success ? response.data.data.preferences : response.data;
+}
+
+export async function getEmailStatistics(startDate?: string, endDate?: string) {
+  const params: any = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  const response = await api.get('/email/statistics', { params });
+  return response.data;
+}
+
+export async function verifyEmailConnection() {
+  const response = await api.get('/email/verify');
+  return response.data;
+}
+
+export async function clearEmailCache() {
+  const response = await api.post('/email/clear-cache');
+  return response.data;
+}
+
 // Legacy functions for backward compatibility (will be removed)
 export async function getManagers() {
   // Managers are users with role 'manager' - might need separate endpoint

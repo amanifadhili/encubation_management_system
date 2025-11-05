@@ -14,7 +14,19 @@ import SEOHead from "../components/landing/SEOHead";
 import AccessibilityEnhancer from "../components/landing/AccessibilityEnhancer";
 
 const Landing = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  // Wait for auth check to complete before redirecting
+  // Only show loading if we're checking auth (not for initial render)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+      </div>
+    );
+  }
+  
+  // Redirect authenticated users to dashboard
   if (user) return <Navigate to="/dashboard" replace />;
 
   return (
