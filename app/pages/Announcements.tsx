@@ -6,6 +6,7 @@ import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import {
   getAnnouncements,
   createAnnouncement,
@@ -23,6 +24,8 @@ const Announcements = () => {
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<any | null>(null);
 
   // Loading states for individual actions
   const [saving, setSaving] = useState(false);
@@ -120,26 +123,34 @@ const Announcements = () => {
 
   // Delete announcement (with confirmation)
   const handleDelete = (idx: number) => {
-    setDeleteIdx(idx);
+    const announcement = announcements[idx];
+    if (announcement) {
+      setAnnouncementToDelete(announcement);
+      setDeleteIdx(idx);
+      setDeleteModalOpen(true);
+    }
   };
-  const confirmDelete = async () => {
-    if (deleteIdx === null) return;
+  
+  const handleDeleteConfirm = async () => {
+    if (deleteIdx === null || !announcementToDelete) return;
 
     setDeleting(true);
     try {
       const announcementId = announcements[deleteIdx].id;
       await deleteAnnouncement(announcementId);
       setAnnouncements((prev) => prev.filter((_, i) => i !== deleteIdx));
+      setDeleteModalOpen(false);
       setDeleteIdx(null);
+      setAnnouncementToDelete(null);
       showToast("Announcement deleted successfully", "success");
     } catch (error: any) {
       console.error("Failed to delete announcement:", error);
       ErrorHandler.handleError(error, showToast, "deleting announcement");
+      // Don't close modal on error so user can retry
     } finally {
       setDeleting(false);
     }
   };
-  const cancelDelete = () => setDeleteIdx(null);
 
   return (
     <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
@@ -275,43 +286,19 @@ const Announcements = () => {
           </form>
         </Modal>
         {/* Delete Confirmation Modal */}
-        <Modal
-          title="Delete Announcement"
-          open={deleteIdx !== null}
-          onClose={cancelDelete}
-          actions={null}
-          role="dialog"
-          aria-modal="true"
-        >
-          {deleteIdx !== null && (
-            <>
-              <div className="mb-6 text-blue-900">
-                Are you sure you want to delete{" "}
-                <span className="font-semibold">
-                  {announcements[deleteIdx].title}
-                </span>
-                ? This action cannot be undone.
-              </div>
-              <div className="flex gap-2 justify-end">
-                <ButtonLoader
-                  variant="secondary"
-                  type="button"
-                  onClick={cancelDelete}
-                  loading={false}
-                  label="Cancel"
-                />
-                <ButtonLoader
-                  variant="danger"
-                  type="button"
-                  onClick={confirmDelete}
-                  loading={deleting}
-                  label="Delete"
-                  loadingText="Deleting..."
-                />
-              </div>
-            </>
-          )}
-        </Modal>
+        <DeleteConfirmationModal
+          open={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setDeleteIdx(null);
+            setAnnouncementToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          itemName={announcementToDelete?.title}
+          itemType="announcement"
+          loading={deleting}
+          description="This will permanently delete this announcement. This action cannot be undone."
+        />
       </div>
     </div>
   );

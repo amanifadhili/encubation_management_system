@@ -5,6 +5,7 @@ import { ErrorHandler } from "../utils/errorHandler";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import {
   getNotifications,
   createNotification,
@@ -18,12 +19,14 @@ import socketService from "../services/socket";
 const Notifications = () => {
   const { user } = useAuth();
   const showToast = useToast();
-  const isManager = user?.role === "manager";
+  const isManager = user?.role === "manager" || user?.role === "director";
   const isIncubator = user?.role === "incubator";
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+  const [notificationToDelete, setNotificationToDelete] = useState<any | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editMessage, setEditMessage] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -107,23 +110,31 @@ const Notifications = () => {
 
   // Delete (only for sender/manager)
   const handleDelete = (notificationId: number) => {
-    setDeleteIdx(notificationId);
+    const notification = notifications.find(n => n.id === notificationId);
+    if (notification) {
+      setNotificationToDelete(notification);
+      setDeleteIdx(notificationId);
+      setDeleteModalOpen(true);
+    }
   };
-  const confirmDelete = async () => {
-    if (deleteIdx === null) return;
+  
+  const handleDeleteConfirm = async () => {
+    if (deleteIdx === null || !notificationToDelete) return;
     setDeleting(true);
     try {
       await deleteNotification(deleteIdx);
       setNotifications(prev => prev.filter(n => n.id !== deleteIdx));
+      setDeleteModalOpen(false);
       setDeleteIdx(null);
+      setNotificationToDelete(null);
       showToast('Notification deleted successfully', 'success');
     } catch (error: any) {
       ErrorHandler.handleError(error, showToast, 'deleting notification');
+      // Don't close modal on error so user can retry
     } finally {
       setDeleting(false);
     }
   };
-  const cancelDelete = () => setDeleteIdx(null);
 
   // Edit (only for sender/manager)
   const handleEdit = (idx: number) => {
@@ -348,37 +359,19 @@ const Notifications = () => {
           </div>
         </Modal>
         {/* Delete Confirmation Modal */}
-        <Modal
-          title="Delete Notification"
-          open={deleteIdx !== null}
-          onClose={cancelDelete}
-          actions={null}
-          role="dialog"
-          aria-modal="true"
-        >
-          {deleteIdx !== null && (
-            <>
-              <div className="mb-6 text-blue-900">Are you sure you want to delete this notification? This action cannot be undone.</div>
-              <div className="flex gap-2 justify-end">
-                <ButtonLoader
-                  variant="secondary"
-                  type="button"
-                  onClick={cancelDelete}
-                  loading={false}
-                  label="Cancel"
-                />
-                <ButtonLoader
-                  variant="danger"
-                  type="button"
-                  onClick={confirmDelete}
-                  loading={deleting}
-                  label="Delete"
-                  loadingText="Deleting..."
-                />
-              </div>
-            </>
-          )}
-        </Modal>
+        <DeleteConfirmationModal
+          open={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setDeleteIdx(null);
+            setNotificationToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          itemName={notificationToDelete?.title || notificationToDelete?.message?.substring(0, 50)}
+          itemType="notification"
+          loading={deleting}
+          description="This will permanently delete this notification. This action cannot be undone."
+        />
       </div>
     </div>
   );

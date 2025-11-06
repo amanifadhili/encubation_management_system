@@ -19,6 +19,7 @@ import Button from "../components/Button";
 import Badge from "../components/Badge";
 import SectionTitle from "../components/SectionTitle";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 
 // 1. Define types for team and member
 interface TeamMember {
@@ -76,6 +77,10 @@ const IncubatorManagement = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [assigningMentor, setAssigningMentor] = useState(false);
+  
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<any | null>(null);
   const [isEdit, setIsEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -151,8 +156,8 @@ const IncubatorManagement = () => {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Only managers can modify
-  const canModify = Boolean(user && user.role === "manager");
+  // Managers and Directors can modify
+  const canModify = Boolean(user && (user.role === "manager" || user.role === "director"));
 
   const openAddModal = () => {
     setForm({ ...defaultForm, members: [] });
@@ -289,18 +294,26 @@ const IncubatorManagement = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this team?")) {
-      setDeleting(true);
-      try {
-        await deleteIncubator(id);
-        setIncubators((prev) => prev.filter((team) => team.id !== id));
-        showToast("Team deleted!", "success");
-      } catch (error: any) {
-        ErrorHandler.handleError(error, showToast, 'deleting team');
-      } finally {
-        setDeleting(false);
-      }
+  const handleDeleteClick = (team: any) => {
+    setTeamToDelete(team);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!teamToDelete) return;
+
+    setDeleting(true);
+    try {
+      await deleteIncubator(teamToDelete.id);
+      setIncubators((prev) => prev.filter((team) => team.id !== teamToDelete.id));
+      showToast("Team deleted!", "success");
+      setDeleteModalOpen(false);
+      setTeamToDelete(null);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'deleting team');
+      // Don't close modal on error so user can retry
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -466,7 +479,7 @@ const IncubatorManagement = () => {
                           <Tooltip label="Delete Team">
                             <button
                               className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
-                              onClick={() => handleDelete(team.id)}
+                              onClick={() => handleDeleteClick(team)}
                               aria-label="Delete"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -758,6 +771,20 @@ const IncubatorManagement = () => {
           </div>
         </form>
       </Modal>
+      
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setTeamToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        itemName={teamToDelete?.team_name}
+        itemType="team"
+        loading={deleting}
+        description="This will permanently delete the team and all associated data including members, projects, and assignments. This action cannot be undone."
+      />
     </ErrorBoundary>
   );
 };

@@ -6,6 +6,7 @@ import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import { getInventory, createInventoryItem, updateInventoryItem, deleteInventoryItem } from "../services/api";
 
 const StockManagement = () => {
@@ -27,8 +28,12 @@ const StockManagement = () => {
   // Loading states for different operations
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<any | null>(null);
 
-  const isManager = user?.role === "manager";
+  const isManager = user?.role === "manager" || user?.role === "director";
 
   // Load inventory on mount
   useEffect(() => {
@@ -128,18 +133,26 @@ const StockManagement = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this inventory item?")) {
-      setDeleting(true);
-      try {
-        await deleteInventoryItem(id);
-        setInventory(prev => prev.filter(item => item.id !== id));
-        showToast("Inventory item deleted!", "success");
-      } catch (error: any) {
-        ErrorHandler.handleError(error, showToast, 'deleting inventory item');
-      } finally {
-        setDeleting(false);
-      }
+  const handleDeleteClick = (item: any) => {
+    setItemToDelete(item);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
+
+    setDeleting(true);
+    try {
+      await deleteInventoryItem(itemToDelete.id);
+      setInventory(prev => prev.filter(item => item.id !== itemToDelete.id));
+      showToast("Inventory item deleted!", "success");
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'deleting inventory item');
+      // Don't close modal on error so user can retry
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -194,14 +207,12 @@ const StockManagement = () => {
                             className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-300"
                           />
                           <ButtonLoader
-                            loading={deleting}
-                            onClick={() => handleDelete(item.id)}
+                            loading={false}
+                            onClick={() => handleDeleteClick(item)}
                             label="Delete"
-                            loadingText="Deleting..."
                             variant="danger"
                             size="sm"
                             className="bg-red-100 text-red-700 hover:bg-red-200"
-                            disabled={deleting}
                           />
                         </div>
                       )}
@@ -303,6 +314,20 @@ const StockManagement = () => {
             </div>
           </form>
         </Modal>
+        
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          open={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setItemToDelete(null);
+          }}
+          onConfirm={handleDeleteConfirm}
+          itemName={itemToDelete?.name}
+          itemType="inventory item"
+          loading={deleting}
+          description="This will permanently delete the inventory item and remove all team assignments. This action cannot be undone."
+        />
       </div>
     </div>
   );

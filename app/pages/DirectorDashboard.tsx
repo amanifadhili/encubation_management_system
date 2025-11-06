@@ -22,7 +22,7 @@ interface User {
 interface UserFormData {
   name: string;
   email: string;
-  password: string;
+  password?: string; // Optional - only for updates, not used in creation
   role: string;
 }
 
@@ -38,7 +38,6 @@ const DirectorDashboard = () => {
   const [formData, setFormData] = useState<UserFormData>({
     name: "",
     email: "",
-    password: "",
     role: "manager",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -55,14 +54,45 @@ const DirectorDashboard = () => {
       setRefreshing(true);
     }
     try {
-      const data = await withRetry(() => getUsers(), {
+      const response = await withRetry(() => getUsers(), {
         maxRetries: 3,
         initialDelay: 1000,
         onRetry: (attempt) => {
           showToast(`Retrying... (${attempt}/3)`, "info", { duration: 2000 });
         },
       });
-      setUsers(data);
+
+      // Handle different response formats
+      let users: User[] = [];
+
+      // If response is directly an array
+      if (Array.isArray(response)) {
+        users = response;
+      }
+      // If response has success and data structure
+      else if (response.success && response.data) {
+        users = Array.isArray(response.data) ? response.data : [];
+      }
+      // If response has data property (could be array or object with users array)
+      else if (response.data) {
+        if (Array.isArray(response.data)) {
+          users = response.data;
+        } else if (Array.isArray(response.data.users)) {
+          users = response.data.users;
+        } else {
+          users = [];
+        }
+      }
+      // If response has users property
+      else if (Array.isArray(response.users)) {
+        users = response.users;
+      }
+      // Fallback: empty array
+      else {
+        users = [];
+      }
+
+      setUsers(users);
     } catch (error: any) {
       console.error("Failed to load users:", error);
       const errorDetails = ErrorHandler.parse(error);
@@ -72,6 +102,7 @@ const DirectorDashboard = () => {
       } else {
         showToast(errorDetails.userMessage || "Failed to load users", "error");
       }
+      setUsers([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -86,7 +117,6 @@ const DirectorDashboard = () => {
     setFormData({
       name: "",
       email: "",
-      password: "",
       role: "manager",
     });
     setFormErrors({});
@@ -105,11 +135,7 @@ const DirectorDashboard = () => {
       errors.email = "Please enter a valid email address";
     }
 
-    if (!showEditModal && !formData.password) {
-      errors.password = "Password is required";
-    } else if (formData.password && formData.password.length < 8) {
-      errors.password = "Password must be at least 8 characters";
-    }
+    // Password is no longer required - it will be generated and sent via email
 
     if (
       !["director", "manager", "mentor", "incubator"].includes(formData.role)
@@ -126,8 +152,10 @@ const DirectorDashboard = () => {
 
     setSubmitting(true);
     try {
-      await createUser(formData);
-      showToast("User created successfully", "success");
+      // Don't send password - backend will generate it and send via email
+      const { password, ...userData } = formData;
+      await createUser(userData);
+      showToast("User created successfully. Password sent to email.", "success");
       setShowCreateModal(false);
       resetForm();
       loadUsers(true);
@@ -145,7 +173,6 @@ const DirectorDashboard = () => {
     setFormData({
       name: user.name,
       email: user.email,
-      password: "",
       role: user.role,
     });
     setShowEditModal(true);
@@ -156,10 +183,8 @@ const DirectorDashboard = () => {
 
     setSubmitting(true);
     try {
-      const updateData = { ...formData };
-      if (!updateData.password) {
-        delete (updateData as any).password; // Don't update password if empty
-      }
+      // Don't send password - password updates should be done separately
+      const { password, ...updateData } = formData;
 
       await updateUser(editingUser.id, updateData);
       showToast("User updated successfully", "success");
@@ -328,22 +353,8 @@ const DirectorDashboard = () => {
               />
             </FormField>
 
-            <FormField
-              label="Password"
-              name="password"
-              error={formErrors.password}
-              required
-            >
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
-              />
-            </FormField>
-
+            {/* Password field removed - password will be auto-generated and sent via email */}
+            
             <FormField
               label="Role"
               name="role"
@@ -429,22 +440,8 @@ const DirectorDashboard = () => {
               />
             </FormField>
 
-            <FormField
-              label="Password"
-              name="password"
-              error={formErrors.password}
-            >
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                placeholder="Leave empty to keep current password"
-                className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
-              />
-            </FormField>
-
+            {/* Password field removed - password cannot be changed from here */}
+            
             <FormField
               label="Role"
               name="role"
