@@ -514,6 +514,65 @@ export async function updateProfile(data: any) {
   return response.data;
 }
 
+// Extended Profile API - New phased profile system
+export async function getExtendedProfile() {
+  const response = await api.get('/users/profile/extended');
+  return response.data;
+}
+
+export async function getProfileCompletion() {
+  const response = await api.get('/users/profile/completion');
+  return response.data;
+}
+
+export async function getProfilePhase(phaseNumber: number) {
+  const response = await api.get(`/users/profile/phase/${phaseNumber}`);
+  return response.data;
+}
+
+// Phase-specific update functions
+export async function updateProfilePhase1(data: {
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  phone: string;
+  profile_photo_url?: string;
+}) {
+  const response = await api.put('/users/profile/phase1', data);
+  return response.data;
+}
+
+export async function updateProfilePhase2(data: {
+  enrollment_status: string;
+  major_program: string;
+  program_of_study: string;
+  graduation_year: number;
+}) {
+  const response = await api.put('/users/profile/phase2', data);
+  return response.data;
+}
+
+export async function updateProfilePhase3(data: {
+  current_role: string;
+  skills: string[];
+  support_interests: string[];
+}) {
+  const response = await api.put('/users/profile/phase3', data);
+  return response.data;
+}
+
+export async function updateProfilePhase5(data: {
+  additional_notes?: string;
+}) {
+  const response = await api.put('/users/profile/phase5', data);
+  return response.data;
+}
+
+export async function uploadProfilePhoto(profile_photo_url: string) {
+  const response = await api.put('/users/profile/photo', { profile_photo_url });
+  return response.data;
+}
+
 // Email Preferences API
 export async function getEmailPreferences() {
   const response = await api.get('/email-preferences');
