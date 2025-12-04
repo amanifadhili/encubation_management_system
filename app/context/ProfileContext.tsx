@@ -50,6 +50,8 @@ interface ProfileContextType {
   profile: ExtendedProfile | null;
   completion: ProfileCompletion | null;
   loading: boolean;
+  saving: boolean;
+  lastSaved: Date | null;
   refreshProfile: () => Promise<void>;
   refreshCompletion: () => Promise<void>;
   updatePhase1: (data: any) => Promise<boolean>;
@@ -57,6 +59,9 @@ interface ProfileContextType {
   updatePhase3: (data: any) => Promise<boolean>;
   updatePhase5: (data: any) => Promise<boolean>;
   uploadPhoto: (url: string) => Promise<boolean>;
+  saveToLocalStorage: (phase: string, data: any) => void;
+  getFromLocalStorage: (phase: string) => any;
+  clearLocalStorage: () => void;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -65,6 +70,8 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [profile, setProfile] = useState<ExtendedProfile | null>(null);
   const [completion, setCompletion] = useState<ProfileCompletion | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const showToast = useToast();
 
   const refreshProfile = async () => {
@@ -111,65 +118,90 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const updatePhase1 = async (data: any): Promise<boolean> => {
     try {
+      setSaving(true);
       const response = await updateProfilePhase1(data);
       if (response.success) {
         await refreshProfile();
         await refreshCompletion();
+        setLastSaved(new Date());
+        clearLocalStorage(); // Clear draft after successful save
         showToast('Profile Phase 1 updated successfully', 'success');
         return true;
       }
       return false;
     } catch (error: any) {
+      // Save to localStorage as backup
+      saveToLocalStorage('phase1', data);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
       return false;
+    } finally {
+      setSaving(false);
     }
   };
 
   const updatePhase2 = async (data: any): Promise<boolean> => {
     try {
+      setSaving(true);
       const response = await updateProfilePhase2(data);
       if (response.success) {
         await refreshProfile();
         await refreshCompletion();
+        setLastSaved(new Date());
+        clearLocalStorage();
         showToast('Profile Phase 2 updated successfully', 'success');
         return true;
       }
       return false;
     } catch (error: any) {
+      saveToLocalStorage('phase2', data);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
       return false;
+    } finally {
+      setSaving(false);
     }
   };
 
   const updatePhase3 = async (data: any): Promise<boolean> => {
     try {
+      setSaving(true);
       const response = await updateProfilePhase3(data);
       if (response.success) {
         await refreshProfile();
         await refreshCompletion();
+        setLastSaved(new Date());
+        clearLocalStorage();
         showToast('Profile Phase 3 updated successfully', 'success');
         return true;
       }
       return false;
     } catch (error: any) {
+      saveToLocalStorage('phase3', data);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
       return false;
+    } finally {
+      setSaving(false);
     }
   };
 
   const updatePhase5 = async (data: any): Promise<boolean> => {
     try {
+      setSaving(true);
       const response = await updateProfilePhase5(data);
       if (response.success) {
         await refreshProfile();
         await refreshCompletion();
+        setLastSaved(new Date());
+        clearLocalStorage();
         showToast('Profile Phase 5 updated successfully', 'success');
         return true;
       }
       return false;
     } catch (error: any) {
+      saveToLocalStorage('phase5', data);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
       return false;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -188,6 +220,42 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
+  // LocalStorage backup functions
+  const saveToLocalStorage = (phase: string, data: any) => {
+    try {
+      const key = `profile_draft_${phase}`;
+      const timestamp = new Date().toISOString();
+      localStorage.setItem(key, JSON.stringify({ data, timestamp }));
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error);
+    }
+  };
+
+  const getFromLocalStorage = (phase: string) => {
+    try {
+      const key = `profile_draft_${phase}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to read from localStorage:', error);
+      return null;
+    }
+  };
+
+  const clearLocalStorage = () => {
+    try {
+      const phases = ['phase1', 'phase2', 'phase3', 'phase4', 'phase5'];
+      phases.forEach((phase) => {
+        localStorage.removeItem(`profile_draft_${phase}`);
+      });
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+  };
+
   useEffect(() => {
     refreshProfile();
     refreshCompletion();
@@ -199,6 +267,8 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
         profile,
         completion,
         loading,
+        saving,
+        lastSaved,
         refreshProfile,
         refreshCompletion,
         updatePhase1,
@@ -206,6 +276,9 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
         updatePhase3,
         updatePhase5,
         uploadPhoto,
+        saveToLocalStorage,
+        getFromLocalStorage,
+        clearLocalStorage,
       }}
     >
       {children}

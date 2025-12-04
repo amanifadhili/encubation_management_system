@@ -4,6 +4,7 @@ import { useToast } from "../components/Layout";
 import { getProfile, updateProfile } from "../services/api";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton, Spinner } from "../components/loading";
+import IncubateeProfile from "./IncubateeProfile";
 
 interface UserProfile {
   id: string;
@@ -26,6 +27,11 @@ const Profile = () => {
   const { user, updateUser } = useAuth();
   const showToast = useToast();
   const [loading, setLoading] = useState(true);
+
+  // For incubators, show the phased profile page
+  if (user?.role === 'incubator') {
+    return <IncubateeProfile />;
+  }
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState<ProfileFormData>({
