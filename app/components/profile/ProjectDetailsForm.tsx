@@ -8,7 +8,7 @@ import {
   AcademicCapIcon,
   PaintBrushIcon,
   GlobeAltIcon,
-  LeafIcon,
+  SparklesIcon,
   CpuChipIcon,
   CurrencyDollarIcon,
   FolderOpenIcon,
@@ -75,7 +75,7 @@ const categoryOptions = [
   {
     value: 'Sustainability',
     label: 'Sustainability / Green Tech',
-    icon: LeafIcon,
+    icon: SparklesIcon,
     emoji: '🌱',
     color: 'green',
   },
