@@ -4,16 +4,15 @@ import ProjectBasicsForm from './ProjectBasicsForm';
 import ProjectDetailsForm from './ProjectDetailsForm';
 import { RocketLaunchIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../Layout';
+import { createProject, updateProject } from '../../services/api';
 
 interface Phase4FormProps {
   onComplete?: () => void;
-  teamId?: string;
   existingProject?: any;
 }
 
 export const Phase4Form: React.FC<Phase4FormProps> = ({
   onComplete,
-  teamId,
   existingProject,
 }) => {
   const { completion, profile } = useProfile();
@@ -70,27 +69,86 @@ export const Phase4Form: React.FC<Phase4FormProps> = ({
         ...data,
       };
 
-      // If we have an existing project, update it
-      if (existingProject) {
-        // TODO: Call update project API
-        // await updateProject(existingProject.id, finalData);
-        showToast('Project updated successfully', 'success');
-      } else if (teamId) {
-        // Create new project
-        // TODO: Call create project API
-        // await createProject({ ...finalData, team_id: teamId });
-        showToast('Project created successfully', 'success');
-      } else {
-        showToast('Team ID is required to create a project', 'error');
+      // Validate required fields
+      if (!finalData.name || !finalData.category) {
+        showToast('Project name and category are required', 'error');
         return;
       }
 
-      if (onComplete) {
-        onComplete();
+      // If we have an existing project, update it
+      if (existingProject) {
+        const response = await updateProject(existingProject.id, {
+          name: finalData.name,
+          description: finalData.description,
+          category: finalData.category,
+          startup_company_name: finalData.startup_company_name || undefined,
+          status_at_enrollment: finalData.status_at_enrollment || undefined,
+          challenge_description: finalData.challenge_description || undefined,
+        });
+
+        if (response.success) {
+          showToast('Project updated successfully', 'success');
+          if (onComplete) {
+            onComplete();
+          }
+        } else {
+          // Handle validation errors
+          const errorMessage = response.errors && response.errors.length > 0
+            ? response.errors.map((e: any) => e.message || e).join(', ')
+            : response.message || 'Failed to update project';
+          showToast(errorMessage, 'error');
+        }
+      } else {
+        // Create new project (backend will automatically get team_id from user's team membership)
+        const response = await createProject({
+          name: finalData.name,
+          description: finalData.description,
+          category: finalData.category,
+          startup_company_name: finalData.startup_company_name || undefined,
+          status_at_enrollment: finalData.status_at_enrollment || undefined,
+          challenge_description: finalData.challenge_description || undefined,
+          status: 'pending', // Default status
+        });
+
+        if (response.success) {
+          showToast('Project created successfully', 'success');
+          if (onComplete) {
+            onComplete();
+          }
+        } else {
+          // Handle specific error cases
+          if (response.code === 'INSUFFICIENT_PERMISSIONS' || response.message?.includes('team leader')) {
+            showToast('Only team leaders can create projects. Please contact your manager to be assigned as a team leader.', 'error');
+          } else if (response.code === 'MISSING_REQUIRED_FIELDS') {
+            const errorMessage = response.errors && response.errors.length > 0
+              ? response.errors.map((e: any) => e.message || e).join(', ')
+              : response.message || 'Missing required fields';
+            showToast(errorMessage, 'error');
+          } else {
+            // Handle validation errors
+            const errorMessage = response.errors && response.errors.length > 0
+              ? response.errors.map((e: any) => e.message || e).join(', ')
+              : response.message || 'Failed to create project';
+            showToast(errorMessage, 'error');
+          }
+        }
       }
     } catch (error: any) {
       console.error('Failed to save project:', error);
-      showToast(error?.message || 'Failed to save project', 'error');
+      
+      // Extract error message from response
+      const errorMessage = error?.response?.data?.message 
+        || error?.response?.data?.errors?.map((e: any) => e.message || e).join(', ')
+        || error?.message 
+        || 'Failed to save project. Please try again.';
+      
+      // Check for specific error codes
+      if (error?.response?.data?.code === 'INSUFFICIENT_PERMISSIONS' || 
+          errorMessage.toLowerCase().includes('team leader')) {
+        showToast('Only team leaders can create projects. Please contact your manager to be assigned as a team leader.', 'error');
+      } else {
+        showToast(errorMessage, 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -256,19 +314,19 @@ export const Phase4Form: React.FC<Phase4FormProps> = ({
         </div>
       )}
 
-      {/* Note about Team Requirement */}
-      {!teamId && !existingProject && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+      {/* Note about Team Leader Requirement */}
+      {!existingProject && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-yellow-900">Team Required</p>
-              <p className="text-sm text-yellow-700">
-                You need to be part of a team to create a project. Please join or create a team first.
+              <p className="font-semibold text-blue-900">Team Leader Required</p>
+              <p className="text-sm text-blue-700">
+                Only team leaders can create projects. If you're not a team leader, please contact your manager to be assigned as one. The system will automatically link your project to your team.
               </p>
             </div>
           </div>
