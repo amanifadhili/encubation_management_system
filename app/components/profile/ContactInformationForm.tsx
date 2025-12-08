@@ -17,7 +17,7 @@ const countryCodes = [
 ];
 
 export const ContactInformationForm: React.FC<ContactInformationFormProps> = ({ onSave }) => {
-  const { profile, updatePhase1 } = useProfile();
+  const { profile, updatePhase1, getFromLocalStorage, saveToLocalStorage } = useProfile();
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -137,14 +137,20 @@ export const ContactInformationForm: React.FC<ContactInformationFormProps> = ({ 
       // Combine country code with phone number
       const fullPhoneNumber = `${formData.countryCode}${formData.phone.replace(/\s/g, '')}`;
 
+      // Pull identity draft (if user filled PersonalIdentityForm first)
+      const identityDraft = getFromLocalStorage('phase1')?.data || {};
+
       // Get current profile data for Phase 1 update
       const updateData = {
-        first_name: profile?.first_name || '',
-        middle_name: profile?.middle_name || null,
-        last_name: profile?.last_name || '',
+        first_name: identityDraft.first_name || profile?.first_name || '',
+        middle_name: identityDraft.middle_name ?? profile?.middle_name ?? null,
+        last_name: identityDraft.last_name || profile?.last_name || '',
         phone: fullPhoneNumber,
-        profile_photo_url: profile?.profile_photo_url || null,
+        profile_photo_url: identityDraft.profile_photo_url ?? profile?.profile_photo_url ?? null,
       };
+
+      // Save combined data as a draft before attempting API call
+      saveToLocalStorage('phase1', updateData);
 
       const success = await updatePhase1(updateData);
       if (success && onSave) {

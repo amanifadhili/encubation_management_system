@@ -8,7 +8,7 @@ interface PersonalIdentityFormProps {
 }
 
 export const PersonalIdentityForm: React.FC<PersonalIdentityFormProps> = ({ onSave }) => {
-  const { profile, updatePhase1, uploadPhoto } = useProfile();
+  const { profile, updatePhase1, uploadPhoto, saveToLocalStorage, getFromLocalStorage } = useProfile();
   const [formData, setFormData] = useState({
     first_name: '',
     middle_name: '',
@@ -194,14 +194,26 @@ export const PersonalIdentityForm: React.FC<PersonalIdentityFormProps> = ({ onSa
     try {
       setSaving(true);
 
+      const draft = getFromLocalStorage('phase1')?.data || {};
+      const phoneFromProfile = profile?.phone || draft.phone || '';
+
       // Prepare data for API
       const updateData = {
         first_name: formData.first_name.trim(),
         middle_name: formData.middle_name?.trim() || null,
         last_name: formData.last_name.trim(),
-        phone: profile?.phone || '', // Phone is handled in ContactInformationForm
+        phone: phoneFromProfile, // phone is required by backend; defer API call if missing
         profile_photo_url: formData.profile_photo_url || null,
       };
+
+      // If phone is not yet provided, save draft locally and move to contact section without API call
+      if (!phoneFromProfile) {
+        saveToLocalStorage('phase1', updateData);
+        if (onSave) {
+          onSave();
+        }
+        return;
+      }
 
       const success = await updatePhase1(updateData);
       if (success && onSave) {
