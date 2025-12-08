@@ -81,6 +81,15 @@ export const PersonalIdentityForm: React.FC<PersonalIdentityFormProps> = ({ onSa
     validateField(field);
   };
 
+  const focusField = (field: string) => {
+    const el = document.getElementById(field);
+    if (el) {
+      // @ts-ignore
+      el.focus?.();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const validateField = (field: string) => {
     const newErrors: Record<string, string> = { ...errors };
 
@@ -215,8 +224,18 @@ export const PersonalIdentityForm: React.FC<PersonalIdentityFormProps> = ({ onSa
         return;
       }
 
-      const success = await updatePhase1(updateData);
-      if (success && onSave) {
+      const result = await updatePhase1(updateData);
+      if (!result.success) {
+        if (result.errors) {
+          setErrors((prev) => ({ ...prev, ...result.errors }));
+          setTouched((prev) => ({ ...prev, first_name: true, last_name: true }));
+          const firstErrorField = Object.keys(result.errors)[0];
+          if (firstErrorField) focusField(firstErrorField);
+        }
+        return;
+      }
+
+      if (onSave) {
         onSave();
       }
     } catch (error) {

@@ -275,6 +275,15 @@ export const AcademicDetailsForm: React.FC<AcademicDetailsFormProps> = ({
     return isValid;
   };
 
+  const focusField = (field: string) => {
+    const el = document.getElementById(field);
+    if (el) {
+      // @ts-ignore
+      el.focus?.();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
@@ -292,8 +301,27 @@ export const AcademicDetailsForm: React.FC<AcademicDetailsFormProps> = ({
         graduation_year: parseInt(formData.graduation_year),
       };
 
-      const success = await updatePhase2(updateData);
-      if (success && onSave) {
+      const result = await updatePhase2(updateData);
+      if (!result.success) {
+        if (result.errors) {
+          const newErrors: Record<string, string> = { ...errors };
+          Object.entries(result.errors).forEach(([field, message]) => {
+            newErrors[field] = message;
+          });
+          setErrors(newErrors);
+          setTouched({
+            major_program: true,
+            program_of_study: true,
+            graduation_year: true,
+          });
+          const firstErrorField = Object.keys(result.errors)[0];
+          if (firstErrorField) {
+            focusField(firstErrorField);
+          }
+        }
+        return;
+      }
+      if (onSave) {
         onSave();
       }
     } catch (error) {

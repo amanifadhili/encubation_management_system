@@ -47,6 +47,8 @@ interface ExtendedProfile {
   profile_phase_completion?: any;
 }
 
+type PhaseUpdateResult = { success: boolean; errors?: Record<string, string> };
+
 interface ProfileContextType {
   profile: ExtendedProfile | null;
   completion: ProfileCompletion | null;
@@ -55,10 +57,10 @@ interface ProfileContextType {
   lastSaved: Date | null;
   refreshProfile: () => Promise<void>;
   refreshCompletion: () => Promise<void>;
-  updatePhase1: (data: any) => Promise<boolean>;
-  updatePhase2: (data: any) => Promise<boolean>;
-  updatePhase3: (data: any) => Promise<boolean>;
-  updatePhase5: (data: any) => Promise<boolean>;
+  updatePhase1: (data: any) => Promise<PhaseUpdateResult>;
+  updatePhase2: (data: any) => Promise<PhaseUpdateResult>;
+  updatePhase3: (data: any) => Promise<PhaseUpdateResult>;
+  updatePhase5: (data: any) => Promise<PhaseUpdateResult>;
   uploadPhoto: (url: string) => Promise<boolean>;
   saveToLocalStorage: (phase: string, data: any) => void;
   getFromLocalStorage: (phase: string) => any;
@@ -117,7 +119,23 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  const updatePhase1 = async (data: any): Promise<boolean> => {
+  const extractFieldErrors = (error: any): Record<string, string> | undefined => {
+    const backendErrors = error?.response?.data?.errors;
+    if (Array.isArray(backendErrors)) {
+      const fieldErrors: Record<string, string> = {};
+      backendErrors.forEach((err: any) => {
+        const path = err?.path || err?.field;
+        const message = err?.message;
+        if (path && message && !fieldErrors[path]) {
+          fieldErrors[path] = message;
+        }
+      });
+      return Object.keys(fieldErrors).length ? fieldErrors : undefined;
+    }
+    return undefined;
+  };
+
+  const updatePhase1 = async (data: any): Promise<PhaseUpdateResult> => {
     try {
       setSaving(true);
       const response = await updateProfilePhase1(data);
@@ -127,20 +145,21 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
         setLastSaved(new Date());
         clearLocalStorage(); // Clear draft after successful save
         showToast('Profile Phase 1 updated successfully', 'success');
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false };
     } catch (error: any) {
       // Save to localStorage as backup
       saveToLocalStorage('phase1', data);
+      const fieldErrors = extractFieldErrors(error);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
-      return false;
+      return { success: false, errors: fieldErrors };
     } finally {
       setSaving(false);
     }
   };
 
-  const updatePhase2 = async (data: any): Promise<boolean> => {
+  const updatePhase2 = async (data: any): Promise<PhaseUpdateResult> => {
     try {
       setSaving(true);
       const response = await updateProfilePhase2(data);
@@ -150,19 +169,20 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
         setLastSaved(new Date());
         clearLocalStorage();
         showToast('Profile Phase 2 updated successfully', 'success');
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false };
     } catch (error: any) {
       saveToLocalStorage('phase2', data);
+      const fieldErrors = extractFieldErrors(error);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
-      return false;
+      return { success: false, errors: fieldErrors };
     } finally {
       setSaving(false);
     }
   };
 
-  const updatePhase3 = async (data: any): Promise<boolean> => {
+  const updatePhase3 = async (data: any): Promise<PhaseUpdateResult> => {
     try {
       setSaving(true);
       const response = await updateProfilePhase3(data);
@@ -172,19 +192,20 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
         setLastSaved(new Date());
         clearLocalStorage();
         showToast('Profile Phase 3 updated successfully', 'success');
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false };
     } catch (error: any) {
       saveToLocalStorage('phase3', data);
+      const fieldErrors = extractFieldErrors(error);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
-      return false;
+      return { success: false, errors: fieldErrors };
     } finally {
       setSaving(false);
     }
   };
 
-  const updatePhase5 = async (data: any): Promise<boolean> => {
+  const updatePhase5 = async (data: any): Promise<PhaseUpdateResult> => {
     try {
       setSaving(true);
       const response = await updateProfilePhase5(data);
@@ -194,13 +215,14 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
         setLastSaved(new Date());
         clearLocalStorage();
         showToast('Profile Phase 5 updated successfully', 'success');
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false };
     } catch (error: any) {
       saveToLocalStorage('phase5', data);
+      const fieldErrors = extractFieldErrors(error);
       showToast(error.response?.data?.message || 'Failed to update profile', 'error');
-      return false;
+      return { success: false, errors: fieldErrors };
     } finally {
       setSaving(false);
     }

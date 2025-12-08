@@ -12,6 +12,7 @@ interface Phase3FormProps {
 export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
   const { completion, profile, updatePhase3 } = useProfile();
   const [activeSection, setActiveSection] = useState<'role' | 'skills' | 'interests'>('role');
+  const [serverError, setServerError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     current_role: '',
     other_role: '',
@@ -84,8 +85,18 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
         support_interests: finalInterests,
       };
 
-      const success = await updatePhase3(updateData);
-      if (success && onComplete) {
+      const result = await updatePhase3(updateData);
+      if (!result.success) {
+        setServerError(result.errors ? Object.values(result.errors)[0] : 'Validation failed');
+        if (result.errors) {
+          if (result.errors.current_role) setActiveSection('role');
+          else if (result.errors.skills) setActiveSection('skills');
+          else if (result.errors.support_interests) setActiveSection('interests');
+        }
+        return;
+      }
+      setServerError(null);
+      if (onComplete) {
         onComplete();
       }
     } catch (error) {
@@ -210,6 +221,12 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
           </div>
         </button>
       </div>
+
+      {serverError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
+          {serverError}
+        </div>
+      )}
 
       {/* Form Sections */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">

@@ -62,6 +62,15 @@ export const AdditionalNotesForm: React.FC<AdditionalNotesFormProps> = ({ onSave
     return true;
   };
 
+  const focusField = (field: string) => {
+    const el = document.getElementById(field);
+    if (el) {
+      // @ts-ignore
+      el.focus?.();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
@@ -77,8 +86,16 @@ export const AdditionalNotesForm: React.FC<AdditionalNotesFormProps> = ({ onSave
         additional_notes: formData.additional_notes.trim() || undefined,
       };
 
-      const success = await updatePhase5(updateData);
-      if (success && onSave) {
+      const result = await updatePhase5(updateData);
+      if (!result.success) {
+        if (result.errors) {
+          setErrors(result.errors);
+          const firstErrorField = Object.keys(result.errors)[0];
+          if (firstErrorField) focusField(firstErrorField);
+        }
+        return;
+      }
+      if (onSave) {
         onSave();
       }
     } catch (error) {

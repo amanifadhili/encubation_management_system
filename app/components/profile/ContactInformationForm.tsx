@@ -124,6 +124,15 @@ export const ContactInformationForm: React.FC<ContactInformationFormProps> = ({ 
     return phone.replace(/(\d{3})(?=\d)/g, '$1 ');
   };
 
+  const focusField = (field: string) => {
+    const el = document.getElementById(field);
+    if (el) {
+      // @ts-ignore
+      el.focus?.();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
@@ -152,8 +161,23 @@ export const ContactInformationForm: React.FC<ContactInformationFormProps> = ({ 
       // Save combined data as a draft before attempting API call
       saveToLocalStorage('phase1', updateData);
 
-      const success = await updatePhase1(updateData);
-      if (success && onSave) {
+      const result = await updatePhase1(updateData);
+      if (!result.success) {
+        if (result.errors) {
+          const newErrors: Record<string, string> = { ...errors };
+          Object.entries(result.errors).forEach(([field, message]) => {
+            newErrors[field] = message;
+          });
+          setErrors(newErrors);
+          setTouched({ phone: true });
+          const firstErrorField = Object.keys(result.errors)[0];
+          if (firstErrorField) {
+            focusField(firstErrorField);
+          }
+        }
+        return;
+      }
+      if (onSave) {
         onSave();
       }
     } catch (error) {
