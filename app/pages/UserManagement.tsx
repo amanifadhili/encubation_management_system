@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import { getUsers, createUser, updateUser, deleteUser } from "../services/api";
+import { getUsers, createUser, updateUser, deleteUser, getIncubators } from "../services/api";
 import Table, { type TableColumn } from "../components/Table";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -26,6 +26,7 @@ interface UserFormData {
   email: string;
   password?: string;
   role: string;
+  teamId?: string;
 }
 
 export default function UserManagement() {
@@ -50,6 +51,7 @@ export default function UserManagement() {
     name: "",
     email: "",
     role: "incubator",
+    teamId: "",
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +71,9 @@ export default function UserManagement() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [formMessage, setFormMessage] = useState<string | null>(null);
   const showToast = useToast();
 
   // Debounce search input
@@ -84,6 +89,12 @@ export default function UserManagement() {
   useEffect(() => {
     loadUsers();
   }, [page, debouncedSearch, roleFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      fetchTeams();
+    }
+  }, [isModalOpen]);
 
   const loadUsers = async () => {
     try {
@@ -160,11 +171,37 @@ export default function UserManagement() {
     }
   };
 
+  const fetchTeams = async () => {
+    try {
+      setLoadingTeams(true);
+      const response = await getIncubators();
+      // Response could be {success,data} or array
+      let list: any[] = [];
+      if (Array.isArray(response)) {
+        list = response;
+      } else if (response?.data?.teams) {
+        list = response.data.teams;
+      } else if (response?.data) {
+        list = response.data;
+      } else if (response?.teams) {
+        list = response.teams;
+      }
+      setTeams(list || []);
+    } catch (error) {
+      console.error("Failed to load teams", error);
+      showToast("Failed to load teams for incubators", "error");
+      setTeams([]);
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
+
   const handleCreateUser = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       setErrors({});
+      setFormMessage(null);
       // Don't send password - backend will generate it and send via email
       const { password, ...userData } = formData;
       await createUser(userData);
@@ -184,8 +221,12 @@ export default function UserManagement() {
           errorRecord[err.field].push(err.message);
         });
         setErrors(errorRecord);
+        setFormMessage(error.response.data.message || "Please fix the highlighted fields.");
+        showToast(error.response.data.message || "Please fix the highlighted fields.", "error");
       } else {
-        showToast("Failed to create user", "error");
+        const msg = error.response?.data?.message || error.message || "Failed to create user";
+        setFormMessage(msg);
+        showToast(msg, "error");
       }
     } finally {
       setIsSubmitting(false);
@@ -198,6 +239,7 @@ export default function UserManagement() {
 
     try {
       setErrors({});
+      setFormMessage(null);
       // Don't send password if it's empty (allows updating without changing password)
       const updateData: Partial<UserFormData> = { ...formData };
       if (!updateData.password || updateData.password.trim() === "") {
@@ -220,8 +262,12 @@ export default function UserManagement() {
           errorRecord[err.field].push(err.message);
         });
         setErrors(errorRecord);
+        setFormMessage(error.response.data.message || "Please fix the highlighted fields.");
+        showToast(error.response.data.message || "Please fix the highlighted fields.", "error");
       } else {
-        showToast("Failed to update user", "error");
+        const msg = error.response?.data?.message || error.message || "Failed to update user";
+        setFormMessage(msg);
+        showToast(msg, "error");
       }
     } finally {
       setIsSubmitting(false);
@@ -263,6 +309,7 @@ export default function UserManagement() {
       name: "",
       email: "",
       role: "incubator",
+      teamId: "",
     });
     setIsModalOpen(true);
   };
@@ -274,6 +321,7 @@ export default function UserManagement() {
       name: user.name,
       email: user.email,
       role: user.role,
+      teamId: "",
     });
     setIsModalOpen(true);
   };
@@ -285,6 +333,7 @@ export default function UserManagement() {
       name: "",
       email: "",
       role: "incubator",
+      teamId: "",
     });
     setErrors({});
   };
@@ -471,6 +520,11 @@ export default function UserManagement() {
           }}
         >
           <div className="space-y-4">
+            {formMessage && (
+              <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+                {formMessage}
+              </div>
+            )}
             <FormField
               label="Name"
               name="name"
@@ -521,6 +575,30 @@ export default function UserManagement() {
                 <option value="incubator">Incubator</option>
               </select>
             </FormField>
+
+            {formData.role === "incubator" && (
+              <FormField
+                label="Team"
+                name="teamId"
+                error={errors.teamId?.[0]}
+                required
+              >
+                <select
+                  name="teamId"
+                  value={formData.teamId || ""}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
+                  disabled={loadingTeams}
+                >
+                  <option value="">{loadingTeams ? "Loading teams..." : "Select team"}</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.team_name || t.teamName || "Unnamed Team"}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            )}
 
             {/* ValidationErrors component removed - inline errors in FormField provide better UX */}
 
