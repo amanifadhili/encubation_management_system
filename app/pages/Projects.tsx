@@ -725,53 +725,55 @@ const Projects = () => {
 
               {/* File upload (real) */}
               <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Files (images, pdf, doc, etc.)</label>
-              <input
-                type="file"
-                multiple
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                onChange={handleFileUpload}
-                accept="image/*,.pdf,.doc,.docx,.txt"
-                disabled={submitting || uploading}
-              />
-              {uploading && (
-                <div className="mt-2">
-                  <div className="bg-blue-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
+                <label className="block mb-1 font-semibold text-blue-800">Files (images, pdf, doc, etc.)</label>
+                <input
+                  type="file"
+                  multiple
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                  onChange={handleFileUpload}
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  disabled={submitting || uploading}
+                />
+                {uploading && (
+                  <div className="mt-2">
+                    <div className="bg-blue-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-sm text-blue-600 mt-1">Uploading... {uploadProgress}%</div>
                   </div>
-                  <div className="text-sm text-blue-600 mt-1">Uploading... {uploadProgress}%</div>
-                </div>
-              )}
-              {uploadError && (
-                <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded">
-                  {uploadError}
-                </div>
-              )}
-              {form.files.length > 0 && (
-                <ul className="list-disc ml-6 text-blue-900 mt-2">
-                  {form.files.map((f: File, i: number) => (
-                    <li key={i} className="flex items-center gap-2">
-                      {f.type.startsWith("image/") ? (
-                        <img src={getFileUrl(f)} alt={f.name} className="w-10 h-10 object-cover rounded" />
-                      ) : (
-                        <span className="inline-block w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-xl">📄</span>
-                      )}
-                      <span>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
-                      <Button
-                        variant="icon"
-                        className="text-xs text-red-600 hover:underline"
-                        onClick={() => handleRemoveFile(f)}
-                        type="button"
-                        aria-label="Remove file"
-                      >Remove</Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                )}
+                {uploadError && (
+                  <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+                    {uploadError}
+                  </div>
+                )}
+                {form.files.length > 0 && (
+                  <ul className="list-disc ml-6 text-blue-900 mt-2">
+                    {form.files.map((f: File, i: number) => (
+                      <li key={i} className="flex items-center gap-2">
+                        {f.type.startsWith("image/") ? (
+                          <img src={getFileUrl(f)} alt={f.name} className="w-10 h-10 object-cover rounded" />
+                        ) : (
+                          <span className="inline-block w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-xl">📄</span>
+                        )}
+                        <span>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <Button
+                          variant="icon"
+                          className="text-xs text-red-600 hover:underline"
+                          onClick={() => handleRemoveFile(f)}
+                          type="button"
+                          aria-label="Remove file"
+                        >Remove</Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex gap-2 justify-end mt-6 pt-6 border-t">
