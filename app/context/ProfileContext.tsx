@@ -15,7 +15,6 @@ interface PhaseCompletion {
   phase1: boolean;
   phase2: boolean;
   phase3: boolean;
-  phase4: boolean;
   phase5: boolean;
 }
 
@@ -270,10 +269,13 @@ export const ProfileProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   const clearLocalStorage = () => {
     try {
-      const phases = ['phase1', 'phase2', 'phase3', 'phase4', 'phase5'];
+      // Phase 4 has been moved to Projects page, so we only clear phases 1, 2, 3, 5
+      const phases = ['phase1', 'phase2', 'phase3', 'phase5'];
       phases.forEach((phase) => {
         localStorage.removeItem(`profile_draft_${phase}`);
       });
+      // Also clear phase4 if it exists (for backward compatibility)
+      localStorage.removeItem('profile_draft_phase4');
     } catch (error) {
       console.error('Failed to clear localStorage:', error);
     }

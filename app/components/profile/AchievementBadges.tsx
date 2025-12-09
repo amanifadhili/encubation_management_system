@@ -4,7 +4,6 @@ import {
   CheckCircleIcon,
   AcademicCapIcon,
   BriefcaseIcon,
-  RocketLaunchIcon,
   DocumentTextIcon,
   TrophyIcon,
 } from '@heroicons/react/24/outline';
@@ -66,16 +65,6 @@ export const AchievementBadges: React.FC<AchievementBadgesProps> = ({
         unlocked: completion.phases.phase3,
       },
       {
-        id: 'phase4',
-        phase: 4,
-        title: 'Project Information',
-        description: 'Completed project details',
-        icon: RocketLaunchIcon,
-        emoji: '🚀',
-        color: 'indigo',
-        unlocked: completion.phases.phase4,
-      },
-      {
         id: 'phase5',
         phase: 5,
         title: 'Additional Info',
@@ -125,9 +114,6 @@ export const AchievementBadges: React.FC<AchievementBadgesProps> = ({
       purple: isNew
         ? 'border-purple-500 bg-purple-50 ring-4 ring-purple-200 shadow-lg scale-105'
         : 'border-purple-300 bg-purple-50',
-      indigo: isNew
-        ? 'border-indigo-500 bg-indigo-50 ring-4 ring-indigo-200 shadow-lg scale-105'
-        : 'border-indigo-300 bg-indigo-50',
       yellow: isNew
         ? 'border-yellow-500 bg-yellow-50 ring-4 ring-yellow-200 shadow-lg scale-105'
         : 'border-yellow-300 bg-yellow-50',

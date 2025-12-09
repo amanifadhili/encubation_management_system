@@ -9,7 +9,6 @@ import {
   Phase1Form,
   Phase2Form,
   Phase3Form,
-  Phase4Form,
   Phase5Form,
 } from '../components/profile';
 import { useToast } from '../components/Layout';
@@ -17,7 +16,6 @@ import {
   UserCircleIcon,
   AcademicCapIcon,
   BriefcaseIcon,
-  RocketLaunchIcon,
   DocumentTextIcon,
   CheckCircleIcon,
   LockClosedIcon,
@@ -25,6 +23,7 @@ import {
 import { PageSkeleton } from '../components/loading';
 
 // Phase configuration
+// Note: Phase 4 (Project Information) has been moved to the Projects page
 const phaseConfig = [
   {
     number: 1,
@@ -51,15 +50,6 @@ const phaseConfig = [
     icon: BriefcaseIcon,
     emoji: '💼',
     estimatedTime: '5-7 minutes',
-    required: true,
-  },
-  {
-    number: 4,
-    title: 'Project Information',
-    description: 'Project details and goals',
-    icon: RocketLaunchIcon,
-    emoji: '🚀',
-    estimatedTime: '7-10 minutes',
     required: true,
   },
   {
@@ -119,7 +109,8 @@ const ProfileContent: React.FC = () => {
     if (phaseNumber === 5) return false; // Phase 5 is optional and always unlocked
     
     // Check if previous phase is complete
-    const previousPhase = phaseNumber - 1;
+    // Note: Phase 4 is skipped, so Phase 5 unlocks after Phase 3
+    const previousPhase = phaseNumber === 5 ? 3 : phaseNumber - 1;
     return !completion.phases[`phase${previousPhase}` as keyof typeof completion.phases];
   };
 
@@ -133,7 +124,11 @@ const ProfileContent: React.FC = () => {
     showToast(`Phase ${phaseNumber} completed successfully!`, 'success');
     
     // Auto-expand next phase if available
-    const nextPhase = phaseNumber + 1;
+    // Note: Phase 4 is skipped, so after Phase 3, go to Phase 5
+    let nextPhase = phaseNumber + 1;
+    if (nextPhase === 4) {
+      nextPhase = 5; // Skip Phase 4, go to Phase 5
+    }
     if (nextPhase <= 5) {
       setTimeout(() => {
         setExpandedPhase(nextPhase);
@@ -157,8 +152,6 @@ const ProfileContent: React.FC = () => {
         return <Phase2Form onComplete={() => handlePhaseComplete(2)} />;
       case 3:
         return <Phase3Form onComplete={() => handlePhaseComplete(3)} />;
-      case 4:
-        return <Phase4Form onComplete={() => handlePhaseComplete(4)} />;
       case 5:
         return <Phase5Form onComplete={() => handlePhaseComplete(5)} />;
       default:

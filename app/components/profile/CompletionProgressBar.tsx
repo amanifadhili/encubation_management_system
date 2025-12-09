@@ -4,7 +4,6 @@ interface PhaseCompletion {
   phase1: boolean;
   phase2: boolean;
   phase3: boolean;
-  phase4: boolean;
   phase5: boolean;
 }
 
@@ -35,11 +34,11 @@ export const CompletionProgressBar: React.FC<CompletionProgressBarProps> = ({
     return 'text-red-700';
   };
 
+  // Phase 4 (Project Information) has been moved to Projects page
   const phaseLabels = [
     { key: 'phase1', label: 'Essential Info', number: 1 },
     { key: 'phase2', label: 'Academic', number: 2 },
     { key: 'phase3', label: 'Professional', number: 3 },
-    { key: 'phase4', label: 'Project', number: 4 },
     { key: 'phase5', label: 'Additional', number: 5 },
   ];
 
@@ -73,7 +72,7 @@ export const CompletionProgressBar: React.FC<CompletionProgressBarProps> = ({
 
       {/* Phase Breakdown */}
       {showPhaseBreakdown && phases && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {phaseLabels.map((phase) => {
             const isComplete = phases[phase.key as keyof PhaseCompletion];
             return (
