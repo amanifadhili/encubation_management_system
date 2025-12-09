@@ -51,7 +51,7 @@ const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
     { name: "Reports", to: "/reports" },
     { name: "Projects", to: "/projects" },
     { name: "Mentors", to: "/mentors" },
-    { name: "Incubators", to: "/incubators" },
+    { name: "Teams", to: "/teams" },
     { name: "Material", to: "/requests" },
     { name: "Inventory", to: "/inventory" },
     { name: "Announcements", to: "/announcements" },
@@ -61,7 +61,7 @@ const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   ],
   manager: [
     { name: "Dashboard", to: "/dashboard" },
-    { name: "Incubators", to: "/incubators" },
+    { name: "Teams", to: "/teams" },
     { name: "Mentors", to: "/mentors" },
     { name: "Projects", to: "/projects" },
     { name: "Material", to: "/requests" },
@@ -74,7 +74,7 @@ const sidebarLinksByRole: Record<string, { name: string; to: string }[]> = {
   ],
   mentor: [
     { name: "Dashboard", to: "/dashboard" },
-    { name: "Teams", to: "/incubators" },
+    { name: "Teams", to: "/teams" },
     { name: "Projects", to: "/projects" },
     { name: "Messaging", to: "/messaging" },
     { name: "Profile", to: "/profile" },

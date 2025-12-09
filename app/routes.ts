@@ -9,6 +9,8 @@ export default [
   route("/", "components/ProtectedRoute.tsx", {}, [
     layout("components/Layout.tsx", [
       route("/dashboard", "pages/Dashboard.tsx"),
+      route("/teams", "pages/IncubatorManagement.tsx"),
+      // Legacy alias for backwards compatibility
       route("/incubators", "pages/IncubatorManagement.tsx"),
       route("/mentors", "pages/MentorManagement.tsx"),
       route("/requests", "pages/RequestHandling.tsx"),
