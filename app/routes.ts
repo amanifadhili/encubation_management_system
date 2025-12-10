@@ -10,8 +10,10 @@ export default [
     layout("components/Layout.tsx", [
       route("/dashboard", "pages/Dashboard.tsx"),
       route("/teams", "pages/IncubatorManagement.tsx"),
-      // Legacy alias for backwards compatibility
-      route("/incubators", "pages/IncubatorManagement.tsx"),
+      // Legacy alias for backwards compatibility (redirects to /teams)
+      route("/incubators", "pages/IncubatorsRedirect.tsx"),
+      // Quiet devtools probe path to avoid noisy 404s in dev
+      route("/.well-known/appspecific/com.chrome.devtools.json", "pages/DevtoolsPlaceholder.tsx"),
       route("/mentors", "pages/MentorManagement.tsx"),
       route("/requests", "pages/RequestHandling.tsx"),
       route("/messaging", "pages/Messaging.tsx"),
