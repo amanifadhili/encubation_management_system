@@ -7,6 +7,7 @@ export default [
 
   // Protected/dashboard routes (with layout)
   route("/", "components/ProtectedRoute.tsx", {}, [
+    route("/force-password-change", "pages/ForcePasswordChange.tsx"),
     layout("components/Layout.tsx", [
       route("/dashboard", "pages/Dashboard.tsx"),
       route("/teams", "pages/IncubatorManagement.tsx"),

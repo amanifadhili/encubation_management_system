@@ -23,6 +23,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  password_status?: 'needs_change' | 'ok';
   teamId?: string;
   teamLeader?: any;
   teamName?: string;
@@ -38,6 +39,7 @@ const mapApiUser = (apiUser: any): User => ({
   name: apiUser.name,
   email: apiUser.email,
   role: apiUser.role,
+  password_status: apiUser.password_status,
   // Normalize possible API shapes for team info
   teamId: apiUser.teamId || apiUser.team_id || apiUser.team?.id,
   teamLeader: apiUser.teamLeader,
@@ -128,6 +130,32 @@ export async function getCurrentUser(): Promise<User | null> {
     console.error('Get current user error:', error);
     localStorage.removeItem('token');
     return null;
+  }
+}
+
+export async function changePassword(payload: { currentPassword?: string; newPassword: string }): Promise<void> {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const requestBody: { current_password?: string; new_password: string } = {
+    new_password: payload.newPassword
+  };
+
+  // Only include current_password if provided (for regular password changes)
+  if (payload.currentPassword) {
+    requestBody.current_password = payload.currentPassword;
+  }
+
+  await axios.post(`${API_BASE_URL}/auth/change-password`, requestBody, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (currentUser) {
+    currentUser = { ...currentUser, password_status: 'ok' };
   }
 }
 
