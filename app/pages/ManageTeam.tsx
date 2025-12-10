@@ -193,7 +193,7 @@ const ManageTeam = () => {
                     >
                       <td className="px-4 py-2 text-blue-900">{m.name}</td>
                       <td className="px-4 py-2 text-blue-900">{m.email}</td>
-                      <td className="px-4 py-2 text-center">
+                      <td className="px-4 py-2 text-center text-blue-900 font-semibold">
                         {((m.role || "").toLowerCase() === "team_leader")
                           ? "Team Leader"
                           : "Member"}
