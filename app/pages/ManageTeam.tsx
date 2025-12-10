@@ -18,6 +18,7 @@ const ManageTeam = () => {
     return <div className="text-red-600 font-semibold">Access denied.</div>;
   // teamId comes from /auth/me; keep it as string (API expects string IDs)
   const teamId = (user as any).teamId as string | undefined;
+  const hasTeam = Boolean(teamId);
   const [teamName, setTeamName] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [teamLeaderEmail, setTeamLeaderEmail] = useState("");
@@ -120,6 +121,21 @@ const ManageTeam = () => {
       setRemovingId(null);
     }
   };
+
+  if (!hasTeam) {
+    return (
+      <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <div className="bg-white border border-red-200 rounded shadow p-4 text-red-700">
+            <div className="font-semibold text-red-800">No team assigned</div>
+            <div className="text-sm mt-1">
+              Your account does not have a team linked yet. Please contact support or your manager to be assigned to a team.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
