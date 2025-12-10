@@ -313,18 +313,6 @@ const ManageTeam = () => {
               />
             </div>
           </Modal>
-          {/* Add member button */}
-          {isTeamLeader && (
-            <div className="mt-6 flex justify-end gap-4">
-              <ButtonLoader
-                onClick={() => setShowAddModal(true)}
-                loading={false}
-                label="+ Add Member"
-                variant="primary"
-                disabled={adding || loading}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>

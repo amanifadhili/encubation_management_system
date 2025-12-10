@@ -3,7 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Toast from "./Toast";
 import type { ToastType } from "./Toast";
-import { getNotifications } from "../services/api";
+import { getNotifications, getIncubator } from "../services/api";
 import { useToastManager } from "../hooks/useToast";
 import { OfflineBanner } from "./OfflineBanner";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -109,6 +109,7 @@ export default function Layout() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const links = user ? sidebarLinksByRole[user.role] : [];
+  const [teamName, setTeamName] = useState<string | null>(null);
 
   // Enhanced Toast system with multiple toasts
   const { toasts, showToast, removeToast } = useToastManager();
@@ -155,6 +156,25 @@ export default function Layout() {
     if (user) {
       loadNotifications();
     }
+  }, [user]);
+
+  // Load team name for incubators to show in navbar
+  useEffect(() => {
+    const loadTeamName = async () => {
+      if (user?.role === "incubator" && (user as any).teamId) {
+        try {
+          const res = await getIncubator((user as any).teamId);
+          const data = res?.data?.team || res?.data || res;
+          setTeamName(data?.team_name || data?.teamName || null);
+        } catch (error) {
+          console.error("Failed to load team name:", error);
+          setTeamName(null);
+        }
+      } else {
+        setTeamName(null);
+      }
+    };
+    loadTeamName();
   }, [user]);
 
   const loadNotifications = async () => {
@@ -317,7 +337,7 @@ export default function Layout() {
                     <div className="hidden sm:flex sm:items-center gap-2">
                       <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]">
                         {user.role === "incubator"
-                          ? (user as any).teamName
+                          ? teamName || (user as any).teamName || user.name
                           : user.name}
                       </span>
                     </div>
@@ -325,7 +345,7 @@ export default function Layout() {
                   {user && (
                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-md">
                       {(user.role === "incubator"
-                        ? (user as any).teamName?.[0]
+                        ? (teamName || (user as any).teamName)?.[0]
                         : user.name?.[0]) || "U"}
                     </div>
                   )}
