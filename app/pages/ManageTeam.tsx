@@ -19,6 +19,7 @@ const ManageTeam = () => {
   // teamId comes from /auth/me; keep it as string (API expects string IDs)
   const teamId = (user as any).teamId as string | undefined;
   const hasTeam = Boolean(teamId);
+  const [isTeamLeader, setIsTeamLeader] = useState(false);
   const [teamName, setTeamName] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [teamLeaderEmail, setTeamLeaderEmail] = useState("");
@@ -48,6 +49,10 @@ const ManageTeam = () => {
     }));
 
   const loadTeam = async () => {
+    if (!teamId) {
+      setErrorMessage("Team not found");
+      return;
+    }
     try {
       setLoading(true);
       setErrorMessage(null);
@@ -60,6 +65,14 @@ const ManageTeam = () => {
       const rawMembers = memberRes?.data?.teamMembers || memberRes?.teamMembers || memberRes?.data || [];
       const normalized = normalizeMembers(rawMembers);
       setMembers(normalized);
+
+      // Determine if current user is the team leader
+      const isLeader = normalized.some(
+        (m) =>
+          (m.role || "").toLowerCase() === "team_leader" &&
+          (m.email || "").toLowerCase() === (user?.email || "").toLowerCase()
+      );
+      setIsTeamLeader(isLeader);
 
       const leader = normalized.find((m) => (m.role || "").toLowerCase() === "team_leader");
       setTeamLeaderEmail(leader?.email || "");
@@ -75,6 +88,14 @@ const ManageTeam = () => {
 
   // Add member
   const handleAddMember = async () => {
+    if (!teamId) {
+      showToast("Team not found.", "error");
+      return;
+    }
+    if (!isTeamLeader) {
+      showToast("Only team leaders can add members.", "error");
+      return;
+    }
     if (!addForm.name || !addForm.email) {
       showToast("Please enter name and email.", "error");
       return;
@@ -102,6 +123,14 @@ const ManageTeam = () => {
 
   // Remove member
   const handleRemoveMember = async (member: any) => {
+    if (!teamId) {
+      showToast("Team not found.", "error");
+      return;
+    }
+    if (!isTeamLeader) {
+      showToast("Only team leaders can remove members.", "error");
+      return;
+    }
     if (!member?.teamMemberId) {
       showToast("Missing member id; cannot remove.", "error");
       return;
@@ -148,6 +177,11 @@ const ManageTeam = () => {
             Add, edit, and manage your team members and leader.
           </div>
         </div>
+        {!isTeamLeader && (
+          <div className="mb-4 rounded border border-blue-200 bg-blue-50 text-blue-800 px-3 py-2">
+            Read-only: only team leaders can manage team membership.
+          </div>
+        )}
         {/* Team summary card */}
         <div className="mb-8 p-4 bg-white rounded shadow flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -191,13 +225,15 @@ const ManageTeam = () => {
                   <th className="px-4 py-2 text-left text-blue-900">
                     Team Leader
                   </th>
-                  <th className="px-4 py-2 text-left text-blue-900">Actions</th>
+                  {isTeamLeader && (
+                    <th className="px-4 py-2 text-left text-blue-900">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {members.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-blue-400">
+                    <td colSpan={isTeamLeader ? 4 : 3} className="text-center py-8 text-blue-400">
                       No members yet. Add your team members.
                     </td>
                   </tr>
@@ -214,24 +250,21 @@ const ManageTeam = () => {
                           ? "Team Leader"
                           : "Member"}
                       </td>
-                      <td className="px-4 py-2 flex gap-2">
-                        <ButtonLoader
-                          variant="danger"
-                          onClick={() => handleRemoveMember(m)}
-                          loading={removingId === m.teamMemberId}
-                          label="Remove"
-                          size="sm"
-                          disabled={
-                            removingId === m.teamMemberId ||
-                            (m.role || "").toLowerCase() === "team_leader"
-                          }
-                          title={
-                            (m.role || "").toLowerCase() === "team_leader"
-                              ? "Team leader cannot be removed"
-                              : undefined
-                          }
-                        />
-                      </td>
+                      {isTeamLeader && (
+                        <td className="px-4 py-2 flex gap-2">
+                          <ButtonLoader
+                            variant="danger"
+                            onClick={() => handleRemoveMember(m)}
+                            loading={removingId === m.teamMemberId}
+                            label="Remove"
+                            size="sm"
+                            disabled={
+                              removingId === m.teamMemberId ||
+                              (m.role || "").toLowerCase() === "team_leader"
+                            }
+                          />
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -292,15 +325,17 @@ const ManageTeam = () => {
             </div>
           </Modal>
           {/* Add member button */}
-          <div className="mt-6 flex justify-end gap-4">
-            <ButtonLoader
-              onClick={() => setShowAddModal(true)}
-              loading={false}
-              label="+ Add Member"
-              variant="primary"
-              disabled={adding || loading}
-            />
-          </div>
+          {isTeamLeader && (
+            <div className="mt-6 flex justify-end gap-4">
+              <ButtonLoader
+                onClick={() => setShowAddModal(true)}
+                loading={false}
+                label="+ Add Member"
+                variant="primary"
+                disabled={adding || loading}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -134,7 +134,7 @@ export async function getIncubators(params?: any) {
   return response.data.success ? response.data.data.teams : response.data;
 }
 
-export async function getIncubator(id: number) {
+export async function getIncubator(id: number | string) {
   const response = await api.get(`/teams/${id}`);
   return response.data;
 }
@@ -153,17 +153,17 @@ export async function deleteIncubator(id: number) {
   return handleDelete(`/teams/${id}`);
 }
 
-export async function getIncubatorMembers(id: number) {
+export async function getIncubatorMembers(id: number | string) {
   const response = await api.get(`/teams/${id}/members`);
   return response.data;
 }
 
-export async function addIncubatorMember(id: number, data: any) {
+export async function addIncubatorMember(id: number | string, data: any) {
   const response = await api.post(`/teams/${id}/members`, data);
   return response.data;
 }
 
-export async function removeIncubatorMember(id: number, memberId: number) {
+export async function removeIncubatorMember(id: number | string, memberId: number | string) {
   return handleDelete(`/teams/${id}/members/${memberId}`);
 }
 
