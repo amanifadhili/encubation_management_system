@@ -33,6 +33,20 @@ export interface User {
 
 let currentUser: User | null = null;
 
+const mapApiUser = (apiUser: any): User => ({
+  id: apiUser.id,
+  name: apiUser.name,
+  email: apiUser.email,
+  role: apiUser.role,
+  // Normalize possible API shapes for team info
+  teamId: apiUser.teamId || apiUser.team_id || apiUser.team?.id,
+  teamLeader: apiUser.teamLeader,
+  teamName: apiUser.teamName || apiUser.team_name,
+  members: apiUser.members,
+  mentor: apiUser.mentor,
+  status: apiUser.status,
+});
+
 export async function login(email: string, password: string): Promise<User> {
   const loginUrl = `${API_BASE_URL}/auth/login`;
   console.log('🔐 Attempting login:', {
@@ -47,25 +61,17 @@ export async function login(email: string, password: string): Promise<User> {
       password
     });
 
-  if (response.data.success) {
-    const { token, user } = response.data.data;
+    if (response.data.success) {
+      const { token, user } = response.data.data;
 
-    // Store token in localStorage
-    localStorage.setItem('token', token);
+      // Store token in localStorage
+      localStorage.setItem('token', token);
 
-    // Set current user
-    currentUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      teamId: user.team_id,
-      // For incubator role, we might need to fetch additional team data
-      // But for now, keep it simple
-    };
+      // Set current user
+      currentUser = mapApiUser(user);
 
-    return currentUser;
-  }
+      return currentUser;
+    }
 
     // If response is not successful, throw error
     throw new Error(response.data.message || 'Login failed');
@@ -113,13 +119,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
     if (response.data.success) {
       const apiUser = response.data.data.user;
-      currentUser = {
-        id: apiUser.id,
-        name: apiUser.name,
-        email: apiUser.email,
-        role: apiUser.role,
-        teamId: apiUser.teamId,
-      };
+      currentUser = mapApiUser(apiUser);
       return currentUser;
     }
 
