@@ -1,13 +1,11 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ErrorHandler } from "../utils/errorHandler";
 import { ButtonLoader } from "../components/loading";
 import * as authService from "../services/auth";
 
 const ForcePasswordChange = () => {
-  const { user, updateUser, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,17 +30,12 @@ const ForcePasswordChange = () => {
       setLoading(true);
       await authService.changePassword({ newPassword });
       
-      // Refresh user data from server to ensure everything is in sync
-      const updatedUser = await authService.getCurrentUser();
-      if (updatedUser) {
-        updateUser(updatedUser);
-      }
-      
       setSuccess("Password updated successfully! Redirecting to dashboard...");
       
-      // Small delay to show success message, then redirect
+      // Use window.location for a full page reload to ensure AuthContext is properly initialized
+      // This prevents the "useAuth must be used within an AuthProvider" error
       setTimeout(() => {
-        navigate("/dashboard", { replace: true });
+        window.location.href = "/dashboard";
       }, 1000);
     } catch (err: any) {
       ErrorHandler.handleError(err, (msg) => setError(msg || "Failed to change password."), "change-password");
