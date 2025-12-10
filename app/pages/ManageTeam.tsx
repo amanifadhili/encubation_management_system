@@ -205,7 +205,15 @@ const ManageTeam = () => {
                           loading={removingId === m.teamMemberId}
                           label="Remove"
                           size="sm"
-                          disabled={removingId === m.teamMemberId}
+                          disabled={
+                            removingId === m.teamMemberId ||
+                            (m.role || "").toLowerCase() === "team_leader"
+                          }
+                          title={
+                            (m.role || "").toLowerCase() === "team_leader"
+                              ? "Team leader cannot be removed"
+                              : undefined
+                          }
                         />
                       </td>
                     </tr>
