@@ -227,12 +227,19 @@ const ManageTeam = () => {
                     </td>
                   </tr>
                 ) : (
-                  members.map((m, idx) => (
+                  members.map((m, idx) => {
+                    const isCurrentUser = (m.email || "").toLowerCase() === (user?.email || "").toLowerCase();
+                    return (
                     <tr
                       key={m.teamMemberId || m.email || idx}
                       className="border-b hover:bg-blue-50 transition"
                     >
-                      <td className="px-4 py-2 text-blue-900">{m.name}</td>
+                      <td className="px-4 py-2 text-blue-900">
+                        {m.name}
+                        {isCurrentUser && (
+                          <span className="ml-2 text-blue-600 font-medium text-sm">(you)</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-blue-900">{m.email}</td>
                       <td className="px-4 py-2 text-center text-blue-900 font-semibold">
                         {((m.role || "").toLowerCase() === "team_leader")
@@ -255,7 +262,8 @@ const ManageTeam = () => {
                         </td>
                       )}
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
