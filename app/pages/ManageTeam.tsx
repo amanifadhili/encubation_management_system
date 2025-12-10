@@ -16,7 +16,8 @@ const ManageTeam = () => {
   const showToast = useToast();
   if (!user || user.role !== "incubator")
     return <div className="text-red-600 font-semibold">Access denied.</div>;
-  const teamId = (user as any).teamId;
+  // teamId comes from /auth/me; keep it as string (API expects string IDs)
+  const teamId = (user as any).teamId as string | undefined;
   const [teamName, setTeamName] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [teamLeaderEmail, setTeamLeaderEmail] = useState("");
@@ -50,11 +51,11 @@ const ManageTeam = () => {
       setLoading(true);
       setErrorMessage(null);
 
-      const teamRes = await getIncubator(Number(teamId));
+      const teamRes = await getIncubator(teamId);
       const teamData = teamRes?.data?.team || teamRes?.data || teamRes;
       setTeamName(teamData?.team_name || teamData?.teamName || teamId);
 
-      const memberRes = await getIncubatorMembers(Number(teamId));
+      const memberRes = await getIncubatorMembers(teamId);
       const rawMembers = memberRes?.data?.teamMembers || memberRes?.teamMembers || memberRes?.data || [];
       const normalized = normalizeMembers(rawMembers);
       setMembers(normalized);
@@ -79,7 +80,7 @@ const ManageTeam = () => {
     }
     setAdding(true);
     try {
-      await addIncubatorMember(Number(teamId), {
+      await addIncubatorMember(teamId, {
         name: addForm.name,
         email: addForm.email,
       });
@@ -106,7 +107,7 @@ const ManageTeam = () => {
     }
     try {
       setRemovingId(member.teamMemberId);
-      await removeIncubatorMember(Number(teamId), member.teamMemberId);
+      await removeIncubatorMember(teamId, member.teamMemberId);
       showToast("Member removed!", "info");
       await loadTeam();
     } catch (error: any) {
@@ -192,8 +193,10 @@ const ManageTeam = () => {
                     >
                       <td className="px-4 py-2 text-blue-900">{m.name}</td>
                       <td className="px-4 py-2 text-blue-900">{m.email}</td>
-                      <td className="px-4 py-2 text-center capitalize">
-                        {(m.role || "").replace("_", " ")}
+                      <td className="px-4 py-2 text-center">
+                        {((m.role || "").toLowerCase() === "team_leader")
+                          ? "Team Leader"
+                          : "Member"}
                       </td>
                       <td className="px-4 py-2 flex gap-2">
                         <ButtonLoader

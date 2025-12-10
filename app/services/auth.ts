@@ -112,7 +112,14 @@ export async function getCurrentUser(): Promise<User | null> {
     });
 
     if (response.data.success) {
-      currentUser = response.data.data.user;
+      const apiUser = response.data.data.user;
+      currentUser = {
+        id: apiUser.id,
+        name: apiUser.name,
+        email: apiUser.email,
+        role: apiUser.role,
+        teamId: apiUser.teamId,
+      };
       return currentUser;
     }
 
