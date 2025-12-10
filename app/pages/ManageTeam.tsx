@@ -167,44 +167,23 @@ const ManageTeam = () => {
   }
 
   return (
-    <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-6 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Manage Team
-          </h1>
-          <div className="text-white opacity-90 mb-2">
-            Add, edit, and manage your team members and leader.
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-gray-50">
+      <div className="max-w-5xl mx-auto space-y-5">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg shadow p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Manage Team</h1>
+              <div className="text-white/90 text-sm sm:text-base">
+                Keep your team details up to date and manage members.
+              </div>
+            </div>
           </div>
         </div>
         {!isTeamLeader && (
-          <div className="mb-4 rounded border border-blue-200 bg-blue-50 text-blue-800 px-3 py-2">
+          <div className="rounded border border-blue-200 bg-blue-50 text-blue-800 px-3 py-2">
             Read-only: only team leaders can manage team membership.
           </div>
         )}
-        {/* Team summary card */}
-        <div className="mb-8 p-4 bg-white rounded shadow flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="font-semibold text-blue-800">Team ID:</div>
-            <div className="text-lg font-bold text-blue-900">{teamId || "N/A"}</div>
-            <div className="font-semibold text-blue-800 mt-2">Team Name:</div>
-            <div className="text-lg font-bold text-blue-900">{teamName || "Loading..."}</div>
-            <div className="mt-2 text-blue-700">
-              <span className="font-semibold">Role:</span> Incubator
-            </div>
-          </div>
-          <div>
-            <div className="font-semibold text-blue-800">
-              Current Team Leader:
-            </div>
-            <div className="text-blue-900">
-              {teamLeaderEmail
-                ? members.find((m: any) => m.email === teamLeaderEmail)?.name ||
-                  teamLeaderEmail
-                : "Not assigned yet."}
-            </div>
-          </div>
-        </div>
         {errorMessage && (
           <div className="mb-4 rounded border border-red-200 bg-red-50 text-red-700 px-3 py-2">
             {errorMessage}
@@ -212,11 +191,21 @@ const ManageTeam = () => {
         )}
         {loading && <PageSkeleton count={3} layout="card" />}
         {/* Members table */}
-        <div className="bg-white rounded shadow p-4">
-          <h2 className="text-xl font-semibold mb-4 text-blue-900">
-            Team Members
-          </h2>
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-blue-900">
+              Team Members
+            </h2>
+            {isTeamLeader && (
+              <Button
+                onClick={() => setShowAddModal(true)}
+                variant="primary"
+              >
+                + Add Member
+              </Button>
+            )}
+          </div>
+          <div className="overflow-x-auto rounded border border-gray-100">
             <table className="min-w-full bg-white border rounded">
               <thead className="bg-blue-100">
                 <tr>
