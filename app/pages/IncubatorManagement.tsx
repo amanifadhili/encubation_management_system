@@ -30,7 +30,7 @@ interface TeamMember {
 interface Team {
   id: number;
   teamName: string;
-  credentials: { name: string; email: string; password: string };
+  credentials: { name: string; email: string };
   teamLeader: { name: string; email: string; role: string };
   members: TeamMember[];
   mentor: string;
@@ -40,7 +40,7 @@ interface Team {
 const defaultForm: Team = {
   id: 0,
   teamName: "",
-  credentials: { name: "", email: "", password: "Team123" },
+  credentials: { name: "", email: "" },
   teamLeader: { name: "", email: "", role: "Team Leader" }, // will be set by team after login
   members: [],
   mentor: "",
@@ -170,7 +170,7 @@ const IncubatorManagement = () => {
       teamName: team.team_name,
       company_name: team.company_name,
       status: team.status,
-      credentials: { name: "", email: "", password: "" },
+      credentials: { name: "", email: "" },
       teamLeader: { name: "", email: "", role: "Team Leader" },
       members: [],
       mentor: ""
@@ -185,8 +185,6 @@ const IncubatorManagement = () => {
       setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, name: value } }));
     } else if (name === "credentialsEmail") {
       setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, email: value } }));
-    } else if (name === "credentialsPassword") {
-      setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, password: value } }));
     } else {
       setForm((prev: any) => ({ ...prev, [name]: value }));
     }
@@ -213,7 +211,7 @@ const IncubatorManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.teamName || (!isEdit && (!form.credentials.name || !form.credentials.email || !form.credentials.password))) {
+    if (!form.teamName || (!isEdit && (!form.credentials.name || !form.credentials.email))) {
       showToast("Please fill all required fields.", "error");
       return;
     }
@@ -240,8 +238,7 @@ const IncubatorManagement = () => {
           company_name: form.company_name || '',
           credentials: {
             name: form.credentials.name,
-            email: form.credentials.email,
-            password: form.credentials.password
+            email: form.credentials.email
           }
         });
         if (result.success && result.data?.team) {
@@ -628,28 +625,6 @@ const IncubatorManagement = () => {
                   value={form.credentials.email}
                   onChange={handleChange}
                   onBlur={() => handleFieldBlur('email')}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                  required
-                  disabled={submitting}
-                />
-              </FormField>
-              
-              <FormField
-                label="Team Leader Password"
-                name="password"
-                error={getFieldError('password')}
-                touched={touchedFields.has('password')}
-                required
-                autoFocus={focusedField === 'password'}
-                helperText="Minimum 6 characters"
-              >
-                <input
-                  id="password"
-                  name="credentialsPassword"
-                  type="password"
-                  value={form.credentials.password}
-                  onChange={handleChange}
-                  onBlur={() => handleFieldBlur('password')}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                   required
                   disabled={submitting}
