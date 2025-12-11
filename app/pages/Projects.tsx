@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
@@ -48,7 +49,7 @@ function getFileUrl(file: File) {
   return URL.createObjectURL(file);
 }
 
-function getFileIcon(fileName: string, mimeType?: string) {
+export function getFileIcon(fileName: string, mimeType?: string) {
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (mimeType?.startsWith('image/')) return '🖼️';
   if (ext === 'pdf') return '📄';
@@ -62,6 +63,7 @@ function getFileIcon(fileName: string, mimeType?: string) {
 const Projects = () => {
   const { user } = useAuth();
   const showToast = useToast();
+  const navigate = useNavigate();
   const isManager = user?.role === "manager";
   const isDirector = user?.role === "director";
   const isMentor = user?.role === "mentor";
@@ -548,7 +550,7 @@ const Projects = () => {
                             <td className="px-4 py-2 flex gap-2">
                               <button
                                 className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                                onClick={() => setViewIdx(idx)}
+                                onClick={() => navigate(`/projects/${p.id}`)}
                               >View</button>
                               {isIncubator && (
                                 <button

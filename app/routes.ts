@@ -21,6 +21,7 @@ export default [
       route("/inventory", "pages/StockManagement.tsx"),
       route("/reports", "pages/Reports.tsx"),
       route("/projects", "pages/Projects.tsx"),
+      route("/projects/:id", "pages/ProjectDetails.tsx"),
       route("/announcements", "pages/Announcements.tsx"),
       route("/notifications", "pages/Notifications.tsx"),
       route("/analytics", "pages/Analytics.tsx"),
