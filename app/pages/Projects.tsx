@@ -841,7 +841,7 @@ const Projects = () => {
         </Modal>
         {/* View Details Modal */}
         <Modal
-          title={viewIdx !== null ? `Project Details: ${filteredProjects[viewIdx].name}` : "Project Details"}
+          title={viewIdx !== null ? filteredProjects[viewIdx].name : "Project Details"}
           open={viewIdx !== null}
           onClose={() => setViewIdx(null)}
           actions={null}
@@ -849,53 +849,101 @@ const Projects = () => {
           aria-modal="true"
         >
           {viewIdx !== null && (
-            <>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Team:</div>
-                <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || "-"}</div>
-              </div>
-              {filteredProjects[viewIdx].team?.company_name && (
-                <div className="mb-4">
-                  <div className="font-semibold text-blue-800 mb-1">Company Name:</div>
-                  <div className="text-blue-900">{filteredProjects[viewIdx].team.company_name}</div>
+            <div className="space-y-6">
+              {/* Project Basics Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                  <RocketLaunchIcon className="w-5 h-5" />
+                  Project Basics
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Project Name:</div>
+                    <div className="text-blue-900 font-medium">{filteredProjects[viewIdx].name}</div>
+                  </div>
+                  {filteredProjects[viewIdx].team?.company_name && (
+                    <div>
+                      <div className="text-sm font-semibold text-blue-800 mb-1">Company Name:</div>
+                      <div className="text-blue-900">{filteredProjects[viewIdx].team.company_name}</div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Team:</div>
+                    <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || filteredProjects[viewIdx].team?.team_name || "-"}</div>
+                  </div>
+                  {filteredProjects[viewIdx].status_at_enrollment && (
+                    <div>
+                      <div className="text-sm font-semibold text-blue-800 mb-1">Status at Enrollment:</div>
+                      <div className="text-blue-900">{filteredProjects[viewIdx].status_at_enrollment}</div>
+                    </div>
+                  )}
                 </div>
-              )}
-              {filteredProjects[viewIdx].status_at_enrollment && (
-                <div className="mb-4">
-                  <div className="font-semibold text-blue-800 mb-1">Status at Enrollment:</div>
-                  <div className="text-blue-900">{filteredProjects[viewIdx].status_at_enrollment}</div>
+              </div>
+
+              {/* Project Details Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                  <DocumentTextIcon className="w-5 h-5" />
+                  Project Details
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-2">Description:</div>
+                    <div className="text-blue-900 whitespace-pre-wrap bg-blue-50 p-3 rounded-lg">
+                      {filteredProjects[viewIdx].description || "-"}
+                    </div>
+                  </div>
+                  {filteredProjects[viewIdx].challenge_description && (
+                    <div>
+                      <div className="text-sm font-semibold text-blue-800 mb-2">Specific Challenge/Problem:</div>
+                      <div className="text-blue-900 whitespace-pre-wrap bg-blue-50 p-3 rounded-lg">
+                        {filteredProjects[viewIdx].challenge_description}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Category:</div>
+                    <div className="text-blue-900">{filteredProjects[viewIdx].category}</div>
+                  </div>
                 </div>
-              )}
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Description:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].description || "-"}</div>
               </div>
-              {filteredProjects[viewIdx].challenge_description && (
-                <div className="mb-4">
-                  <div className="font-semibold text-blue-800 mb-1">Challenge/Problem Description:</div>
-                  <div className="text-blue-900 whitespace-pre-wrap">{filteredProjects[viewIdx].challenge_description}</div>
+
+              {/* Project Status Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Project Status</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Status:</div>
+                    <div className="text-blue-900">
+                      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        {displayStatusMap[filteredProjects[viewIdx].status] || filteredProjects[viewIdx].status}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Progress:</div>
+                    <div className="text-blue-900">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full transition-all"
+                            style={{ width: `${filteredProjects[viewIdx].progress || 0}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium">{filteredProjects[viewIdx].progress || 0}%</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Category:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].category}</div>
               </div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Status:</div>
-                <div className="text-blue-900">{displayStatusMap[filteredProjects[viewIdx].status] || filteredProjects[viewIdx].status}</div>
-              </div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Progress:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].progress || 0}%</div>
-              </div>
-              {/* Files */}
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Files:</div>
+              {/* Files Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Project Files</h3>
                 {projectFiles[filteredProjects[viewIdx].id] ? (
                   projectFiles[filteredProjects[viewIdx].id].length > 0 ? (
                     <ul className="space-y-2">
                       {projectFiles[filteredProjects[viewIdx].id].map((f, i) => (
-                        <li key={i} className="flex items-center gap-3 p-2 bg-blue-50 rounded">
+                        <li key={i} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition">
                           {f.type && f.type.startsWith("image/") ? (
                             <img
                               src={f.url}
@@ -917,7 +965,7 @@ const Projects = () => {
                               href={f.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                              className="text-blue-600 hover:text-blue-800 text-sm underline font-medium"
                             >
                               View
                             </a>
@@ -926,15 +974,16 @@ const Projects = () => {
                       ))}
                     </ul>
                   ) : (
-                    <div className="text-blue-400">No files uploaded.</div>
+                    <div className="text-blue-400 italic">No files uploaded.</div>
                   )
                 ) : (
                   <div className="text-blue-400">Loading files...</div>
                 )}
               </div>
-              {/* Comments */}
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Comments:</div>
+
+              {/* Comments Section */}
+              <div className="pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Comments & Notes</h3>
                 <div className="mb-2">
                   <input
                     className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
@@ -964,10 +1013,12 @@ const Projects = () => {
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-blue-400">No comments yet.</div>
+                  <div className="text-blue-400 italic">No comments yet.</div>
                 )}
               </div>
-              <div className="flex gap-2 justify-end mt-6">
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-end pt-4 border-t border-gray-200">
                 <ButtonLoader
                   loading={false}
                   onClick={() => setViewIdx(null)}
@@ -976,7 +1027,7 @@ const Projects = () => {
                   type="button"
                 />
               </div>
-            </>
+            </div>
           )}
         </Modal>
       </div>
