@@ -11,12 +11,10 @@ import {
 
 interface ProjectBasicsFormProps {
   initialData?: {
-    startup_company_name?: string;
     name?: string;
     status_at_enrollment?: string;
   };
   onSave?: (data: {
-    startup_company_name?: string;
     name: string;
     status_at_enrollment: string;
   }) => void;
@@ -105,7 +103,6 @@ export const ProjectBasicsForm: React.FC<ProjectBasicsFormProps> = ({
   onNext,
 }) => {
   const [formData, setFormData] = useState({
-    startup_company_name: '',
     name: '',
     status_at_enrollment: '',
   });
@@ -117,7 +114,6 @@ export const ProjectBasicsForm: React.FC<ProjectBasicsFormProps> = ({
   useEffect(() => {
     if (initialData) {
       setFormData({
-        startup_company_name: initialData.startup_company_name || '',
         name: initialData.name || '',
         status_at_enrollment: initialData.status_at_enrollment || '',
       });
@@ -219,7 +215,6 @@ export const ProjectBasicsForm: React.FC<ProjectBasicsFormProps> = ({
 
       if (onSave) {
         onSave({
-          startup_company_name: formData.startup_company_name.trim() || undefined,
           name: formData.name.trim(),
           status_at_enrollment: formData.status_at_enrollment,
         });
@@ -246,25 +241,6 @@ export const ProjectBasicsForm: React.FC<ProjectBasicsFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Startup/Company Name (Optional) */}
-      <FormField
-        label="Startup/Company Name"
-        name="startup_company_name"
-        helperText="Name of your startup or company (optional)"
-      >
-        <input
-          type="text"
-          id="startup_company_name"
-          name="startup_company_name"
-          value={formData.startup_company_name}
-          onChange={handleInputChange}
-          onBlur={() => handleBlur('startup_company_name')}
-          placeholder="e.g., TechInnovate Rwanda"
-          className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 bg-white shadow-sm hover:shadow-md"
-          maxLength={200}
-        />
-      </FormField>
-
       {/* Project Name (Required) */}
       <FormField
         label="Project Name"

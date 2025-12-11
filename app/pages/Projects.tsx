@@ -77,7 +77,6 @@ const Projects = () => {
   const [activeSection, setActiveSection] = useState<'basics' | 'details'>('basics');
   const [form, setForm] = useState({
     // Basic fields
-    startup_company_name: "",
     name: "",
     status_at_enrollment: "",
     // Detail fields
@@ -209,7 +208,6 @@ const Projects = () => {
     if (idx !== null) {
       const p = filteredProjects[idx];
       setForm({
-        startup_company_name: p.startup_company_name || "",
         name: p.name,
         status_at_enrollment: p.status_at_enrollment || "",
         description: p.description || "",
@@ -221,7 +219,6 @@ const Projects = () => {
       });
     } else {
       setForm({
-        startup_company_name: "",
         name: "",
         status_at_enrollment: "",
         description: "",
@@ -237,7 +234,6 @@ const Projects = () => {
 
   // Handle basics section save
   const handleBasicsSave = (data: {
-    startup_company_name?: string;
     name: string;
     status_at_enrollment: string;
   }) => {
@@ -284,7 +280,6 @@ const Projects = () => {
           category: form.category,
           status: statusMap[form.status] || form.status.toLowerCase(),
           progress: form.progress,
-          startup_company_name: form.startup_company_name || undefined,
           status_at_enrollment: form.status_at_enrollment || undefined,
           challenge_description: form.challenge_description || undefined,
         });
@@ -312,7 +307,6 @@ const Projects = () => {
           category: form.category,
           status: statusMap[form.status] || form.status.toLowerCase(),
           progress: form.progress,
-          startup_company_name: form.startup_company_name || undefined,
           status_at_enrollment: form.status_at_enrollment || undefined,
           challenge_description: form.challenge_description || undefined,
         });
@@ -340,7 +334,6 @@ const Projects = () => {
       setEditIdx(null);
       setActiveSection('basics');
       setForm({
-        startup_company_name: "",
         name: "",
         status_at_enrollment: "",
         description: "",
@@ -667,7 +660,6 @@ const Projects = () => {
               </div>
               <ProjectBasicsForm
                 initialData={{
-                  startup_company_name: form.startup_company_name,
                   name: form.name,
                   status_at_enrollment: form.status_at_enrollment,
                 }}
@@ -862,10 +854,10 @@ const Projects = () => {
                 <div className="font-semibold text-blue-800 mb-1">Team:</div>
                 <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || "-"}</div>
               </div>
-              {filteredProjects[viewIdx].startup_company_name && (
+              {filteredProjects[viewIdx].team?.company_name && (
                 <div className="mb-4">
-                  <div className="font-semibold text-blue-800 mb-1">Startup/Company Name:</div>
-                  <div className="text-blue-900">{filteredProjects[viewIdx].startup_company_name}</div>
+                  <div className="font-semibold text-blue-800 mb-1">Company Name:</div>
+                  <div className="text-blue-900">{filteredProjects[viewIdx].team.company_name}</div>
                 </div>
               )}
               {filteredProjects[viewIdx].status_at_enrollment && (

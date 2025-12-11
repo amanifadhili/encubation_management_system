@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useProfile } from '../../context/ProfileContext';
+import { useAuth } from '../../context/AuthContext';
 import ProfessionalRoleForm from './ProfessionalRoleForm';
 import SkillsSelector from './SkillsSelector';
 import SupportInterestsSelector from './SupportInterestsSelector';
-import { BriefcaseIcon, AcademicCapIcon, HeartIcon } from '@heroicons/react/24/outline';
+import { CompanyInformationForm } from './CompanyInformationForm';
+import { BriefcaseIcon, AcademicCapIcon, HeartIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 
 interface Phase3FormProps {
   onComplete?: () => void;
@@ -11,7 +13,8 @@ interface Phase3FormProps {
 
 export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
   const { completion, profile, updatePhase3 } = useProfile();
-  const [activeSection, setActiveSection] = useState<'role' | 'skills' | 'interests'>('role');
+  const { user } = useAuth();
+  const [activeSection, setActiveSection] = useState<'role' | 'skills' | 'interests' | 'company'>('role');
   const [serverError, setServerError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     current_role: '',
@@ -104,7 +107,7 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
     }
   };
 
-  const getSectionStatus = (section: 'role' | 'skills' | 'interests') => {
+  const getSectionStatus = (section: 'role' | 'skills' | 'interests' | 'company') => {
     switch (section) {
       case 'role':
         return !!formData.current_role;
@@ -112,12 +115,14 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
         return formData.skills.length > 0;
       case 'interests':
         return formData.support_interests.length > 0;
+      case 'company':
+        return true; // Always show as available
       default:
         return false;
     }
   };
 
-  const canNavigateTo = (section: 'role' | 'skills' | 'interests') => {
+  const canNavigateTo = (section: 'role' | 'skills' | 'interests' | 'company') => {
     switch (section) {
       case 'role':
         return true;
@@ -125,6 +130,8 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
         return getSectionStatus('role');
       case 'interests':
         return getSectionStatus('role') && getSectionStatus('skills');
+      case 'company':
+        return true; // Company info can be accessed anytime
       default:
         return false;
     }
@@ -220,6 +227,37 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
             )}
           </div>
         </button>
+        <button
+          onClick={() => {
+            if (canNavigateTo('company')) {
+              setActiveSection('company');
+            }
+          }}
+          disabled={!canNavigateTo('company')}
+          className={`flex-shrink-0 px-4 py-3 rounded-lg border-2 transition-all ${
+            activeSection === 'company'
+              ? 'border-blue-500 bg-blue-50 text-blue-700'
+              : getSectionStatus('company')
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : canNavigateTo('company')
+              ? 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <BuildingOfficeIcon className="w-5 h-5" />
+            <span className="font-medium whitespace-nowrap">Company</span>
+            {getSectionStatus('company') && (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+          </div>
+        </button>
       </div>
 
       {serverError && (
@@ -291,6 +329,17 @@ export const Phase3Form: React.FC<Phase3FormProps> = ({ onComplete }) => {
             <SupportInterestsSelector
               initialInterests={formData.support_interests}
               onSave={handleInterestsComplete}
+            />
+          </div>
+        )}
+
+        {activeSection === 'company' && (
+          <div>
+            <CompanyInformationForm
+              teamId={(user as any)?.teamId}
+              onSave={() => {
+                // Refresh data after save
+              }}
             />
           </div>
         )}

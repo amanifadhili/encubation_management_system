@@ -21,4 +21,5 @@ export { default as AchievementBadges } from './AchievementBadges';
 export { default as AutoSaveIndicator } from './AutoSaveIndicator';
 export { default as ProfileCompletionBanner } from './ProfileCompletionBanner';
 export { default as WelcomeScreen } from './WelcomeScreen';
+export { CompanyInformationForm } from './CompanyInformationForm';
 
