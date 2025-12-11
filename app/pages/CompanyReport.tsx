@@ -126,7 +126,7 @@ const CompanyReport: React.FC = () => {
             <span className="text-xs text-slate-500">{members.length} members</span>
           </div>
           <div className="overflow-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-sm text-slate-900">
               <thead className="bg-slate-100 text-slate-900">
                 <tr>
                   <th className="px-3 py-2 text-left">Name</th>
@@ -140,12 +140,12 @@ const CompanyReport: React.FC = () => {
               <tbody className="divide-y divide-slate-200">
                 {members.map((m: any, idx: number) => (
                   <tr key={idx} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-medium text-slate-900">{m.name || "-"}</td>
-                    <td className="px-3 py-2">{m.email || "-"}</td>
-                    <td className="px-3 py-2">{m.phone || "-"}</td>
-                    <td className="px-3 py-2">{m.department || "-"}</td>
-                    <td className="px-3 py-2">{m.graduation_year || "-"}</td>
-                    <td className="px-3 py-2 text-xs">{m.role || "-"}</td>
+                    <td className="px-3 py-2 font-semibold text-slate-900">{m.name || "-"}</td>
+                    <td className="px-3 py-2 text-slate-800">{m.email || "-"}</td>
+                    <td className="px-3 py-2 text-slate-800">{m.phone || "-"}</td>
+                    <td className="px-3 py-2 text-slate-800">{m.department || "-"}</td>
+                    <td className="px-3 py-2 text-slate-800">{m.graduation_year || "-"}</td>
+                    <td className="px-3 py-2 text-xs text-slate-800">{m.role || "-"}</td>
                   </tr>
                 ))}
               </tbody>

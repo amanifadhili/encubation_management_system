@@ -113,6 +113,17 @@ const getProgramTypes = (major: string): string[] => {
   ];
 };
 
+// IPRC Kigali departments for program selection
+const iprcDepartments = [
+  'Civil Engineering',
+  'Creative Arts Department',
+  'Electrical and Electronics Engineering',
+  'Information and Communication Technology',
+  'Mechanical Engineering',
+  'Mining Engineering',
+  'Transport and Logistics Department',
+];
+
 export const AcademicDetailsForm: React.FC<AcademicDetailsFormProps> = ({
   enrollmentStatus,
   onSave,
@@ -398,45 +409,27 @@ export const AcademicDetailsForm: React.FC<AcademicDetailsFormProps> = ({
             required
             error={errors.program_of_study}
             touched={touched.program_of_study}
-            helperText="Select your specific program"
+            helperText="Select your department/program (IPRC Kigali)"
           >
-            {availablePrograms.length > 0 ? (
-              <select
-                id="program_of_study"
-                name="program_of_study"
-                value={formData.program_of_study}
-                onChange={handleInputChange}
-                onBlur={() => handleBlur('program_of_study')}
-                className={`w-full px-4 py-2.5 sm:py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 bg-white shadow-sm hover:shadow-md ${
-                  errors.program_of_study && touched.program_of_study
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200'
-                }`}
-              >
-                <option value="">Select specific program</option>
-                {availablePrograms.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                id="program_of_study"
-                name="program_of_study"
-                value={formData.program_of_study}
-                onChange={handleInputChange}
-                onBlur={() => handleBlur('program_of_study')}
-                placeholder="Enter your program of study"
-                className={`w-full px-4 py-2.5 sm:py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 bg-white shadow-sm hover:shadow-md ${
-                  errors.program_of_study && touched.program_of_study
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200'
-                }`}
-                maxLength={100}
-              />
-            )}
+            <select
+              id="program_of_study"
+              name="program_of_study"
+              value={formData.program_of_study}
+              onChange={handleInputChange}
+              onBlur={() => handleBlur('program_of_study')}
+              className={`w-full px-4 py-2.5 sm:py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 bg-white shadow-sm hover:shadow-md ${
+                errors.program_of_study && touched.program_of_study
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-gray-200'
+              }`}
+            >
+              <option value="">Select department/program</option>
+              {iprcDepartments.map((program) => (
+                <option key={program} value={program}>
+                  {program}
+                </option>
+              ))}
+            </select>
           </FormField>
         </div>
 
