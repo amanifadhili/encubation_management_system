@@ -167,8 +167,8 @@ const IncubatorManagement = () => {
   const openEditModal = (team: any) => {
     setForm({
       id: team.id,
-      teamName: team.team_name,
-      company_name: team.company_name,
+      teamName: team.team_name || team.company_name, // Use team_name, fallback to company_name if needed
+      company_name: team.company_name, // Keep for backward compatibility but won't be displayed
       status: team.status,
       credentials: { name: "", email: "" },
       teamLeader: { name: "", email: "", role: "Team Leader" },
@@ -223,19 +223,19 @@ const IncubatorManagement = () => {
       if (isEdit) {
         await updateIncubator(form.id, {
           team_name: form.teamName,
-          company_name: form.company_name || '',
+          company_name: form.teamName, // Use same value for both
           status: form.status
         });
         setIncubators((prev) =>
           prev.map((team) =>
-            team.id === form.id ? { ...team, team_name: form.teamName, company_name: form.company_name, status: form.status } : team
+            team.id === form.id ? { ...team, team_name: form.teamName, company_name: form.teamName, status: form.status } : team
           )
         );
         showToast("Team updated successfully!", "success");
       } else {
         const result = await createIncubator({
           team_name: form.teamName,
-          company_name: form.company_name || '',
+          company_name: form.teamName, // Use same value for both
           credentials: {
             name: form.credentials.name,
             email: form.credentials.email
@@ -562,7 +562,7 @@ const IncubatorManagement = () => {
           />
           
           <FormField
-            label="Team Name"
+            label="Company Name"
             name="team_name"
             error={getFieldError('team_name')}
             touched={touchedFields.has('team_name')}
@@ -578,24 +578,7 @@ const IncubatorManagement = () => {
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               required
               disabled={submitting}
-            />
-          </FormField>
-          
-          <FormField
-            label="Company Name"
-            name="company_name"
-            error={getFieldError('company_name')}
-            touched={touchedFields.has('company_name')}
-            autoFocus={focusedField === 'company_name'}
-          >
-            <input
-              id="company_name"
-              name="company_name"
-              value={form.company_name || ''}
-              onChange={handleChange}
-              onBlur={() => handleFieldBlur('company_name')}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-              disabled={submitting}
+              placeholder="Enter company name"
             />
           </FormField>
           

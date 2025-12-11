@@ -22,7 +22,27 @@ import { ProjectBasicsForm, ProjectDetailsForm } from "../components/profile";
 import { RocketLaunchIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
 const categories = ["All", "Technology", "Agriculture", "Health", "Education"];
-const statusOptions = ["All", "Active", "Pending", "Completed"];
+const statusOptions = ["All", "Active", "Pending", "Completed", "On Hold"];
+
+// Map display status to backend status values
+const statusMap: Record<string, string> = {
+  "Active": "active",
+  "Pending": "pending",
+  "Completed": "completed",
+  "On Hold": "on_hold",
+  "active": "active",
+  "pending": "pending",
+  "completed": "completed",
+  "on_hold": "on_hold"
+};
+
+// Map backend status to display status
+const displayStatusMap: Record<string, string> = {
+  "active": "Active",
+  "pending": "Pending",
+  "completed": "Completed",
+  "on_hold": "On Hold"
+};
 
 function getFileUrl(file: File) {
   return URL.createObjectURL(file);
@@ -163,9 +183,13 @@ const Projects = () => {
   if (categoryFilter !== "All") {
     filteredProjects = filteredProjects.filter(p => p.category === categoryFilter);
   }
-  // Status filter
+  // Status filter - convert display status to backend status for comparison
   if (statusFilter !== "All") {
-    filteredProjects = filteredProjects.filter(p => p.status === statusFilter);
+    const backendStatus = statusMap[statusFilter] || statusFilter.toLowerCase();
+    filteredProjects = filteredProjects.filter(p => {
+      const projectStatus = typeof p.status === 'string' ? p.status.toLowerCase() : p.status;
+      return projectStatus === backendStatus || projectStatus === statusFilter.toLowerCase();
+    });
   }
 
   // Load project files when viewing a project
@@ -191,7 +215,7 @@ const Projects = () => {
         description: p.description || "",
         challenge_description: p.challenge_description || "",
         category: p.category,
-        status: p.status,
+        status: displayStatusMap[p.status] || p.status, // Convert backend status to display status
         progress: p.progress || 0,
         files: p.files || [],
       });
@@ -254,11 +278,11 @@ const Projects = () => {
       let result: any;
       if (editIdx !== null) {
         const projectId = filteredProjects[editIdx].id;
-        result = await updateProject(projectId, {
+        result =         await updateProject(projectId, {
           name: form.name,
           description: form.description,
           category: form.category,
-          status: form.status,
+          status: statusMap[form.status] || form.status.toLowerCase(),
           progress: form.progress,
           startup_company_name: form.startup_company_name || undefined,
           status_at_enrollment: form.status_at_enrollment || undefined,
@@ -284,7 +308,7 @@ const Projects = () => {
           name: form.name,
           description: form.description,
           category: form.category,
-          status: form.status,
+          status: statusMap[form.status] || form.status.toLowerCase(),
           progress: form.progress,
           startup_company_name: form.startup_company_name || undefined,
           status_at_enrollment: form.status_at_enrollment || undefined,
@@ -507,7 +531,7 @@ const Projects = () => {
                             <td className="px-4 py-2 text-blue-900 font-semibold">{p.name}</td>
                             <td className="px-4 py-2 text-blue-900">{team ? team.teamName : "-"}</td>
                             <td className="px-4 py-2 text-blue-900">{p.category}</td>
-                            <td className="px-4 py-2 text-blue-900">{p.status}</td>
+                            <td className="px-4 py-2 text-blue-900">{displayStatusMap[p.status] || p.status}</td>
                             <td className="px-4 py-2 text-blue-900">
                               {isIncubator ? (
                                 <input
@@ -860,7 +884,7 @@ const Projects = () => {
               </div>
               <div className="mb-4">
                 <div className="font-semibold text-blue-800 mb-1">Status:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].status}</div>
+                <div className="text-blue-900">{displayStatusMap[filteredProjects[viewIdx].status] || filteredProjects[viewIdx].status}</div>
               </div>
               <div className="mb-4">
                 <div className="font-semibold text-blue-800 mb-1">Progress:</div>
