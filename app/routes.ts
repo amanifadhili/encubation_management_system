@@ -20,6 +20,7 @@ export default [
       route("/messaging", "pages/Messaging.tsx"),
       route("/inventory", "pages/StockManagement.tsx"),
       route("/reports", "pages/Reports.tsx"),
+      route("/company-report/:id", "pages/CompanyReport.tsx"),
       route("/projects", "pages/Projects.tsx"),
       route("/projects/:id", "pages/ProjectDetails.tsx"),
       route("/announcements", "pages/Announcements.tsx"),

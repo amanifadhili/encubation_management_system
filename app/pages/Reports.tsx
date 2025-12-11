@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/Layout";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
 import { ErrorHandler } from "../utils/errorHandler";
@@ -6,6 +7,7 @@ import { getGeneralReport, exportGeneralReportCsv } from "../services/api";
 
 const Reports = () => {
   const showToast = useToast();
+  const navigate = useNavigate();
 
   const statusOptions = ["", "active", "pending", "completed", "on_hold", "inactive"];
   const categoryOptions = [
@@ -107,6 +109,7 @@ const Reports = () => {
           createdAt?: string | null;
           updatedAt?: string | null;
         }[];
+        teamId?: string;
       }
     >();
 
@@ -127,6 +130,7 @@ const Reports = () => {
           mentorContact: r.mentor_contact || "-",
           mentorAssignmentDate: r.mentor_assignment_date || null,
           projects: [],
+          teamId: r.team_id,
         });
       }
       const grp = map.get(key)!;
@@ -357,7 +361,11 @@ const Reports = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {groupedRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 text-slate-800 align-top">
+                    <tr
+                      key={idx}
+                      className="hover:bg-slate-50 text-slate-800 align-top cursor-pointer"
+                      onClick={() => navigate(`/company-report/${row.teamId}`)}
+                    >
                       <td className="px-3 py-3">{idx + 1}</td>
                       <td className="px-3 py-3 font-semibold">{row.company}</td>
                       <td className="px-3 py-3 text-slate-800">{row.rdb}</td>

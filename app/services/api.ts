@@ -378,12 +378,9 @@ export async function getGeneralReport(params?: any) {
   return response.data;
 }
 
-export async function exportGeneralReportCsv(params?: any) {
-  const response = await api.get('/reports/general', {
-    params: { ...params, export: 'csv' },
-    responseType: 'blob'
-  });
-  return response;
+export async function getCompanyReport(teamId: string) {
+  const response = await api.get(`/reports/company/${teamId}`);
+  return response.data;
 }
 
 export async function getAdvancedReports(params?: any) {
@@ -628,4 +625,12 @@ export async function getTools() {
 export async function getEvaluations() {
   // Evaluations might be part of reports or removed
   return Promise.resolve([]);
+}
+
+// CSV export for general report
+export async function exportGeneralReportCsv(params?: any) {
+  return api.get("/reports/general", {
+    params: { ...params, format: "csv" },
+    responseType: "blob",
+  });
 }
