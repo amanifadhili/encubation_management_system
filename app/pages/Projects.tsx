@@ -862,23 +862,23 @@ const Projects = () => {
                   <div>
                     <div className="text-sm font-semibold text-blue-800 mb-1">Project Name:</div>
                     <div className="text-blue-900 font-medium">{filteredProjects[viewIdx].name}</div>
-                  </div>
+              </div>
                   {filteredProjects[viewIdx].team?.company_name && (
                     <div>
                       <div className="text-sm font-semibold text-blue-800 mb-1">Company Name:</div>
                       <div className="text-blue-900">{filteredProjects[viewIdx].team.company_name}</div>
-                    </div>
-                  )}
+                </div>
+              )}
                   <div>
                     <div className="text-sm font-semibold text-blue-800 mb-1">Team:</div>
                     <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || filteredProjects[viewIdx].team?.team_name || "-"}</div>
                   </div>
-                  {filteredProjects[viewIdx].status_at_enrollment && (
+              {filteredProjects[viewIdx].status_at_enrollment && (
                     <div>
                       <div className="text-sm font-semibold text-blue-800 mb-1">Status at Enrollment:</div>
-                      <div className="text-blue-900">{filteredProjects[viewIdx].status_at_enrollment}</div>
-                    </div>
-                  )}
+                  <div className="text-blue-900">{filteredProjects[viewIdx].status_at_enrollment}</div>
+                </div>
+              )}
                 </div>
               </div>
 
@@ -894,20 +894,20 @@ const Projects = () => {
                     <div className="text-blue-900 whitespace-pre-wrap bg-blue-50 p-3 rounded-lg">
                       {filteredProjects[viewIdx].description || "-"}
                     </div>
-                  </div>
-                  {filteredProjects[viewIdx].challenge_description && (
+              </div>
+              {filteredProjects[viewIdx].challenge_description && (
                     <div>
                       <div className="text-sm font-semibold text-blue-800 mb-2">Specific Challenge/Problem:</div>
                       <div className="text-blue-900 whitespace-pre-wrap bg-blue-50 p-3 rounded-lg">
                         {filteredProjects[viewIdx].challenge_description}
                       </div>
-                    </div>
-                  )}
+                </div>
+              )}
                   <div>
                     <div className="text-sm font-semibold text-blue-800 mb-1">Category:</div>
-                    <div className="text-blue-900">{filteredProjects[viewIdx].category}</div>
-                  </div>
-                </div>
+                <div className="text-blue-900">{filteredProjects[viewIdx].category}</div>
+              </div>
+              </div>
               </div>
 
               {/* Project Status Section */}

@@ -469,16 +469,16 @@ const IncubatorManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {incubators.length === 0 ? (
+            {incubators.length === 0 ? (
                     <tr>
                       <td colSpan={canModify ? 6 : 5} className="px-4 py-12 text-center text-blue-400">
                         No teams found.
                       </td>
                     </tr>
-                  ) : (
-                    incubators
-                      .filter(team => team.team_name.toLowerCase().includes(search.toLowerCase()))
-                      .map((team: any) => (
+            ) : (
+              incubators
+                .filter(team => team.team_name.toLowerCase().includes(search.toLowerCase()))
+                .map((team: any) => (
                         <tr key={team.id} className="hover:bg-blue-50 transition-colors">
                           <td className="px-4 py-3 text-blue-900 font-semibold">{team.team_name}</td>
                           <td className="px-4 py-3 text-blue-700">{team.company_name || 'N/A'}</td>
@@ -497,48 +497,48 @@ const IncubatorManagement = () => {
                             )}
                           </td>
                           <td className="px-4 py-3 text-blue-700">{new Date(team.created_at).toLocaleDateString()}</td>
-                          {canModify && (
+                      {canModify && (
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <Tooltip label="Edit Team">
-                                  <button
-                                    className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
-                                    onClick={() => openEditModal(team)}
-                                    aria-label="Edit"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                      <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
-                                    </svg>
-                                  </button>
-                                </Tooltip>
-                                <Tooltip label="Delete Team">
-                                  <button
-                                    className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
-                                    onClick={() => handleDeleteClick(team)}
-                                    aria-label="Delete"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                    </svg>
-                                  </button>
-                                </Tooltip>
+                          <Tooltip label="Edit Team">
+                            <button
+                              className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+                              onClick={() => openEditModal(team)}
+                              aria-label="Edit"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+                              </svg>
+                            </button>
+                          </Tooltip>
+                          <Tooltip label="Delete Team">
+                            <button
+                              className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition"
+                              onClick={() => handleDeleteClick(team)}
+                              aria-label="Delete"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                              </svg>
+                            </button>
+                          </Tooltip>
                                 <Tooltip label="Assign Mentor">
-                                  <button
+                        <button
                                     className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
-                                    onClick={() => openMentorModal(team)}
+                          onClick={() => openMentorModal(team)}
                                     aria-label="Assign Mentor"
-                                  >
+                        >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                                    </svg>
-                                  </button>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                          </svg>
+                        </button>
                                 </Tooltip>
-                              </div>
+                      </div>
                             </td>
-                          )}
+                    )}
                         </tr>
-                      ))
-                  )}
+                ))
+            )}
                 </tbody>
               </table>
             </div>
