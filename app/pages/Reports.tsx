@@ -11,6 +11,8 @@ import {
   getTimeSeriesAnalytics,
   getSystemMetrics,
   getCrossEntityAnalytics,
+  getGeneralReport,
+  exportGeneralReportCsv,
 } from "../services/api";
 import jsPDF from "jspdf";
 import {
@@ -71,6 +73,23 @@ const Reports = () => {
     page: 1,
     limit: 50,
   });
+  const [generalFilters, setGeneralFilters] = useState<any>({
+    status: "",
+    category: "",
+    team_id: "",
+    mentor_id: "",
+    date_from: "",
+    date_to: "",
+    progress_min: "",
+    progress_max: "",
+    team_status: "",
+    enrollment_from: "",
+    enrollment_to: "",
+    rdb_registration_status: "",
+  });
+  const [generalData, setGeneralData] = useState<any[]>([]);
+  const [generalLoading, setGeneralLoading] = useState(false);
+  const [generalExporting, setGeneralExporting] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -154,6 +173,39 @@ const Reports = () => {
       ErrorHandler.handleError(error, showToast, "loading time series data");
     } finally {
       setTimeSeriesLoading(false);
+    }
+  };
+
+  // General report (combined) - JSON
+  const loadGeneralReport = async () => {
+    setGeneralLoading(true);
+    try {
+      const data = await getGeneralReport({ ...generalFilters });
+      const rows = data?.data?.rows || data?.rows || [];
+      setGeneralData(rows);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, "loading general report");
+    } finally {
+      setGeneralLoading(false);
+    }
+  };
+
+  const downloadGeneralCsv = async () => {
+    setGeneralExporting(true);
+    try {
+      const response = await exportGeneralReportCsv({ ...generalFilters });
+      const blob = new Blob([response.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "general_report.csv";
+      a.click();
+      window.URL.revokeObjectURL(url);
+      showToast("CSV downloaded", "success");
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, "exporting general report");
+    } finally {
+      setGeneralExporting(false);
     }
   };
 
@@ -613,6 +665,198 @@ const Reports = () => {
               </div>
             </div>
           </div>
+
+          {/* General Combined Report (Projects/Teams/Mentors) */}
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4 bg-white/10 rounded-xl p-4 border border-white/20">
+            <div className="lg:col-span-2 space-y-3">
+              <h3 className="text-white text-lg font-semibold">General Report (CSV/JSON)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Date From</label>
+                  <input
+                    type="date"
+                    value={generalFilters.date_from}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, date_from: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Date To</label>
+                  <input
+                    type="date"
+                    value={generalFilters.date_to}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, date_to: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Status</label>
+                  <input
+                    type="text"
+                    placeholder="active/pending/completed"
+                    value={generalFilters.status}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, status: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Category/Field</label>
+                  <input
+                    type="text"
+                    placeholder="Technology, Health..."
+                    value={generalFilters.category}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, category: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Team Status</label>
+                  <input
+                    type="text"
+                    placeholder="active/pending/inactive"
+                    value={generalFilters.team_status}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, team_status: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">RDB Registration</label>
+                  <input
+                    type="text"
+                    placeholder="Registered/Pending/Not Registered"
+                    value={generalFilters.rdb_registration_status}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, rdb_registration_status: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Progress Min (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={generalFilters.progress_min}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, progress_min: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Progress Max (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={generalFilters.progress_max}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, progress_max: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Enrollment From</label>
+                  <input
+                    type="date"
+                    value={generalFilters.enrollment_from}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, enrollment_from: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white text-sm font-medium mb-1">Enrollment To</label>
+                  <input
+                    type="date"
+                    value={generalFilters.enrollment_to}
+                    onChange={(e) =>
+                      setGeneralFilters((p: any) => ({ ...p, enrollment_to: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3 flex flex-col justify-between">
+              <div className="text-white text-sm">
+                Filters apply to the combined report (companies + projects + mentors). Leave blank for all.
+              </div>
+              <div className="flex flex-col gap-2">
+                <ButtonLoader
+                  loading={generalLoading}
+                  onClick={loadGeneralReport}
+                  label="Apply Filters"
+                  loadingText="Loading..."
+                  variant="primary"
+                  type="button"
+                />
+                <ButtonLoader
+                  loading={generalExporting}
+                  onClick={downloadGeneralCsv}
+                  label="Download CSV"
+                  loadingText="Downloading..."
+                  variant="secondary"
+                  type="button"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* General Report Table */}
+          {generalData.length > 0 && (
+            <div className="mt-4 bg-white rounded-xl shadow p-4 overflow-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-blue-900">General Report Results</h3>
+                <div className="text-sm text-gray-600">{generalData.length} records</div>
+              </div>
+              <table className="min-w-full text-sm">
+                <thead className="bg-blue-50 text-blue-900">
+                  <tr>
+                    <th className="px-3 py-2 text-left">S/N</th>
+                    <th className="px-3 py-2 text-left">Company</th>
+                    <th className="px-3 py-2 text-left">Innovator</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Phone</th>
+                    <th className="px-3 py-2 text-left">Project</th>
+                    <th className="px-3 py-2 text-left">Field</th>
+                    <th className="px-3 py-2 text-left">Status</th>
+                    <th className="px-3 py-2 text-left">Progress</th>
+                    <th className="px-3 py-2 text-left">Mentor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {generalData.map((row: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-blue-50">
+                      <td className="px-3 py-2">{row.sn || idx + 1}</td>
+                      <td className="px-3 py-2">{row.company_name || "-"}</td>
+                      <td className="px-3 py-2">{row.innovator_name || "-"}</td>
+                      <td className="px-3 py-2">{row.innovator_email || "-"}</td>
+                      <td className="px-3 py-2">{row.innovator_phone || "-"}</td>
+                      <td className="px-3 py-2">{row.project_title || "-"}</td>
+                      <td className="px-3 py-2">{row.project_field || "-"}</td>
+                      <td className="px-3 py-2">{row.current_status || row.status_at_enrollment || "-"}</td>
+                      <td className="px-3 py-2">{row.progress != null ? `${row.progress}%` : "-"}</td>
+                      <td className="px-3 py-2">{row.mentor_name || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Report Type Selector */}
           <div className="mt-6 pt-6 border-t border-white/20">

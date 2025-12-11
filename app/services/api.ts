@@ -373,6 +373,19 @@ export async function getProjectsReport(params?: any) {
   return response.data.success ? response.data.data : response.data;
 }
 
+export async function getGeneralReport(params?: any) {
+  const response = await api.get('/reports/general', { params });
+  return response.data;
+}
+
+export async function exportGeneralReportCsv(params?: any) {
+  const response = await api.get('/reports/general', {
+    params: { ...params, export: 'csv' },
+    responseType: 'blob'
+  });
+  return response;
+}
+
 export async function getAdvancedReports(params?: any) {
   const response = await api.get('/reports/advanced', { params });
   return response.data.success ? response.data.data : response.data;
