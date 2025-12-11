@@ -630,7 +630,7 @@ export async function getEvaluations() {
 // CSV export for general report
 export async function exportGeneralReportCsv(params?: any) {
   return api.get("/reports/general", {
-    params: { ...params, format: "csv" },
+    params: { ...params, export: "csv" },
     responseType: "blob",
   });
 }
