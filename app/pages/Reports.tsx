@@ -320,7 +320,7 @@ const Reports = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Results</h3>
-              <p className="text-sm text-slate-600">Record count: {rows.length}</p>
+              <p className="text-sm text-slate-600">Record count: {groupedRows.length}</p>
             </div>
             <ButtonLoader
               loading={loading}
@@ -334,7 +334,7 @@ const Reports = () => {
 
           {loading ? (
             <PageSkeleton count={2} layout="table" />
-          ) : rows.length === 0 ? (
+          ) : groupedRows.length === 0 ? (
             <div className="text-center text-slate-500 py-10">No data. Adjust filters and try again.</div>
           ) : (
             <div className="overflow-auto rounded-xl border border-slate-200">
