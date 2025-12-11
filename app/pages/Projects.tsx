@@ -301,7 +301,9 @@ const Projects = () => {
           setUploading(false);
         }
 
-        setProjects(prev => prev.map(p => p.id === projectId ? result : p));
+        // Extract project from response
+        const updatedProject = result.data?.project || result;
+        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
         showToast('Project updated successfully!', 'success');
       } else {
         result = await createProject({
@@ -315,19 +317,23 @@ const Projects = () => {
           challenge_description: form.challenge_description || undefined,
         });
 
+        // Extract project from response
+        const project = result.data?.project || result;
+        const projectId = project.id;
+
         // Upload files if any
-        if (form.files.length > 0) {
+        if (form.files.length > 0 && projectId) {
           setUploading(true);
           setUploadProgress(0);
           const formData = new FormData();
           form.files.forEach(file => formData.append('files', file));
-          await uploadProjectFiles(result.id, formData, (progress) => {
+          await uploadProjectFiles(projectId, formData, (progress) => {
             setUploadProgress(progress);
           });
           setUploading(false);
         }
 
-        setProjects(prev => [...prev, result]);
+        setProjects(prev => [...prev, project]);
         showToast('Project created successfully!', 'success');
       }
       setShowModal(false);
