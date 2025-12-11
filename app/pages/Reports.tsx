@@ -385,20 +385,24 @@ const Reports = () => {
                       <td className="px-3 py-3 text-slate-800">{row.plannedGraduation}</td>
                       <td className="px-3 py-3">
                         <div className="space-y-1">
-                          {row.projects.map((p, i) => (
-                            <div
-                              key={i}
-                              className="flex flex-col sm:flex-row sm:items-center sm:gap-2 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1"
-                            >
-                              <div className="font-semibold text-slate-900">{p.title}</div>
-                              <div className="text-xs text-slate-600 flex flex-wrap gap-2">
-                                <span>{p.field}</span>
-                                <span>· Status: {p.currentStatus}</span>
-                                {p.statusAtEnroll !== "-" && <span>· Enroll: {p.statusAtEnroll}</span>}
-                                {p.progress != null && <span>· {p.progress}%</span>}
+                          {row.projects.map((p, i) => {
+                            const detailLines = [
+                              `Field: ${p.field}`,
+                              `Status: ${p.currentStatus}`,
+                              p.statusAtEnroll !== "-" ? `Enroll: ${p.statusAtEnroll}` : null,
+                              p.progress != null ? `Progress: ${p.progress}%` : null,
+                            ].filter(Boolean);
+                            const detail = detailLines.join("\n");
+                            return (
+                              <div
+                                key={i}
+                                className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1"
+                                title={detail}
+                              >
+                                <div className="font-semibold text-slate-900 truncate">{p.title}</div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </td>
                     </tr>
