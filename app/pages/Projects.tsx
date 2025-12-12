@@ -551,9 +551,9 @@ const Projects = () => {
                             <td className="px-4 py-2">
                               <div className="flex items-center gap-2">
                                 <Tooltip label="View Details">
-                                  <button
+                              <button
                                     className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
-                                    onClick={() => navigate(`/projects/${p.id}`)}
+                                onClick={() => navigate(`/projects/${p.id}`)}
                                     aria-label="View project details"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -562,11 +562,11 @@ const Projects = () => {
                                     </svg>
                                   </button>
                                 </Tooltip>
-                                {isIncubator && (
+                              {isIncubator && (
                                   <Tooltip label="Edit">
-                                    <button
+                                <button
                                       className="p-2 rounded-lg hover:bg-green-100 text-green-700 transition-colors"
-                                      onClick={() => openModal(idx)}
+                                  onClick={() => openModal(idx)}
                                       aria-label="Edit project"
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -574,7 +574,7 @@ const Projects = () => {
                                       </svg>
                                     </button>
                                   </Tooltip>
-                                )}
+                              )}
                               </div>
                             </td>
                           </tr>

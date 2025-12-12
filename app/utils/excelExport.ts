@@ -1,9 +1,9 @@
 /**
  * Excel export functionality for professional reports
- * Uses xlsx library to generate Excel files from report tables
+ * Uses xlsx-js-style library to generate beautifully styled Excel files from report tables
  */
 
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import {
   cloneElementForExport,
   removeNoPrintElements,
@@ -28,6 +28,128 @@ export interface ExcelOptions {
   useExportTypeHiding?: boolean;
 }
 
+// Professional color scheme
+const COLORS = {
+  // Header colors - Professional blue
+  headerBg: 'E7F0FF', // Light blue background
+  headerText: '1F2937', // Dark gray text
+  headerBorder: '94A3B8', // Medium gray border
+  
+  // Footer colors - Gray background
+  footerBg: 'E5E7EB', // Light gray background
+  footerText: '111827', // Very dark gray text
+  footerBorder: '94A3B8',
+  
+  // Data row colors
+  rowBg: 'FFFFFF', // White
+  rowAltBg: 'F9FAFB', // Very light gray for alternating rows
+  rowText: '374151', // Medium gray text
+  rowBorder: 'E5E7EB', // Light gray border
+  
+  // Report header colors
+  reportHeaderBg: 'F3F4F6', // Light gray
+  reportHeaderText: '111827', // Very dark gray
+  reportHeaderBorder: 'D1D5DB', // Medium gray
+  
+  // Accent colors
+  accentBlue: '3B82F6', // Professional blue
+  accentGreen: '10B981', // Success green
+  accentRed: 'EF4444', // Error red
+  accentAmber: 'F59E0B', // Warning amber
+};
+
+// Default cell style
+const defaultCellStyle: XLSX.CellStyle = {
+  font: {
+    name: 'Calibri',
+    sz: 11,
+    color: { rgb: COLORS.rowText },
+  },
+  alignment: {
+    vertical: 'center',
+    horizontal: 'left',
+    wrapText: true,
+  },
+  border: {
+    top: { style: 'thin', color: { rgb: COLORS.rowBorder } },
+    bottom: { style: 'thin', color: { rgb: COLORS.rowBorder } },
+    left: { style: 'thin', color: { rgb: COLORS.rowBorder } },
+    right: { style: 'thin', color: { rgb: COLORS.rowBorder } },
+  },
+  fill: {
+    fgColor: { rgb: COLORS.rowBg },
+  },
+};
+
+// Header cell style
+const headerCellStyle: XLSX.CellStyle = {
+  font: {
+    name: 'Calibri',
+    sz: 11,
+    bold: true,
+    color: { rgb: COLORS.headerText },
+  },
+  alignment: {
+    vertical: 'center',
+    horizontal: 'center',
+    wrapText: true,
+  },
+  border: {
+    top: { style: 'medium', color: { rgb: COLORS.headerBorder } },
+    bottom: { style: 'medium', color: { rgb: COLORS.headerBorder } },
+    left: { style: 'thin', color: { rgb: COLORS.headerBorder } },
+    right: { style: 'thin', color: { rgb: COLORS.headerBorder } },
+  },
+  fill: {
+    fgColor: { rgb: COLORS.headerBg },
+    patternType: 'solid',
+  },
+};
+
+// Footer cell style
+const footerCellStyle: XLSX.CellStyle = {
+  font: {
+    name: 'Calibri',
+    sz: 11,
+    bold: true,
+    color: { rgb: COLORS.footerText },
+  },
+  alignment: {
+    vertical: 'center',
+    horizontal: 'right',
+    wrapText: true,
+  },
+  border: {
+    top: { style: 'medium', color: { rgb: COLORS.footerBorder } },
+    bottom: { style: 'medium', color: { rgb: COLORS.footerBorder } },
+    left: { style: 'thin', color: { rgb: COLORS.footerBorder } },
+    right: { style: 'thin', color: { rgb: COLORS.footerBorder } },
+  },
+  fill: {
+    fgColor: { rgb: COLORS.footerBg },
+    patternType: 'solid',
+  },
+};
+
+// Report header cell style
+const reportHeaderCellStyle: XLSX.CellStyle = {
+  font: {
+    name: 'Calibri',
+    sz: 14,
+    bold: true,
+    color: { rgb: COLORS.reportHeaderText },
+  },
+  alignment: {
+    vertical: 'center',
+    horizontal: 'left',
+    wrapText: true,
+  },
+  fill: {
+    fgColor: { rgb: COLORS.reportHeaderBg },
+    patternType: 'solid',
+  },
+};
+
 /**
  * Extract table data from an HTML table element
  */
@@ -35,8 +157,10 @@ function extractTableData(table: HTMLTableElement): {
   headers: string[];
   rows: (string | number)[][];
   footer?: (string | number)[];
+  headerAlignments?: ('left' | 'center' | 'right')[];
 } {
   const headers: string[] = [];
+  const headerAlignments: ('left' | 'center' | 'right')[] = [];
   const rows: (string | number)[][] = [];
   let footer: (string | number)[] | undefined;
 
@@ -47,6 +171,15 @@ function extractTableData(table: HTMLTableElement): {
     if (headerRow) {
       headerRow.querySelectorAll('th').forEach((th) => {
         headers.push(th.textContent?.trim() || '');
+        // Determine alignment from class names
+        const className = th.className || '';
+        if (className.includes('text-right')) {
+          headerAlignments.push('right');
+        } else if (className.includes('text-center')) {
+          headerAlignments.push('center');
+        } else {
+          headerAlignments.push('left');
+        }
       });
     }
   }
@@ -73,16 +206,19 @@ function extractTableData(table: HTMLTableElement): {
   if (tfoot) {
     const footerRow = tfoot.querySelector('tr');
     if (footerRow) {
-      footer = [];
+      const footerData: (string | number)[] = [];
       footerRow.querySelectorAll('td, th').forEach((cell) => {
         const text = cell.textContent?.trim() || '';
         const num = parseFloat(text.replace(/,/g, ''));
-        footer.push(isNaN(num) ? text : num);
+        footerData.push(isNaN(num) ? text : num);
       });
+      if (footerData.length > 0) {
+        footer = footerData;
+      }
     }
   }
 
-  return { headers, rows, footer };
+  return { headers, rows, footer, headerAlignments };
 }
 
 /**
@@ -106,7 +242,111 @@ function extractReportHeader(element: HTMLElement): string[] {
 }
 
 /**
- * Export a report element to Excel
+ * Apply professional styling to a worksheet
+ */
+function applyWorksheetStyles(
+  ws: XLSX.WorkSheet,
+  wsData: (string | number)[][],
+  headerInfo: string[],
+  headers: string[],
+  rows: (string | number)[][],
+  footer: (string | number)[] | undefined,
+  headerAlignments?: ('left' | 'center' | 'right')[]
+): void {
+  let currentRow = 0;
+  
+  // Style report header rows
+  if (headerInfo.length > 0) {
+    headerInfo.forEach(() => {
+      const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
+      if (!ws[cellAddress]) return;
+      ws[cellAddress].s = { ...reportHeaderCellStyle };
+      ws[cellAddress].s!.alignment!.horizontal = 'left';
+      // Merge cells for header row
+      const lastCol = headers.length > 0 ? headers.length - 1 : 0;
+      if (headers.length > 0) {
+        ws['!merges'] = ws['!merges'] || [];
+        ws['!merges'].push({
+          s: { r: currentRow, c: 0 },
+          e: { r: currentRow, c: lastCol },
+        });
+      }
+      currentRow++;
+    });
+    currentRow++; // Skip empty row separator
+  }
+
+  // Style header row
+  if (headers.length > 0) {
+    headers.forEach((_, colIdx) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: colIdx });
+      if (!ws[cellAddress]) return;
+      const headerStyle = { ...headerCellStyle };
+      if (headerAlignments && headerAlignments[colIdx]) {
+        headerStyle.alignment!.horizontal = headerAlignments[colIdx];
+      }
+      ws[cellAddress].s = headerStyle;
+    });
+    currentRow++;
+  }
+
+  // Style data rows with alternating colors
+  rows.forEach((row, rowIdx) => {
+    const isEvenRow = rowIdx % 2 === 0;
+    row.forEach((_, colIdx) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: colIdx });
+      if (!ws[cellAddress]) return;
+      
+      const cellStyle = { ...defaultCellStyle };
+      // Alternate row background
+      cellStyle.fill!.fgColor!.rgb = isEvenRow ? COLORS.rowBg : COLORS.rowAltBg;
+      
+      // Determine alignment based on column index and data type
+      const cellValue = row[colIdx];
+      if (typeof cellValue === 'number') {
+        cellStyle.alignment!.horizontal = 'right';
+        // Format numbers with commas
+        if (!ws[cellAddress].z) {
+          ws[cellAddress].z = '#,##0.00';
+        }
+      } else {
+        // Use header alignment if available
+        if (headerAlignments && headerAlignments[colIdx]) {
+          cellStyle.alignment!.horizontal = headerAlignments[colIdx];
+        }
+      }
+      
+      ws[cellAddress].s = cellStyle;
+    });
+    currentRow++;
+  });
+
+  // Style footer row
+  if (footer && footer.length > 0) {
+    currentRow++; // Skip empty row separator
+    footer.forEach((_, colIdx) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: currentRow, c: colIdx });
+      if (!ws[cellAddress]) return;
+      const footerStyle = { ...footerCellStyle };
+      
+      // Determine alignment based on data type
+      const cellValue = footer[colIdx];
+      if (typeof cellValue === 'number') {
+        footerStyle.alignment!.horizontal = 'right';
+        if (!ws[cellAddress].z) {
+          ws[cellAddress].z = '#,##0.00';
+        }
+      } else if (colIdx === 0) {
+        footerStyle.alignment!.horizontal = 'left';
+      }
+      
+      ws[cellAddress].s = footerStyle;
+    });
+  }
+}
+
+/**
+ * Export a report element to Excel with professional styling
  * @param exportElementId - ID of the element to export
  * @param filename - Excel filename (without extension)
  * @param options - Excel export options
@@ -159,21 +399,21 @@ export async function exportToExcel(
     }
 
     // Extract table data
-    const { headers, rows, footer } = extractTableData(table);
+    const { headers, rows, footer, headerAlignments } = extractTableData(table);
 
-    // Create workbook and worksheet
+    // Extract report header
+    const headerInfo = includeHeader ? extractReportHeader(clone) : [];
+
+    // Create workbook and worksheet data
     const wb = XLSX.utils.book_new();
     const wsData: (string | number)[][] = [];
 
     // Add report header if requested
-    if (includeHeader) {
-      const headerInfo = extractReportHeader(clone);
-      if (headerInfo.length > 0) {
-        headerInfo.forEach((info) => {
-          wsData.push([info]);
-        });
-        wsData.push([]); // Empty row separator
-      }
+    if (headerInfo.length > 0) {
+      headerInfo.forEach((info) => {
+        wsData.push([info]);
+      });
+      wsData.push([]); // Empty row separator
     }
 
     // Add table headers
@@ -195,28 +435,40 @@ export async function exportToExcel(
     // Create worksheet
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Set column widths if provided
+    // Apply professional styling
+    applyWorksheetStyles(ws, wsData, headerInfo, headers, rows, footer, headerAlignments);
+
+    // Set column widths
     if (columnWidths) {
       const cols = headers.map((header, idx) => ({
         wch: columnWidths[header] || 15,
       }));
       ws['!cols'] = cols;
     } else {
-      // Auto-width columns (estimate based on content)
+      // Auto-width columns with better calculation
       const cols = headers.map((_, idx) => {
         let maxWidth = 10;
         // Check header width
         const headerLength = headers[idx]?.toString().length || 0;
-        maxWidth = Math.max(maxWidth, headerLength);
+        maxWidth = Math.max(maxWidth, headerLength + 2);
         // Check data widths
         rows.forEach((row) => {
           const cellValue = row[idx]?.toString().length || 0;
-          maxWidth = Math.max(maxWidth, Math.min(cellValue, 50)); // Cap at 50
+          maxWidth = Math.max(maxWidth, Math.min(cellValue, 50));
         });
-        return { wch: maxWidth + 2 }; // Add padding
+        // Check footer width
+        if (footer && footer[idx] !== undefined && footer[idx] !== null) {
+          const footerLength = footer[idx]?.toString().length || 0;
+          maxWidth = Math.max(maxWidth, footerLength);
+        }
+        return { wch: Math.min(maxWidth + 2, 60) }; // Add padding, cap at 60
       });
       ws['!cols'] = cols;
     }
+
+    // Freeze header row (freeze first row with data after header)
+    const freezeRow = headerInfo.length > 0 ? headerInfo.length + 1 : 1;
+    ws['!freeze'] = { xSplit: 0, ySplit: freezeRow, topLeftCell: `A${freezeRow + 1}`, activePane: 'bottomLeft', state: 'frozen' };
 
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
@@ -230,7 +482,7 @@ export async function exportToExcel(
 }
 
 /**
- * Export to Excel with multiple sheets
+ * Export to Excel with multiple sheets (styled)
  */
 export async function exportToExcelMultiSheet(
   exportElementId: string,
@@ -275,11 +527,11 @@ export async function exportToExcelMultiSheet(
       }
 
       // Extract and add data
-      const { headers, rows, footer } = extractTableData(table);
+      const { headers, rows, footer, headerAlignments } = extractTableData(table);
+      const headerInfo = mergedOptions.includeHeader ? extractReportHeader(clone) : [];
       const wsData: (string | number)[][] = [];
 
-      if (mergedOptions.includeHeader) {
-        const headerInfo = extractReportHeader(clone);
+      if (headerInfo.length > 0) {
         headerInfo.forEach((info) => wsData.push([info]));
         if (headerInfo.length > 0) wsData.push([]);
       }
@@ -292,6 +544,23 @@ export async function exportToExcelMultiSheet(
       }
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
+      
+      // Apply styling
+      applyWorksheetStyles(ws, wsData, headerInfo, headers, rows, footer, headerAlignments);
+
+      // Auto-width columns
+      const cols = headers.map((_, idx) => {
+        let maxWidth = 10;
+        const headerLength = headers[idx]?.toString().length || 0;
+        maxWidth = Math.max(maxWidth, headerLength + 2);
+        rows.forEach((row) => {
+          const cellValue = row[idx]?.toString().length || 0;
+          maxWidth = Math.max(maxWidth, Math.min(cellValue, 50));
+        });
+        return { wch: Math.min(maxWidth + 2, 60) };
+      });
+      ws['!cols'] = cols;
+
       XLSX.utils.book_append_sheet(wb, ws, name);
     }
 
@@ -301,4 +570,3 @@ export async function exportToExcelMultiSheet(
     throw error;
   }
 }
-

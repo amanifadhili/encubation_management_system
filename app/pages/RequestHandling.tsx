@@ -404,7 +404,7 @@ const MaterialPage = () => {
                                       : "hover:bg-green-100 text-green-700"
                                   }`}
                                   aria-label={isApproving ? "Approving request" : "Approve request"}
-                                  disabled={isApproving || isDeclining}
+                                disabled={isApproving || isDeclining}
                                 >
                                   {isApproving ? (
                                     <Spinner size="sm" color="green" />
@@ -424,7 +424,7 @@ const MaterialPage = () => {
                                       : "hover:bg-red-100 text-red-700"
                                   }`}
                                   aria-label={isDeclining ? "Declining request" : "Decline request"}
-                                  disabled={isApproving || isDeclining}
+                                disabled={isApproving || isDeclining}
                                 >
                                   {isDeclining ? (
                                     <Spinner size="sm" color="red" />
