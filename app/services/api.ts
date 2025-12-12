@@ -298,7 +298,7 @@ export async function createRequest(data: any) {
   return response.data;
 }
 
-export async function updateRequestStatus(id: number, data: any) {
+export async function updateRequestStatus(id: string | number, data: any) {
   const response = await api.put(`/requests/${id}/status`, data);
   return response.data;
 }

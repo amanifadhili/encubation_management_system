@@ -164,7 +164,7 @@ const MaterialPage = () => {
     setIsSubmitting(true);
     try {
       const material = materials.find(
-        (m) => m.id === Number(modalForm.materialId)
+        (m) => String(m.id) === String(modalForm.materialId)
       );
       if (!material) {
         showToast("Material not found.", "error");
@@ -175,9 +175,9 @@ const MaterialPage = () => {
         () =>
           createRequest({
             item_name: material.name,
-            description: material.description,
-            notes: modalForm.note,
-            quantity: modalForm.quantity,
+            description: material.description || '',
+            notes: modalForm.note || undefined,
+            quantity: modalForm.quantity || undefined,
           }),
         {
           maxRetries: 3,
@@ -209,8 +209,8 @@ const MaterialPage = () => {
     }
 
     try {
-      // Convert id to number if it's a string (CUID)
-      const requestId = typeof id === "string" ? Number(id) : id;
+      // Keep ID as string (Prisma uses CUID strings, not numbers)
+      const requestId = String(id);
       await withRetry(
         () => updateRequestStatus(requestId, { status: action }),
         {
