@@ -21,6 +21,7 @@ import {
 } from "../services/api";
 import { ProjectBasicsForm, ProjectDetailsForm } from "../components/profile";
 import { RocketLaunchIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import Tooltip from "../components/Tooltip";
 
 const categories = ["All", "Technology", "Agriculture", "Health", "Education"];
 const statusOptions = ["All", "Active", "Pending", "Completed", "On Hold"];
@@ -547,17 +548,34 @@ const Projects = () => {
                                 <span>{p.progress || 0}%</span>
                               )}
                             </td>
-                            <td className="px-4 py-2 flex gap-2">
-                              <button
-                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                                onClick={() => navigate(`/projects/${p.id}`)}
-                              >View</button>
-                              {isIncubator && (
-                                <button
-                                  className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                                  onClick={() => openModal(idx)}
-                                >Edit</button>
-                              )}
+                            <td className="px-4 py-2">
+                              <div className="flex items-center gap-2">
+                                <Tooltip label="View Details">
+                                  <button
+                                    className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
+                                    onClick={() => navigate(`/projects/${p.id}`)}
+                                    aria-label="View project details"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                      <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                                      <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </Tooltip>
+                                {isIncubator && (
+                                  <Tooltip label="Edit">
+                                    <button
+                                      className="p-2 rounded-lg hover:bg-green-100 text-green-700 transition-colors"
+                                      onClick={() => openModal(idx)}
+                                      aria-label="Edit project"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                        <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+                                      </svg>
+                                    </button>
+                                  </Tooltip>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

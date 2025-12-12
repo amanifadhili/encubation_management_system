@@ -4,6 +4,8 @@ import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import Tooltip from "../components/Tooltip";
+import { Spinner } from "../components/loading/Spinner";
 import {
   getIncubator,
   getIncubatorMembers,
@@ -247,18 +249,35 @@ const ManageTeam = () => {
                           : "Member"}
                       </td>
                       {isTeamLeader && (
-                        <td className="px-4 py-2 flex gap-2">
-                          <ButtonLoader
-                            variant="danger"
-                            onClick={() => handleRemoveMember(m)}
-                            loading={removingId === m.teamMemberId}
-                            label="Remove"
-                            size="sm"
-                            disabled={
-                              removingId === m.teamMemberId ||
-                              (m.role || "").toLowerCase() === "team_leader"
-                            }
-                          />
+                        <td className="px-4 py-2">
+                          {(() => {
+                            const isRemoving = removingId === m.teamMemberId;
+                            const isTeamLeaderRole = (m.role || "").toLowerCase() === "team_leader";
+                            const isDisabled = isRemoving || isTeamLeaderRole;
+                            
+                            return (
+                              <Tooltip label={isRemoving ? "Removing..." : isTeamLeaderRole ? "Cannot remove team leader" : "Remove member"}>
+                                <button
+                                  onClick={() => handleRemoveMember(m)}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    isDisabled
+                                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                      : "hover:bg-red-100 text-red-700"
+                                  }`}
+                                  aria-label={isRemoving ? "Removing member" : isTeamLeaderRole ? "Cannot remove team leader" : "Remove member"}
+                                  disabled={isDisabled}
+                                >
+                                  {isRemoving ? (
+                                    <Spinner size="sm" color="red" />
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </Tooltip>
+                            );
+                          })()}
                         </td>
                       )}
                     </tr>

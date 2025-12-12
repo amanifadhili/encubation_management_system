@@ -11,6 +11,7 @@ import { FormField } from "../components/FormField";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import Tooltip from "../components/Tooltip";
 
 interface User {
   id: string;
@@ -412,29 +413,46 @@ export default function UserManagement() {
       key: "actions",
       label: "Actions",
       render: (user: User) => (
-        <div className="flex space-x-2">
-          <Button
+        <div className="flex items-center gap-2">
+          <Tooltip label="View Details">
+            <button
             onClick={() => handleOpenDetailModal(user)}
-            variant="secondary"
-            className="text-sm"
-          >
-            View
-          </Button>
-          <Button
+              className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
+              aria-label="View user details"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip label="Edit">
+            <button
             onClick={() => handleOpenEditModal(user)}
-            variant="secondary"
-            className="text-sm"
-          >
-            Edit
-          </Button>
-          <Button
+              className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
+              aria-label="Edit user"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip label="Delete">
+            <button
             onClick={() => handleDeleteClick(user)}
-            variant="danger"
-            className="text-sm"
+              className={`p-2 rounded-lg transition-colors ${
+                deleting 
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                  : "hover:bg-red-100 text-red-700"
+              }`}
+              aria-label="Delete user"
             disabled={deleting}
           >
-            Delete
-          </Button>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </Tooltip>
         </div>
       ),
     },
