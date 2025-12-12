@@ -4,6 +4,18 @@ import { useToast } from "../components/Layout";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
 import { ErrorHandler } from "../utils/errorHandler";
 import { getGeneralReport, exportGeneralReportCsv } from "../services/api";
+import {
+  ReportHeader,
+  ProfessionalTable,
+  ReportContainer,
+  ExportButtons,
+  ReportSignatures,
+  type TableColumn,
+} from "../components/reports";
+import { useReportExport } from "../hooks/useReportExport";
+import { formatDate, formatCurrency } from "../utils/formatters";
+
+const COMPANY_NAME = "INCUBATION MANAGEMENT SYSTEM";
 
 const Reports = () => {
   const showToast = useToast();
@@ -46,6 +58,38 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+
+  // Calculate date range for report header
+  const dateRange = useMemo(() => {
+    const start = filters.date_from || filters.enrollment_from;
+    const end = filters.date_to || filters.enrollment_to;
+    if (start && end) {
+      return {
+        start: new Date(start),
+        end: new Date(end),
+      };
+    }
+    // Default to current month if no dates specified
+    const now = new Date();
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), 1),
+      end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+    };
+  }, [filters.date_from, filters.date_to, filters.enrollment_from, filters.enrollment_to]);
+
+  // Export functionality
+  const exportControls = useReportExport({
+    exportElementId: "general-report-export",
+    filename: "general-report",
+    showToast,
+    pdfOptions: {
+      orientation: "landscape",
+      hideColumns: [],
+    },
+    excelOptions: {
+      includeHeader: true,
+    },
+  });
 
   const load = async () => {
     setLoading(true);
@@ -160,15 +204,56 @@ const Reports = () => {
     return Array.from(map.values());
   }, [rows]);
 
+  // Prepare table data
+  const tableData = useMemo(() => {
+    return groupedRows.map((row) => ({
+      company: row.company,
+      rdb: row.rdb,
+      enrollmentDate: row.enrollmentDate
+        ? formatDate(row.enrollmentDate, "short")
+        : "-",
+      teamStatus: row.teamStatus,
+      mentorName: row.mentorName,
+      mentorContact: row.mentorContact,
+      innovator: row.innovator,
+      email: row.email,
+      phone: row.phone,
+      department: row.department,
+      plannedGraduation: row.plannedGraduation,
+      projectsCount: row.projects.length,
+      projects: row.projects.map((p) => p.title).join(", "),
+      teamId: row.teamId,
+    }));
+  }, [groupedRows]);
+
+  // Table columns definition
+  const columns: TableColumn[] = [
+    { key: "company", label: "Company", align: "left" },
+    { key: "rdb", label: "RDB", align: "left" },
+    { key: "enrollmentDate", label: "Enrollment Date", align: "left" },
+    { key: "teamStatus", label: "Team Status", align: "left" },
+    { key: "mentorName", label: "Mentor", align: "left" },
+    { key: "mentorContact", label: "Mentor Contact", align: "left" },
+    { key: "innovator", label: "Innovator", align: "left" },
+    { key: "email", label: "Email", align: "left" },
+    { key: "phone", label: "Phone", align: "left" },
+    { key: "department", label: "Department", align: "left" },
+    { key: "plannedGraduation", label: "Planned Graduation", align: "left" },
+    { key: "projectsCount", label: "Projects Count", align: "right" },
+  ];
+
   return (
-    <div className="p-4 sm:p-8 min-h-screen bg-slate-50">
-      <div className="max-w-6xl mx-auto space-y-5">
-        <div className="bg-white shadow-sm border border-slate-200 rounded-2xl p-5 sm:p-6">
+    <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
+      <div className="max-w-7xl mx-auto space-y-5">
+        {/* Filters and Controls */}
+        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-5 sm:p-6 no-print">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">General Report</h1>
-              <p className="text-sm text-slate-600">
-                Combined companies, projects, mentors — filter and export CSV.
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                General Report
+              </h1>
+              <p className="text-sm text-gray-600">
+                Combined companies, projects, mentors — filter and export.
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -201,29 +286,41 @@ const Reports = () => {
           {showFilters && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Date From</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Date From
+                </label>
                 <input
                   type="date"
                   value={filters.date_from}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, date_from: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({ ...p, date_from: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Date To</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Date To
+                </label>
                 <input
                   type="date"
                   value={filters.date_to}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, date_to: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({ ...p, date_to: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Status</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Status
+                </label>
                 <select
                   value={filters.status}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, status: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({ ...p, status: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 >
                   {statusOptions.map((opt) => (
                     <option key={opt} value={opt}>
@@ -233,11 +330,15 @@ const Reports = () => {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Category / Field</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Category / Field
+                </label>
                 <select
                   value={filters.category}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({ ...p, category: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 >
                   {categoryOptions.map((opt) => (
                     <option key={opt} value={opt}>
@@ -247,11 +348,18 @@ const Reports = () => {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Team Status</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Team Status
+                </label>
                 <select
                   value={filters.team_status}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, team_status: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({
+                      ...p,
+                      team_status: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 >
                   {teamStatusOptions.map((opt) => (
                     <option key={opt} value={opt}>
@@ -261,13 +369,18 @@ const Reports = () => {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">RDB Registration</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  RDB Registration
+                </label>
                 <select
                   value={filters.rdb_registration_status}
                   onChange={(e) =>
-                    setFilters((p: any) => ({ ...p, rdb_registration_status: e.target.value }))
+                    setFilters((p: any) => ({
+                      ...p,
+                      rdb_registration_status: e.target.value,
+                    }))
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 >
                   {rdbOptions.map((opt) => (
                     <option key={opt} value={opt}>
@@ -277,149 +390,160 @@ const Reports = () => {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Progress Min (%)</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Progress Min (%)
+                </label>
                 <input
                   type="number"
                   min={0}
                   max={100}
                   value={filters.progress_min}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, progress_min: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({
+                      ...p,
+                      progress_min: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Progress Max (%)</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Progress Max (%)
+                </label>
                 <input
                   type="number"
                   min={0}
                   max={100}
                   value={filters.progress_max}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, progress_max: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({
+                      ...p,
+                      progress_max: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Enrollment From</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Enrollment From
+                </label>
                 <input
                   type="date"
                   value={filters.enrollment_from}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, enrollment_from: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({
+                      ...p,
+                      enrollment_from: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-600">Enrollment To</label>
+                <label className="block text-xs font-semibold text-gray-600">
+                  Enrollment To
+                </label>
                 <input
                   type="date"
                   value={filters.enrollment_to}
-                  onChange={(e) => setFilters((p: any) => ({ ...p, enrollment_to: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFilters((p: any) => ({
+                      ...p,
+                      enrollment_to: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
               </div>
             </div>
           )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
+        {/* Report Container */}
+        <ReportContainer exportId="general-report-export">
+          {/* Export Buttons */}
+          <div className="flex flex-col md:flex-row justify-between items-center mb-4 no-print">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">Results</h3>
-              <p className="text-sm text-slate-600">Record count: {groupedRows.length}</p>
+              <h3 className="text-lg font-semibold text-gray-900">Results</h3>
+              <p className="text-sm text-gray-600">
+                Record count: {groupedRows.length}
+              </p>
             </div>
-            <ButtonLoader
-              loading={loading}
-              onClick={load}
-              label="Refresh"
-              loadingText="Loading..."
-              variant="secondary"
-              size="sm"
-            />
+            <div className="flex gap-2 flex-wrap items-center mt-2 md:mt-0">
+              <ButtonLoader
+                loading={loading}
+                onClick={load}
+                label="Refresh"
+                loadingText="Loading..."
+                variant="secondary"
+                size="sm"
+              />
+              <ExportButtons
+                exportElementId="general-report-export"
+                onPrint={exportControls.printReport}
+                onPdf={exportControls.exportPDF}
+                onExcel={exportControls.exportExcel}
+                loading={exportControls.loading}
+              />
+            </div>
           </div>
 
           {loading ? (
             <PageSkeleton count={2} layout="table" />
           ) : groupedRows.length === 0 ? (
-            <div className="text-center text-slate-500 py-10">No data. Adjust filters and try again.</div>
-          ) : (
-            <div className="overflow-auto rounded-xl border border-slate-200">
-              <table className="min-w-full text-sm bg-white text-slate-900">
-                <thead className="bg-slate-100 text-slate-900">
-                  <tr>
-                    <th className="px-3 py-2 text-left">S/N</th>
-                    <th className="px-3 py-2 text-left">Company</th>
-                    <th className="px-3 py-2 text-left">RDB</th>
-                    <th className="px-3 py-2 text-left">Enrollment Date</th>
-                    <th className="px-3 py-2 text-left">Team Status</th>
-                    <th className="px-3 py-2 text-left">Mentor</th>
-                    <th className="px-3 py-2 text-left">Mentor Contact</th>
-                    <th className="px-3 py-2 text-left">Innovator</th>
-                    <th className="px-3 py-2 text-left">Contacts</th>
-                    <th className="px-3 py-2 text-left">Department</th>
-                    <th className="px-3 py-2 text-left">Planned Graduation</th>
-                    <th className="px-3 py-2 text-left">Projects</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {groupedRows.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-slate-50 text-slate-800 align-top cursor-pointer"
-                      onClick={() => navigate(`/company-report/${row.teamId}`)}
-                    >
-                      <td className="px-3 py-3">{idx + 1}</td>
-                      <td className="px-3 py-3 font-semibold">{row.company}</td>
-                      <td className="px-3 py-3 text-slate-800">{row.rdb}</td>
-                      <td className="px-3 py-3">
-                        {row.enrollmentDate ? new Date(row.enrollmentDate).toLocaleDateString() : "-"}
-                      </td>
-                      <td className="px-3 py-3 text-slate-800">{row.teamStatus}</td>
-                      <td className="px-3 py-3 text-slate-800">{row.mentorName}</td>
-                      <td className="px-3 py-3">
-                        <div className="text-slate-800">{row.mentorContact || "-"}</div>
-                        {row.mentorAssignmentDate && (
-                          <div className="text-xs text-slate-500">
-                            Assigned: {new Date(row.mentorAssignmentDate).toLocaleDateString()}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="font-semibold text-slate-900">{row.innovator}</div>
-                      </td>
-                      <td className="px-3 py-3 space-y-1">
-                        <div className="text-slate-800">{row.email}</div>
-                        <div className="text-slate-600 text-xs">{row.phone}</div>
-                      </td>
-                      <td className="px-3 py-3 text-slate-800">{row.department}</td>
-                      <td className="px-3 py-3 text-slate-800">{row.plannedGraduation}</td>
-                      <td className="px-3 py-3">
-                        <div className="space-y-1">
-                          {row.projects.map((p, i) => {
-                            const detailLines = [
-                              `Field: ${p.field}`,
-                              `Status: ${p.currentStatus}`,
-                              p.statusAtEnroll !== "-" ? `Enroll: ${p.statusAtEnroll}` : null,
-                              p.progress != null ? `Progress: ${p.progress}%` : null,
-                            ].filter(Boolean);
-                            const detail = detailLines.join("\n");
-                            return (
-                              <div
-                                key={i}
-                                className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1"
-                                title={detail}
-                              >
-                                <div className="font-semibold text-slate-900 truncate">{p.title}</div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="text-center text-gray-500 py-10">
+              No data. Adjust filters and try again.
             </div>
+          ) : (
+            <>
+              {/* Report Header */}
+              <ReportHeader
+                companyName={COMPANY_NAME}
+                reportTitle="General Report"
+                dateRange={dateRange}
+                reportType="Companies, Projects & Mentors Overview"
+              />
+
+              {/* Professional Table */}
+              <ProfessionalTable
+                columns={columns}
+                data={tableData}
+                showRowNumbers={true}
+                textSize="xs"
+                padding="compact"
+                emptyMessage="No data available"
+                renderCell={(column, value, row, index) => {
+                  // Make company name clickable in web view (clicks won't work in exports, which is fine)
+                  if (column.key === "company" && row.teamId) {
+                    return (
+                      <span
+                        className="font-semibold text-blue-700 cursor-pointer hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/company-report/${row.teamId}`);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {String(value)}
+                      </span>
+                    );
+                  }
+                  return value;
+                }}
+              />
+
+              {/* Signatures */}
+              <ReportSignatures
+                signatures={[
+                  { label: "Prepared by" },
+                  { label: "Review and Approved" },
+                ]}
+              />
+            </>
           )}
-        </div>
+        </ReportContainer>
       </div>
     </div>
   );
