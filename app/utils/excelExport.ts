@@ -116,7 +116,7 @@ const footerCellStyle: XLSX.CellStyle = {
   },
   alignment: {
     vertical: 'center',
-    horizontal: 'right',
+    horizontal: 'left',
     wrapText: true,
   },
   border: {
@@ -301,19 +301,18 @@ function applyWorksheetStyles(
       // Alternate row background
       cellStyle.fill!.fgColor!.rgb = isEvenRow ? COLORS.rowBg : COLORS.rowAltBg;
       
-      // Determine alignment based on column index and data type
+      // Use left alignment for all cells, but respect header alignment if specified
       const cellValue = row[colIdx];
-      if (typeof cellValue === 'number') {
-        cellStyle.alignment!.horizontal = 'right';
-        // Format numbers with commas
-        if (!ws[cellAddress].z) {
-          ws[cellAddress].z = '#,##0.00';
-        }
+      // Use header alignment if available, otherwise default to left
+      if (headerAlignments && headerAlignments[colIdx]) {
+        cellStyle.alignment!.horizontal = headerAlignments[colIdx];
       } else {
-        // Use header alignment if available
-        if (headerAlignments && headerAlignments[colIdx]) {
-          cellStyle.alignment!.horizontal = headerAlignments[colIdx];
-        }
+        cellStyle.alignment!.horizontal = 'left';
+      }
+      
+      // Format numbers with commas but keep them left-aligned
+      if (typeof cellValue === 'number' && !ws[cellAddress].z) {
+        ws[cellAddress].z = '#,##0.00';
       }
       
       ws[cellAddress].s = cellStyle;
@@ -329,15 +328,17 @@ function applyWorksheetStyles(
       if (!ws[cellAddress]) return;
       const footerStyle = { ...footerCellStyle };
       
-      // Determine alignment based on data type
+      // Use left alignment for footer cells, but respect header alignment if available
       const cellValue = footer[colIdx];
-      if (typeof cellValue === 'number') {
-        footerStyle.alignment!.horizontal = 'right';
-        if (!ws[cellAddress].z) {
-          ws[cellAddress].z = '#,##0.00';
-        }
-      } else if (colIdx === 0) {
+      if (headerAlignments && headerAlignments[colIdx]) {
+        footerStyle.alignment!.horizontal = headerAlignments[colIdx];
+      } else {
         footerStyle.alignment!.horizontal = 'left';
+      }
+      
+      // Format numbers with commas but keep them left-aligned
+      if (typeof cellValue === 'number' && !ws[cellAddress].z) {
+        ws[cellAddress].z = '#,##0.00';
       }
       
       ws[cellAddress].s = footerStyle;
