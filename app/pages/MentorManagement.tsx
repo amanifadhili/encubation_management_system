@@ -17,6 +17,7 @@ import Button from "../components/Button";
 import Badge from "../components/Badge";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import RestoreConfirmationModal from "../components/RestoreConfirmationModal";
 import {
   getMentors,
   createMentor,
@@ -24,7 +25,9 @@ import {
   deleteMentor,
   assignMentorToTeam,
   removeMentorFromTeam,
-  getIncubators
+  getIncubators,
+  restoreMentor,
+  getInactiveMentors
 } from "../services/api";
 
 const defaultForm = {
@@ -56,7 +59,7 @@ const MentorManagement = () => {
   const [form, setForm] = useState({ ...defaultForm });
   const [isEdit, setIsEdit] = useState(false);
   const [assignMentorId, setAssignMentorId] = useState<string | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const showToast = useToast();
@@ -143,9 +146,9 @@ const MentorManagement = () => {
 
   const openAssignModal = (mentor: any) => {
     setAssignMentorId(mentor.id);
-    // Get current team assignment (only one team per mentor)
-    const currentTeam = mentor.mentor_assignments?.[0]?.team_id || null;
-    setSelectedTeam(currentTeam);
+    // Get all current team assignments for this mentor (one-to-many relationship)
+    const currentTeamIds = mentor.mentor_assignments?.map((assignment: any) => assignment.team_id) || [];
+    setSelectedTeams(currentTeamIds);
     setShowAssignModal(true);
   };
 
@@ -258,22 +261,83 @@ const MentorManagement = () => {
     try {
       await deleteMentor(mentorToDelete.id);
       setMentors((prev) => prev.filter((m) => m.id !== mentorToDelete.id));
-      showToast("Mentor deleted successfully!", "success");
+      showToast("Mentor deactivated successfully. You can restore them later.", "success");
       setDeleteModalOpen(false);
       setMentorToDelete(null);
+      // Reload inactive mentors if showing inactive view
+      if (showInactive) {
+        loadInactiveMentors();
+      }
     } catch (error: any) {
-      console.error('Failed to delete mentor:', error);
-      ErrorHandler.handleError(error, showToast, 'deleting mentor');
+      console.error('Failed to deactivate mentor:', error);
+      ErrorHandler.handleError(error, showToast, 'deactivating mentor');
       // Don't close modal on error so user can retry
     } finally {
       setDeleting(false);
     }
   };
 
-  // Assign Team Modal logic (one-to-one relationship)
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveMentors, setInactiveMentors] = useState<any[]>([]);
+  const [loadingInactive, setLoadingInactive] = useState(false);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [mentorToRestore, setMentorToRestore] = useState<any | null>(null);
+
+  const loadInactiveMentors = async () => {
+    try {
+      setLoadingInactive(true);
+      const response = await getInactiveMentors({ page: 1, limit: 100 });
+      const mentors = Array.isArray(response) ? response : (response?.data?.mentors || response?.mentors || []);
+      setInactiveMentors(mentors);
+    } catch (error: any) {
+      console.error('Failed to load inactive mentors:', error);
+      ErrorHandler.handleError(error, showToast, 'loading inactive mentors');
+      setInactiveMentors([]);
+    } finally {
+      setLoadingInactive(false);
+    }
+  };
+
+  const handleRestoreClick = (mentor: any) => {
+    setMentorToRestore(mentor);
+    setRestoreModalOpen(true);
+  };
+
+  const handleRestoreConfirm = async () => {
+    if (!mentorToRestore) return;
+
+    setRestoring(mentorToRestore.id);
+    try {
+      await restoreMentor(mentorToRestore.id);
+      showToast("Mentor restored successfully!", "success");
+      // Remove from inactive list and refresh active list
+      setInactiveMentors((prev) => prev.filter((m) => m.id !== mentorToRestore.id));
+      loadMentors();
+      setRestoreModalOpen(false);
+      setMentorToRestore(null);
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, 'restoring mentor');
+    } finally {
+      setRestoring(null);
+    }
+  };
+
+  // Load inactive mentors when toggle is switched
+  useEffect(() => {
+    if (showInactive) {
+      loadInactiveMentors();
+    }
+  }, [showInactive]);
+
+  // Assign Team Modal logic (one-to-many relationship)
   const handleTeamSelect = (teamId: string) => {
-    // Allow deselecting by clicking the same radio button
-    setSelectedTeam(prev => prev === teamId ? null : teamId);
+    // Toggle team selection (add if not selected, remove if selected)
+    setSelectedTeams(prev => 
+      prev.includes(teamId) 
+        ? prev.filter(id => id !== teamId)
+        : [...prev, teamId]
+    );
   };
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
@@ -282,42 +346,38 @@ const MentorManagement = () => {
 
     setAssigning(true);
     try {
-      // Get current mentor to find existing assignment
+      // Get current mentor to find existing assignments
       const currentMentor = mentors.find(m => m.id === assignMentorId);
-      const existingTeam = currentMentor?.mentor_assignments?.[0]?.team_id || null;
+      const existingTeamIds = currentMentor?.mentor_assignments?.map((assignment: any) => assignment.team_id) || [];
 
-      console.log('=== ASSIGNING TEAM TO MENTOR DEBUG ===');
-      console.log('Mentor ID:', assignMentorId);
-      console.log('Selected Team ID:', selectedTeam);
-      console.log('Existing Team ID:', existingTeam);
-      console.log('Mentor ID type:', typeof assignMentorId);
-      console.log('Selected Team type:', typeof selectedTeam);
+      // Find teams to add (selected but not currently assigned)
+      const teamsToAdd = selectedTeams.filter(teamId => !existingTeamIds.includes(teamId));
+      
+      // Find teams to remove (currently assigned but not selected)
+      const teamsToRemove = existingTeamIds.filter((teamId: string) => !selectedTeams.includes(teamId));
 
-      // If there's an existing assignment and it's different from the selected one, remove it
-      if (existingTeam && existingTeam !== selectedTeam) {
-        console.log('Removing existing assignment...');
-        await removeMentorFromTeam(assignMentorId, existingTeam);
+      // Remove unselected teams
+      for (const teamId of teamsToRemove) {
+        await removeMentorFromTeam(assignMentorId, teamId);
       }
 
-      // If a team is selected and it's different from the existing one, add it
-      if (selectedTeam && selectedTeam !== existingTeam) {
-        console.log('Adding new assignment...');
-        console.log('Request payload:', { team_id: selectedTeam });
-        await assignMentorToTeam(assignMentorId, { team_id: selectedTeam });
+      // Add newly selected teams
+      for (const teamId of teamsToAdd) {
+        await assignMentorToTeam(assignMentorId, { team_id: teamId });
       }
 
       // Reload mentors to get updated assignments
       await loadMentors();
       
       setShowAssignModal(false);
-      showToast("Team assigned successfully!", "success");
+      showToast("Team assignments updated successfully!", "success");
     } catch (error: any) {
       console.error('=== ASSIGNMENT FAILED ===');
       console.error('Full error object:', error);
       console.error('Error response:', error.response);
       console.error('Error response data:', error.response?.data);
       console.error('Validation errors:', error.response?.data?.errors);
-      ErrorHandler.handleError(error, showToast, 'assigning team');
+      ErrorHandler.handleError(error, showToast, 'assigning teams');
     } finally {
       setAssigning(false);
     }
@@ -325,23 +385,26 @@ const MentorManagement = () => {
 
   // Table columns
   const columns: TableColumn<typeof mentors[0]>[] = [
-    { key: "user", label: "Name", render: (row) => row.user?.name || "-", className: "font-semibold text-blue-800" },
+    { key: "userName", label: "Name", render: (row) => row.user?.name || "-", className: "font-semibold text-blue-800" },
     { key: "expertise", label: "Expertise", className: "text-blue-700" },
-    { key: "user", label: "Email", render: (row) => row.user?.email || "-", className: "text-blue-700" },
+    { key: "userEmail", label: "Email", render: (row) => row.user?.email || "-", className: "text-blue-700" },
     { key: "phone", label: "Phone", className: "text-blue-700" },
     {
       key: "mentor_assignments",
-      label: "Assigned Team",
+      label: "Assigned Teams",
       render: row => {
         if (row.mentor_assignments && row.mentor_assignments.length > 0) {
-          const assignment = row.mentor_assignments[0];
           return (
-            <Badge variant="default" className="bg-green-100 text-green-800">
-              {assignment.team?.team_name || "Unknown"}
-            </Badge>
+            <div className="flex flex-wrap gap-1">
+              {row.mentor_assignments.map((assignment: any, index: number) => (
+                <Badge key={assignment.id || index} variant="default" className="bg-green-100 text-green-800">
+                  {assignment.team?.team_name || "Unknown"}
+                </Badge>
+              ))}
+            </div>
           );
         }
-        return <span className="text-gray-500">No team assigned</span>;
+        return <span className="text-gray-500">No teams assigned</span>;
       },
       className: "text-blue-700"
     },
@@ -357,6 +420,12 @@ const MentorManagement = () => {
             onChange={v => { setSearch(v); setPage(1); }}
             placeholder="Search by name, expertise, or email..."
           />
+          <button
+            className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded font-semibold shadow hover:bg-gray-200 transition"
+            onClick={() => setShowInactive(!showInactive)}
+          >
+            {showInactive ? "Show Active Mentors" : "Show Inactive Mentors"}
+          </button>
           <RoleGuard allowed={["manager", "director"]}>
             <button
               className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-700 to-blue-500 text-white rounded font-semibold shadow hover:from-blue-800 hover:to-blue-600 transition"
@@ -375,6 +444,74 @@ const MentorManagement = () => {
       
       {loading ? (
         <PageSkeleton count={5} layout="table" />
+      ) : showInactive ? (
+        loadingInactive ? (
+          <PageSkeleton count={5} layout="table" />
+        ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800">Inactive Mentors</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Expertise</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Deactivated At</th>
+                  {canModify && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {inactiveMentors.length === 0 ? (
+                  <tr>
+                    <td colSpan={canModify ? 5 : 4} className="px-4 py-12 text-center text-gray-400">
+                      No inactive mentors found.
+                    </td>
+                  </tr>
+                ) : (
+                  inactiveMentors.map((mentor: any) => (
+                    <tr key={mentor.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-gray-900 font-semibold">{mentor.user?.name || 'N/A'}</td>
+                      <td className="px-4 py-3 text-gray-700">{mentor.user?.email || 'N/A'}</td>
+                      <td className="px-4 py-3 text-gray-700">{mentor.expertise || 'N/A'}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {mentor.user?.deactivated_at ? new Date(mentor.user.deactivated_at).toLocaleDateString() : 'N/A'}
+                      </td>
+                      {canModify && (
+                        <td className="px-4 py-3">
+                          <Tooltip label="Restore Mentor">
+                            <button
+                              className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition"
+                              onClick={() => handleRestoreClick(mentor)}
+                              disabled={restoring === mentor.id}
+                              aria-label="Restore"
+                            >
+                              {restoring === mentor.id ? (
+                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                              )}
+                            </button>
+                          </Tooltip>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        )
       ) : (
         <div className="overflow-x-auto rounded-lg shadow-lg bg-white">
           <div className="min-w-[600px]">
@@ -407,11 +544,11 @@ const MentorManagement = () => {
                     </svg>
                   </button>
                 </Tooltip>
-                <Tooltip label="Delete">
+                <Tooltip label="Deactivate">
                   <button
                     className="p-2 rounded-full hover:bg-red-100 text-red-700"
                     onClick={() => handleDeleteClick(row)}
-                    aria-label="Delete"
+                    aria-label="Deactivate"
                   >
                     {/* Trash SVG */}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -581,7 +718,7 @@ const MentorManagement = () => {
         <form id="assign-form" onSubmit={handleAssignSubmit}>
           <div className="mb-4">
             <p className="text-sm text-gray-600 mb-4">
-              Select a team to assign to this mentor. Each mentor can only be assigned to one team. Click the selected team again to unassign.
+              Select one or more teams to assign to this mentor. Mentors can be assigned to multiple teams. Click a selected team again to unassign.
             </p>
             {teams.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -591,46 +728,32 @@ const MentorManagement = () => {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {teams.map((team: any) => {
-                  const isSelected = selectedTeam === team.id;
-                  const isAssignedToOtherMentor = team.mentor_assignments && 
-                    team.mentor_assignments.length > 0 && 
-                    team.mentor_assignments[0].mentor_id !== assignMentorId;
-                  const assignedMentorName = isAssignedToOtherMentor ? team.mentor_assignments[0].mentor?.user?.name : null;
+                  const isSelected = selectedTeams.includes(team.id);
                   
                   return (
                     <label
                       key={team.id}
                       className={`flex items-center gap-3 p-3 rounded-lg transition border-2 ${
-                        isAssignedToOtherMentor
-                          ? 'bg-gray-100 border-gray-300 opacity-60 cursor-not-allowed'
-                          : isSelected
+                        isSelected
                           ? 'bg-blue-50 border-blue-500 shadow-md cursor-pointer'
                           : 'bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-300 cursor-pointer'
                       }`}
                     >
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="team"
                         checked={isSelected}
-                        onChange={() => !isAssignedToOtherMentor && !assigning && handleTeamSelect(team.id)}
-                        disabled={isAssignedToOtherMentor || assigning}
+                        onChange={() => !assigning && handleTeamSelect(team.id)}
+                        disabled={assigning}
                         className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <div className="flex-1">
-                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : isAssignedToOtherMentor ? 'text-gray-500' : 'text-gray-900'}`}>
-                          {team.team_name}
+                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                          {team.team_name || 'Unknown'}
                         </div>
-                        <div className="text-sm text-gray-600">{team.company_name || 'No company name'}</div>
-                        {isAssignedToOtherMentor && (
-                          <div className="text-xs text-orange-600 font-semibold mt-1 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                            </svg>
-                            Already assigned to mentor "{assignedMentorName}"
-                          </div>
-                        )}
+                        <div className="text-sm text-gray-600">{team.company_name || 'No company listed'}</div>
                       </div>
-                      {isSelected && !isAssignedToOtherMentor && (
+                      {isSelected && (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-600">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                         </svg>
@@ -655,7 +778,21 @@ const MentorManagement = () => {
         itemName={mentorToDelete?.user?.name || mentorToDelete?.name}
         itemType="mentor"
         loading={deleting}
-        description="This will permanently delete the mentor account and remove all team assignments. This action cannot be undone."
+        description="This will deactivate the mentor. The mentor will be hidden from active lists but can be restored later. All data will be preserved."
+        confirmationText={null}
+      />
+
+      {/* Restore Confirmation Modal */}
+      <RestoreConfirmationModal
+        open={restoreModalOpen}
+        onClose={() => {
+          setRestoreModalOpen(false);
+          setMentorToRestore(null);
+        }}
+        onConfirm={handleRestoreConfirm}
+        itemName={mentorToRestore?.user?.name || mentorToRestore?.name}
+        itemType="mentor"
+        loading={restoring === mentorToRestore?.id}
       />
     </div>
   );

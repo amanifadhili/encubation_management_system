@@ -8,12 +8,6 @@ import { ErrorHandler } from '../utils/errorHandler';
 // Base URL for API calls - from .env file only
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Debug: Log the API base URL being used
-console.log('🔧 API Configuration:', {
-  'VITE_API_BASE_URL from env': import.meta.env.VITE_API_BASE_URL,
-  'Final API_BASE_URL': API_BASE_URL,
-  'Environment': import.meta.env.MODE
-});
 
 // Validate that API_BASE_URL is set
 if (!API_BASE_URL) {
@@ -36,16 +30,11 @@ const retryMap = new Map<string, number>();
 // Request interceptor to add JWT token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('API Request:', config.method?.toUpperCase(), fullUrl, '- Token present:', !!token);
-  } else {
-    console.log('API Request:', config.method?.toUpperCase(), fullUrl, '- No token found');
   }
   return config;
 }, (error) => {
-  console.error('❌ Request interceptor error:', error);
   return Promise.reject(error);
 });
 
@@ -66,8 +55,6 @@ async function handleDelete(endpoint: string): Promise<{ success: boolean; statu
 // Response interceptor with advanced error handling
 api.interceptors.response.use(
   (response) => {
-    const fullUrl = `${response.config.baseURL || ''}${response.config.url || ''}`;
-    console.log('✅ API Response:', response.config.method?.toUpperCase(), fullUrl, response.status);
     return response;
   },
   async (error: AxiosError) => {
@@ -150,7 +137,18 @@ export async function updateIncubator(id: number, data: any) {
 }
 
 export async function deleteIncubator(id: number) {
+  // Soft delete: deactivates the team
   return handleDelete(`/teams/${id}`);
+}
+
+export async function restoreTeam(id: string | number) {
+  const response = await api.patch(`/teams/${id}/restore`);
+  return response.data;
+}
+
+export async function getInactiveTeams(params?: any) {
+  const response = await api.get('/teams/inactive', { params });
+  return response.data.success ? response.data.data.teams : response.data;
 }
 
 export async function getIncubatorMembers(id: number | string) {
@@ -236,7 +234,18 @@ export async function updateMentor(id: string, data: any) {
 }
 
 export async function deleteMentor(id: string) {
+  // Soft delete: deactivates the mentor's user account
   return handleDelete(`/mentors/${id}`);
+}
+
+export async function restoreMentor(id: string) {
+  const response = await api.patch(`/mentors/${id}/restore`);
+  return response.data;
+}
+
+export async function getInactiveMentors(params?: any) {
+  const response = await api.get('/mentors/inactive', { params });
+  return response.data.success ? response.data.data.mentors : response.data;
 }
 
 export async function assignMentorToTeam(mentorId: string, data: any) {
@@ -510,7 +519,18 @@ export async function updateUser(id: string, data: any) {
 }
 
 export async function deleteUser(id: string) {
+  // Soft delete (deactivate) user – backend marks user as inactive
   return handleDelete(`/users/${id}`);
+}
+
+export async function getInactiveUsers() {
+  const response = await api.get('/users/inactive');
+  return response.data;
+}
+
+export async function restoreUser(id: string) {
+  const response = await api.patch(`/users/${id}/restore`);
+  return response.data;
 }
 
 // Profile API

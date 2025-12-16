@@ -235,8 +235,7 @@ function TaskListComponent() {
           <Button
             onClick={() => {
               const errors = errorAnalytics.getRecentErrors(5);
-              console.log('Recent Errors:', errors);
-              showToast(`Check console - ${errors.length} errors logged`, 'info');
+              showToast(`${errors.length} errors logged`, 'info');
             }}
             variant="secondary"
             className="bg-green-100 hover:bg-green-200 text-green-800"

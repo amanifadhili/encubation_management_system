@@ -44,12 +44,10 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('Connected to server');
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from server:', reason);
       if (reason === 'io server disconnect') {
         // Server disconnected, try to reconnect
         this.attemptReconnect();
@@ -63,26 +61,21 @@ class SocketService {
 
     // Message events - listen for the correct event name from backend
     this.socket.on('new_message', (data) => {
-      console.log('New message received:', data);
-      // Emit custom event for components to listen
       window.dispatchEvent(new CustomEvent('socket:message_received', { detail: data }));
     });
 
     // Also listen for message_notification for other conversations
     this.socket.on('message_notification', (data) => {
-      console.log('Message notification received:', data);
       window.dispatchEvent(new CustomEvent('socket:message_notification', { detail: data }));
     });
 
     // Notification events
     this.socket.on('notification_received', (data) => {
-      console.log('Notification received:', data);
       window.dispatchEvent(new CustomEvent('socket:notification_received', { detail: data }));
     });
 
     // Announcement events
     this.socket.on('announcement_created', (data) => {
-      console.log('Announcement created:', data);
       window.dispatchEvent(new CustomEvent('socket:announcement_created', { detail: data }));
     });
 
@@ -99,7 +92,6 @@ class SocketService {
   private attemptReconnect(): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
 
       setTimeout(() => {
         if (this.socket && !this.socket.connected) {

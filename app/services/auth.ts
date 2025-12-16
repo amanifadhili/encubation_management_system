@@ -4,11 +4,6 @@ import axios from 'axios';
 // API Base URL - from .env file only
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Debug: Log the API base URL being used
-console.log('🔧 Auth API Configuration:', {
-  'VITE_API_BASE_URL from env': import.meta.env.VITE_API_BASE_URL,
-  'Final API_BASE_URL': API_BASE_URL
-});
 
 // Validate that API_BASE_URL is set
 if (!API_BASE_URL) {
@@ -51,11 +46,6 @@ const mapApiUser = (apiUser: any): User => ({
 
 export async function login(email: string, password: string): Promise<User> {
   const loginUrl = `${API_BASE_URL}/auth/login`;
-  console.log('🔐 Attempting login:', {
-    url: loginUrl,
-    email: email,
-    apiBaseUrl: API_BASE_URL
-  });
 
   try {
     const response = await axios.post(loginUrl, {
