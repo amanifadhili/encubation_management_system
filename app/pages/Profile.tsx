@@ -55,7 +55,6 @@ const Profile = () => {
     try {
       setLoading(true);
       const result = await getProfile();
-      console.log("Profile API response:", result); // Debug log
 
       if (result.success && result.data?.user) {
         const userData = result.data.user;

@@ -19,7 +19,6 @@ export const Example1_ButtonLoading = () => {
     setIsSubmitting(true);
     try {
       await axios.post('/api/save', { data: 'example' });
-      console.log('Success!');
     } finally {
       setIsSubmitting(false);
     }

@@ -8,12 +8,6 @@ import { ErrorHandler } from '../utils/errorHandler';
 // Base URL for API calls - from .env file only
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Debug: Log the API base URL being used
-console.log('🔧 API Configuration:', {
-  'VITE_API_BASE_URL from env': import.meta.env.VITE_API_BASE_URL,
-  'Final API_BASE_URL': API_BASE_URL,
-  'Environment': import.meta.env.MODE
-});
 
 // Validate that API_BASE_URL is set
 if (!API_BASE_URL) {
@@ -36,16 +30,11 @@ const retryMap = new Map<string, number>();
 // Request interceptor to add JWT token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('API Request:', config.method?.toUpperCase(), fullUrl, '- Token present:', !!token);
-  } else {
-    console.log('API Request:', config.method?.toUpperCase(), fullUrl, '- No token found');
   }
   return config;
 }, (error) => {
-  console.error('❌ Request interceptor error:', error);
   return Promise.reject(error);
 });
 
@@ -66,8 +55,6 @@ async function handleDelete(endpoint: string): Promise<{ success: boolean; statu
 // Response interceptor with advanced error handling
 api.interceptors.response.use(
   (response) => {
-    const fullUrl = `${response.config.baseURL || ''}${response.config.url || ''}`;
-    console.log('✅ API Response:', response.config.method?.toUpperCase(), fullUrl, response.status);
     return response;
   },
   async (error: AxiosError) => {

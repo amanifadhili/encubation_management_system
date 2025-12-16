@@ -36,7 +36,6 @@ export const useAutoSave = ({
       if (dataRef.current) {
         try {
           saveToLocalStorage(phase, dataRef.current);
-          console.log(`Auto-saved ${phase} to localStorage`);
         } catch (error) {
           console.error(`Failed to auto-save ${phase}:`, error);
         }

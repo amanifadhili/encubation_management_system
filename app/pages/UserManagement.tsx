@@ -122,7 +122,6 @@ export default function UserManagement() {
       if (roleFilter !== "all") params.role = roleFilter;
 
       const response = await getUsers(params);
-      console.log("Users API Response:", response);
 
       // Handle different response formats
       let users: User[] = [];
