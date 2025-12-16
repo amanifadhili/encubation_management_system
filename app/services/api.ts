@@ -150,7 +150,18 @@ export async function updateIncubator(id: number, data: any) {
 }
 
 export async function deleteIncubator(id: number) {
+  // Soft delete: deactivates the team
   return handleDelete(`/teams/${id}`);
+}
+
+export async function restoreTeam(id: string | number) {
+  const response = await api.patch(`/teams/${id}/restore`);
+  return response.data;
+}
+
+export async function getInactiveTeams(params?: any) {
+  const response = await api.get('/teams/inactive', { params });
+  return response.data.success ? response.data.data.teams : response.data;
 }
 
 export async function getIncubatorMembers(id: number | string) {
@@ -236,7 +247,18 @@ export async function updateMentor(id: string, data: any) {
 }
 
 export async function deleteMentor(id: string) {
+  // Soft delete: deactivates the mentor's user account
   return handleDelete(`/mentors/${id}`);
+}
+
+export async function restoreMentor(id: string) {
+  const response = await api.patch(`/mentors/${id}/restore`);
+  return response.data;
+}
+
+export async function getInactiveMentors(params?: any) {
+  const response = await api.get('/mentors/inactive', { params });
+  return response.data.success ? response.data.data.mentors : response.data;
 }
 
 export async function assignMentorToTeam(mentorId: string, data: any) {

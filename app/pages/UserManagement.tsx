@@ -865,6 +865,7 @@ export default function UserManagement() {
         itemType="user"
         loading={deleting}
         description="This will deactivate the user account. The user will no longer be able to access the system, but you can restore the account later from the inactive users view."
+        confirmationText={null}
       />
     </div>
   );

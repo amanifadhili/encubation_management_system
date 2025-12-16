@@ -32,8 +32,8 @@ export interface DeleteConfirmationModalProps {
   itemName?: string;
   /** Type of item being deleted (e.g., "team", "mentor", "inventory item") */
   itemType?: string;
-  /** Custom confirmation text (default: "DELETE") */
-  confirmationText?: string;
+  /** Custom confirmation text (default: "DELETE"). Set to empty string or null to disable confirmation input. */
+  confirmationText?: string | null;
   /** Loading state during delete operation */
   loading?: boolean;
   /** Error message to display (optional) */
@@ -50,7 +50,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
   onConfirm,
   itemName,
   itemType = "item",
-  confirmationText = "DELETE",
+  confirmationText = null, // Changed default to null - no confirmation required by default
   loading = false,
   error = null,
   destructive = true,
@@ -60,15 +60,15 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
   const [touched, setTouched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus input when modal opens
+  // Focus input when modal opens (only if confirmation is required)
   useEffect(() => {
-    if (open && inputRef.current) {
+    if (open && inputRef.current && confirmationText) {
       // Small delay to ensure modal is fully rendered
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     }
-  }, [open]);
+  }, [open, confirmationText]);
 
   // Reset input when modal closes
   useEffect(() => {
@@ -86,9 +86,10 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
     }
   };
 
-  // Validate confirmation text
-  const isValid = inputValue === confirmationText;
-  const hasError = touched && inputValue !== "" && !isValid;
+  // Validate confirmation text (if required)
+  const requiresConfirmation = confirmationText !== null && confirmationText !== "";
+  const isValid = !requiresConfirmation || inputValue === confirmationText;
+  const hasError = requiresConfirmation && touched && inputValue !== "" && !isValid;
 
   // Handle confirm
   const handleConfirm = async () => {
@@ -118,9 +119,18 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
 
   const finalDescription = description || defaultDescription;
 
+  // Determine if this is a soft delete (deactivate) based on description or default behavior
+  // If description mentions "deactivate" or "restore", it's a soft delete
+  const isSoftDelete = description?.toLowerCase().includes('deactivate') || 
+                       description?.toLowerCase().includes('restore') ||
+                       (!description && !destructive); // Default to soft delete if not explicitly destructive
+
+  const actionVerb = isSoftDelete ? "Deactivate" : "Delete";
+  const actionVerbLower = isSoftDelete ? "deactivate" : "delete";
+
   return (
     <Modal
-      title={`Delete ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}${itemName ? `: ${itemName}` : ""}`}
+      title={`${actionVerb} ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}${itemName ? `: ${itemName}` : ""}`}
       open={open}
       onClose={loading ? undefined : onClose}
       role="alertdialog"
@@ -155,42 +165,46 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
             />
           </svg>
           <div className="flex-1">
-            <p className="font-semibold mb-1">Warning: This action is irreversible</p>
+            <p className="font-semibold mb-1">
+              {isSoftDelete ? "Deactivate" : "Warning: This action is irreversible"}
+            </p>
             <p className="text-sm">{finalDescription}</p>
           </div>
         </div>
 
-        {/* Confirmation Input */}
-        <FormField
-          label={`Type "${confirmationText}" to confirm`}
-          name="delete-confirmation"
-          error={hasError ? `You must type "${confirmationText}" exactly to confirm deletion` : undefined}
-          touched={touched}
-          required
-          autoFocus
-        >
-          <input
-            ref={inputRef}
-            id="delete-confirmation"
-            type="text"
-            value={inputValue}
-            onChange={handleInputChange}
-            onBlur={() => setTouched(true)}
-            onKeyDown={handleKeyDown}
-            disabled={loading}
-            className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
-              hasError
-                ? "border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50"
-                : isValid
-                ? "border-green-500 focus:ring-green-500 focus:border-green-500 bg-green-50"
-                : "border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            } text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed`}
-            placeholder={`Type "${confirmationText}" here`}
-            aria-required="true"
-            aria-invalid={hasError}
-            aria-describedby={hasError ? "delete-confirmation-error" : undefined}
-          />
-        </FormField>
+        {/* Confirmation Input - Only show if confirmation text is required */}
+        {requiresConfirmation && (
+          <FormField
+            label={`Type "${confirmationText}" to confirm`}
+            name="delete-confirmation"
+            error={hasError ? `You must type "${confirmationText}" exactly to confirm deletion` : undefined}
+            touched={touched}
+            required
+            autoFocus
+          >
+            <input
+              ref={inputRef}
+              id="delete-confirmation"
+              type="text"
+              value={inputValue}
+              onChange={handleInputChange}
+              onBlur={() => setTouched(true)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                hasError
+                  ? "border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50"
+                  : isValid
+                  ? "border-green-500 focus:ring-green-500 focus:border-green-500 bg-green-50"
+                  : "border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              } text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed`}
+              placeholder={`Type "${confirmationText}" here`}
+              aria-required="true"
+              aria-invalid={hasError}
+              aria-describedby={hasError ? "delete-confirmation-error" : undefined}
+            />
+          </FormField>
+        )}
 
         {/* Error Message */}
         {error && (
@@ -231,16 +245,18 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
             type="button"
             onClick={handleConfirm}
             loading={loading}
-            label="Delete"
-            loadingText="Deleting..."
-            variant="danger"
+            label={actionVerb}
+            loadingText={isSoftDelete ? "Deactivating..." : "Deleting..."}
+            variant={isSoftDelete ? "warning" : "danger"}
             disabled={!isValid || loading}
             className={`flex-1 px-4 py-3 ${
-              destructive
+              isSoftDelete
+                ? "bg-orange-600 hover:bg-orange-700 focus:ring-orange-500"
+                : destructive
                 ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
                 : "bg-orange-600 hover:bg-orange-700 focus:ring-orange-500"
             } text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-            aria-label={`Confirm deletion of ${itemType}`}
+            aria-label={`Confirm ${actionVerbLower} of ${itemType}`}
           />
         </div>
       </div>
