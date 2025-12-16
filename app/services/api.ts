@@ -134,7 +134,7 @@ export async function getIncubators(params?: any) {
   return response.data.success ? response.data.data.teams : response.data;
 }
 
-export async function getIncubator(id: number) {
+export async function getIncubator(id: number | string) {
   const response = await api.get(`/teams/${id}`);
   return response.data;
 }
@@ -153,17 +153,17 @@ export async function deleteIncubator(id: number) {
   return handleDelete(`/teams/${id}`);
 }
 
-export async function getIncubatorMembers(id: number) {
+export async function getIncubatorMembers(id: number | string) {
   const response = await api.get(`/teams/${id}/members`);
   return response.data;
 }
 
-export async function addIncubatorMember(id: number, data: any) {
+export async function addIncubatorMember(id: number | string, data: any) {
   const response = await api.post(`/teams/${id}/members`, data);
   return response.data;
 }
 
-export async function removeIncubatorMember(id: number, memberId: number) {
+export async function removeIncubatorMember(id: number | string, memberId: number | string) {
   return handleDelete(`/teams/${id}/members/${memberId}`);
 }
 
@@ -298,7 +298,7 @@ export async function createRequest(data: any) {
   return response.data;
 }
 
-export async function updateRequestStatus(id: number, data: any) {
+export async function updateRequestStatus(id: string | number, data: any) {
   const response = await api.put(`/requests/${id}/status`, data);
   return response.data;
 }
@@ -371,6 +371,16 @@ export async function getInventoryReport(params?: any) {
 export async function getProjectsReport(params?: any) {
   const response = await api.get('/reports/projects', { params });
   return response.data.success ? response.data.data : response.data;
+}
+
+export async function getGeneralReport(params?: any) {
+  const response = await api.get('/reports/general', { params });
+  return response.data;
+}
+
+export async function getCompanyReport(teamId: string) {
+  const response = await api.get(`/reports/company/${teamId}`);
+  return response.data;
 }
 
 export async function getAdvancedReports(params?: any) {
@@ -514,6 +524,65 @@ export async function updateProfile(data: any) {
   return response.data;
 }
 
+// Extended Profile API - New phased profile system
+export async function getExtendedProfile() {
+  const response = await api.get('/users/profile/extended');
+  return response.data;
+}
+
+export async function getProfileCompletion() {
+  const response = await api.get('/users/profile/completion');
+  return response.data;
+}
+
+export async function getProfilePhase(phaseNumber: number) {
+  const response = await api.get(`/users/profile/phase/${phaseNumber}`);
+  return response.data;
+}
+
+// Phase-specific update functions
+export async function updateProfilePhase1(data: {
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
+  phone: string;
+  profile_photo_url?: string;
+}) {
+  const response = await api.put('/users/profile/phase1', data);
+  return response.data;
+}
+
+export async function updateProfilePhase2(data: {
+  enrollment_status: string;
+  major_program: string;
+  program_of_study: string;
+  graduation_year: number;
+}) {
+  const response = await api.put('/users/profile/phase2', data);
+  return response.data;
+}
+
+export async function updateProfilePhase3(data: {
+  current_role: string;
+  skills: string[];
+  support_interests: string[];
+}) {
+  const response = await api.put('/users/profile/phase3', data);
+  return response.data;
+}
+
+export async function updateProfilePhase5(data: {
+  additional_notes?: string;
+}) {
+  const response = await api.put('/users/profile/phase5', data);
+  return response.data;
+}
+
+export async function uploadProfilePhoto(profile_photo_url: string) {
+  const response = await api.put('/users/profile/photo', { profile_photo_url });
+  return response.data;
+}
+
 // Email Preferences API
 export async function getEmailPreferences() {
   const response = await api.get('/email-preferences');
@@ -556,4 +625,12 @@ export async function getTools() {
 export async function getEvaluations() {
   // Evaluations might be part of reports or removed
   return Promise.resolve([]);
+}
+
+// CSV export for general report
+export async function exportGeneralReportCsv(params?: any) {
+  return api.get("/reports/general", {
+    params: { ...params, export: "csv" },
+    responseType: "blob",
+  });
 }

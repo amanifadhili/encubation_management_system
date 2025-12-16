@@ -6,6 +6,8 @@ import { withRetry } from "../utils/networkRetry";
 import Modal from "../components/Modal";
 import Button from "../components/Button";
 import { ButtonLoader, PageSkeleton } from "../components/loading";
+import Tooltip from "../components/Tooltip";
+import { Spinner } from "../components/loading/Spinner";
 import {
   getRequests,
   updateRequestStatus,
@@ -162,7 +164,7 @@ const MaterialPage = () => {
     setIsSubmitting(true);
     try {
       const material = materials.find(
-        (m) => m.id === Number(modalForm.materialId)
+        (m) => String(m.id) === String(modalForm.materialId)
       );
       if (!material) {
         showToast("Material not found.", "error");
@@ -173,9 +175,9 @@ const MaterialPage = () => {
         () =>
           createRequest({
             item_name: material.name,
-            description: material.description,
-            notes: modalForm.note,
-            quantity: modalForm.quantity,
+            description: material.description || '',
+            notes: modalForm.note || undefined,
+            quantity: modalForm.quantity || undefined,
           }),
         {
           maxRetries: 3,
@@ -207,8 +209,8 @@ const MaterialPage = () => {
     }
 
     try {
-      // Convert id to number if it's a string (CUID)
-      const requestId = typeof id === "string" ? Number(id) : id;
+      // Keep ID as string (Prisma uses CUID strings, not numbers)
+      const requestId = String(id);
       await withRetry(
         () => updateRequestStatus(requestId, { status: action }),
         {
@@ -392,31 +394,47 @@ const MaterialPage = () => {
                         </td>
                         <td className="px-4 py-2">
                           {isManagerOrDirector && isPending && (
-                            <div className="flex gap-2">
-                              <ButtonLoader
-                                loading={isApproving}
-                                onClick={() =>
-                                  handleAction(requestId, "approved")
-                                }
-                                label="Approve"
-                                loadingText="Approving..."
-                                variant="success"
-                                size="sm"
-                                className="bg-green-100 text-green-700 hover:bg-green-200"
+                            <div className="flex items-center gap-2">
+                              <Tooltip label={isApproving ? "Approving..." : "Approve"}>
+                                <button
+                                  onClick={() => handleAction(requestId, "approved")}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    isApproving || isDeclining
+                                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                      : "hover:bg-green-100 text-green-700"
+                                  }`}
+                                  aria-label={isApproving ? "Approving request" : "Approve request"}
                                 disabled={isApproving || isDeclining}
-                              />
-                              <ButtonLoader
-                                loading={isDeclining}
-                                onClick={() =>
-                                  handleAction(requestId, "declined")
-                                }
-                                label="Decline"
-                                loadingText="Declining..."
-                                variant="danger"
-                                size="sm"
-                                className="bg-red-100 text-red-700 hover:bg-red-200"
+                                >
+                                  {isApproving ? (
+                                    <Spinner size="sm" color="green" />
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </Tooltip>
+                              <Tooltip label={isDeclining ? "Declining..." : "Decline"}>
+                                <button
+                                  onClick={() => handleAction(requestId, "declined")}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    isApproving || isDeclining
+                                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                      : "hover:bg-red-100 text-red-700"
+                                  }`}
+                                  aria-label={isDeclining ? "Declining request" : "Decline request"}
                                 disabled={isApproving || isDeclining}
-                              />
+                                >
+                                  {isDeclining ? (
+                                    <Spinner size="sm" color="red" />
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                                    </svg>
+                                  )}
+                                </button>
+                              </Tooltip>
                             </div>
                           )}
                         </td>

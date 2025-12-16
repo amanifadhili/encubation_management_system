@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Layout";
 import Modal from "../components/Modal";
@@ -18,15 +19,38 @@ import {
   getProjectFiles,
   getIncubators
 } from "../services/api";
+import { ProjectBasicsForm, ProjectDetailsForm } from "../components/profile";
+import { RocketLaunchIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import Tooltip from "../components/Tooltip";
 
 const categories = ["All", "Technology", "Agriculture", "Health", "Education"];
-const statusOptions = ["All", "Active", "Pending", "Completed"];
+const statusOptions = ["All", "Active", "Pending", "Completed", "On Hold"];
+
+// Map display status to backend status values
+const statusMap: Record<string, string> = {
+  "Active": "active",
+  "Pending": "pending",
+  "Completed": "completed",
+  "On Hold": "on_hold",
+  "active": "active",
+  "pending": "pending",
+  "completed": "completed",
+  "on_hold": "on_hold"
+};
+
+// Map backend status to display status
+const displayStatusMap: Record<string, string> = {
+  "active": "Active",
+  "pending": "Pending",
+  "completed": "Completed",
+  "on_hold": "On Hold"
+};
 
 function getFileUrl(file: File) {
   return URL.createObjectURL(file);
 }
 
-function getFileIcon(fileName: string, mimeType?: string) {
+export function getFileIcon(fileName: string, mimeType?: string) {
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (mimeType?.startsWith('image/')) return '🖼️';
   if (ext === 'pdf') return '📄';
@@ -40,6 +64,7 @@ function getFileIcon(fileName: string, mimeType?: string) {
 const Projects = () => {
   const { user } = useAuth();
   const showToast = useToast();
+  const navigate = useNavigate();
   const isManager = user?.role === "manager";
   const isDirector = user?.role === "director";
   const isMentor = user?.role === "mentor";
@@ -52,10 +77,16 @@ const Projects = () => {
   const [teams, setTeams] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<'basics' | 'details'>('basics');
   const [form, setForm] = useState({
+    // Basic fields
     name: "",
+    status_at_enrollment: "",
+    // Detail fields
     description: "",
+    challenge_description: "",
     category: categories[1],
+    // Existing fields
     status: statusOptions[1],
     progress: 0,
     files: [] as File[],
@@ -154,9 +185,13 @@ const Projects = () => {
   if (categoryFilter !== "All") {
     filteredProjects = filteredProjects.filter(p => p.category === categoryFilter);
   }
-  // Status filter
+  // Status filter - convert display status to backend status for comparison
   if (statusFilter !== "All") {
-    filteredProjects = filteredProjects.filter(p => p.status === statusFilter);
+    const backendStatus = statusMap[statusFilter] || statusFilter.toLowerCase();
+    filteredProjects = filteredProjects.filter(p => {
+      const projectStatus = typeof p.status === 'string' ? p.status.toLowerCase() : p.status;
+      return projectStatus === backendStatus || projectStatus === statusFilter.toLowerCase();
+    });
   }
 
   // Load project files when viewing a project
@@ -172,26 +207,67 @@ const Projects = () => {
   // Add/Edit modal
   const openModal = (idx: number | null = null) => {
     setEditIdx(idx);
+    setActiveSection('basics'); // Reset to basics section
     if (idx !== null) {
       const p = filteredProjects[idx];
       setForm({
         name: p.name,
-        description: p.description,
+        status_at_enrollment: p.status_at_enrollment || "",
+        description: p.description || "",
+        challenge_description: p.challenge_description || "",
         category: p.category,
-        status: p.status,
+        status: displayStatusMap[p.status] || p.status, // Convert backend status to display status
         progress: p.progress || 0,
         files: p.files || [],
       });
     } else {
-      setForm({ name: "", description: "", category: categories[1], status: statusOptions[1], progress: 0, files: [] });
+      setForm({
+        name: "",
+        status_at_enrollment: "",
+        description: "",
+        challenge_description: "",
+        category: categories[1],
+        status: statusOptions[1],
+        progress: 0,
+        files: []
+      });
     }
     setShowModal(true);
   };
 
+  // Handle basics section save
+  const handleBasicsSave = (data: {
+    name: string;
+    status_at_enrollment: string;
+  }) => {
+    setForm((prev) => ({
+      ...prev,
+      ...data,
+    }));
+    setActiveSection('details');
+  };
+
+  // Handle details section save
+  const handleDetailsSave = (data: {
+    description: string;
+    challenge_description: string;
+    category: string;
+  }) => {
+    setForm((prev) => ({
+      ...prev,
+      ...data,
+    }));
+    // Auto-submit after details are saved
+    handleSaveProject();
+  };
+
   // Save add/edit
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.description) return;
+  const handleSaveProject = async () => {
+    // Validate required fields
+    if (!form.name || !form.description || !form.status_at_enrollment || !form.challenge_description || !form.category) {
+      showToast('Please complete all required fields', 'error');
+      return;
+    }
 
     setUploadError(null);
     setValidationErrors([]);
@@ -201,12 +277,14 @@ const Projects = () => {
       let result: any;
       if (editIdx !== null) {
         const projectId = filteredProjects[editIdx].id;
-        result = await updateProject(projectId, {
+        result =         await updateProject(projectId, {
           name: form.name,
           description: form.description,
           category: form.category,
-          status: form.status,
-          progress: form.progress
+          status: statusMap[form.status] || form.status.toLowerCase(),
+          progress: form.progress,
+          status_at_enrollment: form.status_at_enrollment || undefined,
+          challenge_description: form.challenge_description || undefined,
         });
 
         // Upload files if any
@@ -221,36 +299,53 @@ const Projects = () => {
           setUploading(false);
         }
 
-        setProjects(prev => prev.map(p => p.id === projectId ? result : p));
+        // Extract project from response
+        const updatedProject = result.data?.project || result;
+        setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
         showToast('Project updated successfully!', 'success');
       } else {
         result = await createProject({
           name: form.name,
           description: form.description,
           category: form.category,
-          status: form.status,
+          status: statusMap[form.status] || form.status.toLowerCase(),
           progress: form.progress,
-          team_id: teamId
+          status_at_enrollment: form.status_at_enrollment || undefined,
+          challenge_description: form.challenge_description || undefined,
         });
 
+        // Extract project from response
+        const project = result.data?.project || result;
+        const projectId = project.id;
+
         // Upload files if any
-        if (form.files.length > 0) {
+        if (form.files.length > 0 && projectId) {
           setUploading(true);
           setUploadProgress(0);
           const formData = new FormData();
           form.files.forEach(file => formData.append('files', file));
-          await uploadProjectFiles(result.id, formData, (progress) => {
+          await uploadProjectFiles(projectId, formData, (progress) => {
             setUploadProgress(progress);
           });
           setUploading(false);
         }
 
-        setProjects(prev => [...prev, result]);
+        setProjects(prev => [...prev, project]);
         showToast('Project created successfully!', 'success');
       }
       setShowModal(false);
       setEditIdx(null);
-      setForm({ name: "", description: "", category: categories[1], status: statusOptions[1], progress: 0, files: [] });
+      setActiveSection('basics');
+      setForm({
+        name: "",
+        status_at_enrollment: "",
+        description: "",
+        challenge_description: "",
+        category: categories[1],
+        status: statusOptions[1],
+        progress: 0,
+        files: []
+      });
       setValidationErrors([]);
       setTouchedFields(new Set());
     } catch (error: any) {
@@ -438,7 +533,7 @@ const Projects = () => {
                             <td className="px-4 py-2 text-blue-900 font-semibold">{p.name}</td>
                             <td className="px-4 py-2 text-blue-900">{team ? team.teamName : "-"}</td>
                             <td className="px-4 py-2 text-blue-900">{p.category}</td>
-                            <td className="px-4 py-2 text-blue-900">{p.status}</td>
+                            <td className="px-4 py-2 text-blue-900">{displayStatusMap[p.status] || p.status}</td>
                             <td className="px-4 py-2 text-blue-900">
                               {isIncubator ? (
                                 <input
@@ -453,17 +548,34 @@ const Projects = () => {
                                 <span>{p.progress || 0}%</span>
                               )}
                             </td>
-                            <td className="px-4 py-2 flex gap-2">
+                            <td className="px-4 py-2">
+                              <div className="flex items-center gap-2">
+                                <Tooltip label="View Details">
                               <button
-                                className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                                onClick={() => setViewIdx(idx)}
-                              >View</button>
+                                    className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
+                                onClick={() => navigate(`/projects/${p.id}`)}
+                                    aria-label="View project details"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                      <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                                      <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </Tooltip>
                               {isIncubator && (
+                                  <Tooltip label="Edit">
                                 <button
-                                  className="px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                      className="p-2 rounded-lg hover:bg-green-100 text-green-700 transition-colors"
                                   onClick={() => openModal(idx)}
-                                >Edit</button>
+                                      aria-label="Edit project"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                        <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+                                      </svg>
+                                    </button>
+                                  </Tooltip>
                               )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -478,189 +590,278 @@ const Projects = () => {
         <Modal
           title={editIdx !== null ? "Edit Project" : "Add Project"}
           open={showModal}
-          onClose={() => { setShowModal(false); setEditIdx(null); setValidationErrors([]); setTouchedFields(new Set()); }}
+          onClose={() => { 
+            setShowModal(false); 
+            setEditIdx(null); 
+            setActiveSection('basics');
+            setValidationErrors([]); 
+            setTouchedFields(new Set()); 
+          }}
           actions={null}
           role="dialog"
           aria-modal="true"
         >
-          <form onSubmit={handleSave}>
-            <ValidationErrors 
-              errors={validationErrors} 
-              onFieldFocus={handleFieldFocus}
-            />
-            
-            <FormField
-              label="Project Name"
-              name="name"
-              error={getFieldError('name')}
-              touched={touchedFields.has('name')}
-              required
-              autoFocus={focusedField === 'name'}
+          <ValidationErrors 
+            errors={validationErrors} 
+            onFieldFocus={handleFieldFocus}
+          />
+
+          {/* Section Navigation */}
+          <div className="flex gap-2 mb-6 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveSection('basics')}
+              className={`flex-shrink-0 px-4 py-3 rounded-lg border-2 transition-all ${
+                activeSection === 'basics'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : form.name && form.status_at_enrollment
+                  ? 'border-green-200 bg-green-50 text-green-700'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+              }`}
             >
-              <input
-                id="name"
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                onBlur={() => handleFieldBlur('name')}
-                disabled={submitting || uploading}
-                required
+              <div className="flex items-center justify-center gap-2">
+                <RocketLaunchIcon className="w-5 h-5" />
+                <span className="font-medium whitespace-nowrap">Project Basics</span>
+                {form.name && form.status_at_enrollment && (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (form.name && form.status_at_enrollment) {
+                  setActiveSection('details');
+                }
+              }}
+              disabled={!form.name || !form.status_at_enrollment}
+              className={`flex-shrink-0 px-4 py-3 rounded-lg border-2 transition-all ${
+                activeSection === 'details'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : form.description && form.challenge_description && form.category
+                  ? 'border-green-200 bg-green-50 text-green-700'
+                  : form.name && form.status_at_enrollment
+                  ? 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <DocumentTextIcon className="w-5 h-5" />
+                <span className="font-medium whitespace-nowrap">Project Details</span>
+                {form.description && form.challenge_description && form.category && (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+              </div>
+            </button>
+          </div>
+
+          {/* Form Sections */}
+          {activeSection === 'basics' && (
+            <div>
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Project Basics
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Provide basic information about your project.
+                </p>
+              </div>
+              <ProjectBasicsForm
+                initialData={{
+                  name: form.name,
+                  status_at_enrollment: form.status_at_enrollment,
+                }}
+                onSave={handleBasicsSave}
+                onNext={() => {
+                  if (form.name && form.status_at_enrollment) {
+                    setActiveSection('details');
+                  }
+                }}
               />
-            </FormField>
-            
-            <FormField
-              label="Description"
-              name="description"
-              error={getFieldError('description')}
-              touched={touchedFields.has('description')}
-              required
-              autoFocus={focusedField === 'description'}
-            >
-              <textarea
-                id="description"
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                onBlur={() => handleFieldBlur('description')}
-                rows={4}
-                disabled={submitting || uploading}
-                required
-              />
-            </FormField>
-            
-            <FormField
-              label="Category"
-              name="category"
-              error={getFieldError('category')}
-              touched={touchedFields.has('category')}
-              autoFocus={focusedField === 'category'}
-            >
-              <select
-                id="category"
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                value={form.category}
-                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                onBlur={() => handleFieldBlur('category')}
-                disabled={submitting || uploading}
-              >
-                {categories.slice(1).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </FormField>
-            
-            <FormField
-              label="Status"
-              name="status"
-              error={getFieldError('status')}
-              touched={touchedFields.has('status')}
-              autoFocus={focusedField === 'status'}
-            >
-              <select
-                id="status"
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                value={form.status}
-                onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                onBlur={() => handleFieldBlur('status')}
-                disabled={submitting || uploading}
-              >
-                {statusOptions.slice(1).map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </FormField>
-            
-            <FormField
-              label="Progress (%)"
-              name="progress"
-              error={getFieldError('progress')}
-              touched={touchedFields.has('progress')}
-              autoFocus={focusedField === 'progress'}
-              helperText="Enter a value between 0 and 100"
-            >
-              <input
-                id="progress"
-                type="number"
-                min={0}
-                max={100}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                value={form.progress}
-                onChange={e => setForm(f => ({ ...f, progress: Number(e.target.value) }))}
-                onBlur={() => handleFieldBlur('progress')}
-                disabled={submitting || uploading}
-              />
-            </FormField>
-            {/* File upload (real) */}
-            <div className="mb-4">
-              <label className="block mb-1 font-semibold text-blue-800">Files (images, pdf, doc, etc.)</label>
-              <input
-                type="file"
-                multiple
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                onChange={handleFileUpload}
-                accept="image/*,.pdf,.doc,.docx,.txt"
-                disabled={submitting || uploading}
-              />
-              {uploading && (
-                <div className="mt-2">
-                  <div className="bg-blue-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-sm text-blue-600 mt-1">Uploading... {uploadProgress}%</div>
-                </div>
-              )}
-              {uploadError && (
-                <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded">
-                  {uploadError}
-                </div>
-              )}
-              {form.files.length > 0 && (
-                <ul className="list-disc ml-6 text-blue-900 mt-2">
-                  {form.files.map((f: File, i: number) => (
-                    <li key={i} className="flex items-center gap-2">
-                      {f.type.startsWith("image/") ? (
-                        <img src={getFileUrl(f)} alt={f.name} className="w-10 h-10 object-cover rounded" />
-                      ) : (
-                        <span className="inline-block w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-xl">📄</span>
-                      )}
-                      <span>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
-                      <Button
-                        variant="icon"
-                        className="text-xs text-red-600 hover:underline"
-                        onClick={() => handleRemoveFile(f)}
-                        type="button"
-                        aria-label="Remove file"
-                      >Remove</Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
-            <div className="flex gap-2 justify-end">
+          )}
+
+          {activeSection === 'details' && (
+            <div>
+              {(!form.name || !form.status_at_enrollment) && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    Please complete the Project Basics section first.
+                  </p>
+                </div>
+              )}
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Project Details
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Describe your project in detail and specify the problem you're solving.
+                </p>
+              </div>
+              <ProjectDetailsForm
+                initialData={{
+                  description: form.description,
+                  challenge_description: form.challenge_description,
+                  category: form.category,
+                }}
+                onSave={handleDetailsSave}
+                onSubmit={handleSaveProject}
+              />
+            </div>
+          )}
+
+          {/* Additional Fields (Status, Progress) - Show in details section */}
+          {activeSection === 'details' && (
+            <div className="mt-6 space-y-4 border-t pt-6">
+              <FormField
+                label="Status"
+                name="status"
+                error={getFieldError('status')}
+                touched={touchedFields.has('status')}
+              >
+                <select
+                  id="status"
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                  value={form.status}
+                  onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                  onBlur={() => handleFieldBlur('status')}
+                  disabled={submitting || uploading}
+                >
+                  {statusOptions.slice(1).map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </FormField>
+              
+              <FormField
+                label="Progress (%)"
+                name="progress"
+                error={getFieldError('progress')}
+                touched={touchedFields.has('progress')}
+                helperText="Enter a value between 0 and 100"
+              >
+                <input
+                  id="progress"
+                  type="number"
+                  min={0}
+                  max={100}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                  value={form.progress}
+                  onChange={e => setForm(f => ({ ...f, progress: Number(e.target.value) }))}
+                  onBlur={() => handleFieldBlur('progress')}
+                  disabled={submitting || uploading}
+                />
+              </FormField>
+
+              {/* File upload (real) */}
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold text-blue-800">Files (images, pdf, doc, etc.)</label>
+                <input
+                  type="file"
+                  multiple
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                  onChange={handleFileUpload}
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  disabled={submitting || uploading}
+                />
+                {uploading && (
+                  <div className="mt-2">
+                    <div className="bg-blue-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-sm text-blue-600 mt-1">Uploading... {uploadProgress}%</div>
+                  </div>
+                )}
+                {uploadError && (
+                  <div className="mt-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+                    {uploadError}
+                  </div>
+                )}
+                {form.files.length > 0 && (
+                  <ul className="list-disc ml-6 text-blue-900 mt-2">
+                    {form.files.map((f: File, i: number) => (
+                      <li key={i} className="flex items-center gap-2">
+                        {f.type.startsWith("image/") ? (
+                          <img src={getFileUrl(f)} alt={f.name} className="w-10 h-10 object-cover rounded" />
+                        ) : (
+                          <span className="inline-block w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-xl">📄</span>
+                        )}
+                        <span>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <Button
+                          variant="icon"
+                          className="text-xs text-red-600 hover:underline"
+                          onClick={() => handleRemoveFile(f)}
+                          type="button"
+                          aria-label="Remove file"
+                        >Remove</Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 justify-end mt-6 pt-6 border-t">
+            <ButtonLoader
+              loading={false}
+              onClick={() => { 
+                setShowModal(false); 
+                setEditIdx(null); 
+                setActiveSection('basics');
+              }}
+              label="Cancel"
+              variant="secondary"
+              type="button"
+            />
+            {activeSection === 'basics' && (
               <ButtonLoader
                 loading={false}
-                onClick={() => { setShowModal(false); setEditIdx(null); }}
-                label="Cancel"
-                variant="secondary"
+                onClick={() => {
+                  if (form.name && form.status_at_enrollment) {
+                    setActiveSection('details');
+                  } else {
+                    showToast('Please complete all required fields in Project Basics', 'error');
+                  }
+                }}
+                label="Next: Project Details"
+                variant="primary"
                 type="button"
+                disabled={!form.name || !form.status_at_enrollment}
               />
+            )}
+            {activeSection === 'details' && (
               <ButtonLoader
                 loading={submitting}
+                onClick={handleSaveProject}
                 label={editIdx !== null ? "Update Project" : "Create Project"}
                 loadingText={editIdx !== null ? "Updating..." : "Creating..."}
                 variant="primary"
-                type="submit"
-                disabled={submitting || uploading}
+                type="button"
+                disabled={submitting || uploading || !form.name || !form.description || !form.status_at_enrollment || !form.challenge_description || !form.category}
               />
-            </div>
-          </form>
+            )}
+          </div>
         </Modal>
         {/* View Details Modal */}
         <Modal
-          title={viewIdx !== null ? `Project Details: ${filteredProjects[viewIdx].name}` : "Project Details"}
+          title={viewIdx !== null ? filteredProjects[viewIdx].name : "Project Details"}
           open={viewIdx !== null}
           onClose={() => setViewIdx(null)}
           actions={null}
@@ -668,35 +869,101 @@ const Projects = () => {
           aria-modal="true"
         >
           {viewIdx !== null && (
-            <>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Team:</div>
-                <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || "-"}</div>
+            <div className="space-y-6">
+              {/* Project Basics Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                  <RocketLaunchIcon className="w-5 h-5" />
+                  Project Basics
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Project Name:</div>
+                    <div className="text-blue-900 font-medium">{filteredProjects[viewIdx].name}</div>
               </div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Description:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].description}</div>
+                  {filteredProjects[viewIdx].team?.company_name && (
+                    <div>
+                      <div className="text-sm font-semibold text-blue-800 mb-1">Company Name:</div>
+                      <div className="text-blue-900">{filteredProjects[viewIdx].team.company_name}</div>
+                </div>
+              )}
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Team:</div>
+                    <div className="text-blue-900">{teams.find(t => t.id === filteredProjects[viewIdx].team_id)?.teamName || filteredProjects[viewIdx].team?.team_name || "-"}</div>
+                  </div>
+              {filteredProjects[viewIdx].status_at_enrollment && (
+                    <div>
+                      <div className="text-sm font-semibold text-blue-800 mb-1">Status at Enrollment:</div>
+                  <div className="text-blue-900">{filteredProjects[viewIdx].status_at_enrollment}</div>
+                </div>
+              )}
+                </div>
               </div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Category:</div>
+
+              {/* Project Details Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                  <DocumentTextIcon className="w-5 h-5" />
+                  Project Details
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-2">Description:</div>
+                    <div className="text-blue-900 whitespace-pre-wrap bg-blue-50 p-3 rounded-lg">
+                      {filteredProjects[viewIdx].description || "-"}
+                    </div>
+              </div>
+              {filteredProjects[viewIdx].challenge_description && (
+                    <div>
+                      <div className="text-sm font-semibold text-blue-800 mb-2">Specific Challenge/Problem:</div>
+                      <div className="text-blue-900 whitespace-pre-wrap bg-blue-50 p-3 rounded-lg">
+                        {filteredProjects[viewIdx].challenge_description}
+                      </div>
+                </div>
+              )}
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Category:</div>
                 <div className="text-blue-900">{filteredProjects[viewIdx].category}</div>
               </div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Status:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].status}</div>
               </div>
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Progress:</div>
-                <div className="text-blue-900">{filteredProjects[viewIdx].progress || 0}%</div>
               </div>
-              {/* Files */}
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Files:</div>
+
+              {/* Project Status Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Project Status</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Status:</div>
+                    <div className="text-blue-900">
+                      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        {displayStatusMap[filteredProjects[viewIdx].status] || filteredProjects[viewIdx].status}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-blue-800 mb-1">Progress:</div>
+                    <div className="text-blue-900">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-600 h-2.5 rounded-full transition-all"
+                            style={{ width: `${filteredProjects[viewIdx].progress || 0}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium">{filteredProjects[viewIdx].progress || 0}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Files Section */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Project Files</h3>
                 {projectFiles[filteredProjects[viewIdx].id] ? (
                   projectFiles[filteredProjects[viewIdx].id].length > 0 ? (
                     <ul className="space-y-2">
                       {projectFiles[filteredProjects[viewIdx].id].map((f, i) => (
-                        <li key={i} className="flex items-center gap-3 p-2 bg-blue-50 rounded">
+                        <li key={i} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition">
                           {f.type && f.type.startsWith("image/") ? (
                             <img
                               src={f.url}
@@ -718,7 +985,7 @@ const Projects = () => {
                               href={f.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm underline"
+                              className="text-blue-600 hover:text-blue-800 text-sm underline font-medium"
                             >
                               View
                             </a>
@@ -727,15 +994,16 @@ const Projects = () => {
                       ))}
                     </ul>
                   ) : (
-                    <div className="text-blue-400">No files uploaded.</div>
+                    <div className="text-blue-400 italic">No files uploaded.</div>
                   )
                 ) : (
                   <div className="text-blue-400">Loading files...</div>
                 )}
               </div>
-              {/* Comments */}
-              <div className="mb-4">
-                <div className="font-semibold text-blue-800 mb-1">Comments:</div>
+
+              {/* Comments Section */}
+              <div className="pb-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Comments & Notes</h3>
                 <div className="mb-2">
                   <input
                     className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
@@ -765,10 +1033,12 @@ const Projects = () => {
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-blue-400">No comments yet.</div>
+                  <div className="text-blue-400 italic">No comments yet.</div>
                 )}
               </div>
-              <div className="flex gap-2 justify-end mt-6">
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-end pt-4 border-t border-gray-200">
                 <ButtonLoader
                   loading={false}
                   onClick={() => setViewIdx(null)}
@@ -777,7 +1047,7 @@ const Projects = () => {
                   type="button"
                 />
               </div>
-            </>
+            </div>
           )}
         </Modal>
       </div>

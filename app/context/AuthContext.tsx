@@ -4,7 +4,7 @@ import * as authService from '../services/auth';
 
 interface AuthContextType {
   user: authService.User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<authService.User>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<authService.User>) => void;
   loading: boolean;
@@ -40,10 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<authService.User> => {
     const loggedInUser = await authService.login(email, password);
     setUser(loggedInUser);
-    return true;
+    return loggedInUser;
   };
 
   const logout = async (): Promise<void> => {

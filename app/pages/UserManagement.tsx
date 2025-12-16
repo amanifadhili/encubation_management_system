@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import { getUsers, createUser, updateUser, deleteUser } from "../services/api";
+import { getUsers, createUser, updateUser, deleteUser, getIncubators } from "../services/api";
 import Table, { type TableColumn } from "../components/Table";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -11,6 +11,7 @@ import { FormField } from "../components/FormField";
 import Pagination from "../components/Pagination";
 import SearchBar from "../components/SearchBar";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
+import Tooltip from "../components/Tooltip";
 
 interface User {
   id: string;
@@ -26,6 +27,7 @@ interface UserFormData {
   email: string;
   password?: string;
   role: string;
+  teamId?: string;
 }
 
 export default function UserManagement() {
@@ -50,6 +52,7 @@ export default function UserManagement() {
     name: "",
     email: "",
     role: "incubator",
+    teamId: "",
   });
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +72,9 @@ export default function UserManagement() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [formMessage, setFormMessage] = useState<string | null>(null);
   const showToast = useToast();
 
   // Debounce search input
@@ -84,6 +90,12 @@ export default function UserManagement() {
   useEffect(() => {
     loadUsers();
   }, [page, debouncedSearch, roleFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      fetchTeams();
+    }
+  }, [isModalOpen]);
 
   const loadUsers = async () => {
     try {
@@ -160,11 +172,37 @@ export default function UserManagement() {
     }
   };
 
+  const fetchTeams = async () => {
+    try {
+      setLoadingTeams(true);
+      const response = await getIncubators();
+      // Response could be {success,data} or array
+      let list: any[] = [];
+      if (Array.isArray(response)) {
+        list = response;
+      } else if (response?.data?.teams) {
+        list = response.data.teams;
+      } else if (response?.data) {
+        list = response.data;
+      } else if (response?.teams) {
+        list = response.teams;
+      }
+      setTeams(list || []);
+    } catch (error) {
+      console.error("Failed to load teams", error);
+      showToast("Failed to load teams for incubators", "error");
+      setTeams([]);
+    } finally {
+      setLoadingTeams(false);
+    }
+  };
+
   const handleCreateUser = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       setErrors({});
+      setFormMessage(null);
       // Don't send password - backend will generate it and send via email
       const { password, ...userData } = formData;
       await createUser(userData);
@@ -184,8 +222,12 @@ export default function UserManagement() {
           errorRecord[err.field].push(err.message);
         });
         setErrors(errorRecord);
+        setFormMessage(error.response.data.message || "Please fix the highlighted fields.");
+        showToast(error.response.data.message || "Please fix the highlighted fields.", "error");
       } else {
-        showToast("Failed to create user", "error");
+        const msg = error.response?.data?.message || error.message || "Failed to create user";
+        setFormMessage(msg);
+        showToast(msg, "error");
       }
     } finally {
       setIsSubmitting(false);
@@ -198,6 +240,7 @@ export default function UserManagement() {
 
     try {
       setErrors({});
+      setFormMessage(null);
       // Don't send password if it's empty (allows updating without changing password)
       const updateData: Partial<UserFormData> = { ...formData };
       if (!updateData.password || updateData.password.trim() === "") {
@@ -220,8 +263,12 @@ export default function UserManagement() {
           errorRecord[err.field].push(err.message);
         });
         setErrors(errorRecord);
+        setFormMessage(error.response.data.message || "Please fix the highlighted fields.");
+        showToast(error.response.data.message || "Please fix the highlighted fields.", "error");
       } else {
-        showToast("Failed to update user", "error");
+        const msg = error.response?.data?.message || error.message || "Failed to update user";
+        setFormMessage(msg);
+        showToast(msg, "error");
       }
     } finally {
       setIsSubmitting(false);
@@ -263,6 +310,7 @@ export default function UserManagement() {
       name: "",
       email: "",
       role: "incubator",
+      teamId: "",
     });
     setIsModalOpen(true);
   };
@@ -274,6 +322,7 @@ export default function UserManagement() {
       name: user.name,
       email: user.email,
       role: user.role,
+      teamId: "",
     });
     setIsModalOpen(true);
   };
@@ -285,6 +334,7 @@ export default function UserManagement() {
       name: "",
       email: "",
       role: "incubator",
+      teamId: "",
     });
     setErrors({});
   };
@@ -363,29 +413,46 @@ export default function UserManagement() {
       key: "actions",
       label: "Actions",
       render: (user: User) => (
-        <div className="flex space-x-2">
-          <Button
+        <div className="flex items-center gap-2">
+          <Tooltip label="View Details">
+            <button
             onClick={() => handleOpenDetailModal(user)}
-            variant="secondary"
-            className="text-sm"
-          >
-            View
-          </Button>
-          <Button
+              className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
+              aria-label="View user details"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip label="Edit">
+            <button
             onClick={() => handleOpenEditModal(user)}
-            variant="secondary"
-            className="text-sm"
-          >
-            Edit
-          </Button>
-          <Button
+              className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
+              aria-label="Edit user"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path d="M15.232 5.232a2.5 2.5 0 0 1 0 3.536l-7.5 7.5A2 2 0 0 1 6 17H3a1 1 0 0 1-1-1v-3c0-.53.21-1.04.586-1.414l7.5-7.5a2.5 2.5 0 0 1 3.536 0zm-2.828 2.828L5 15v2h2l7.404-7.404-2.828-2.828z" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip label="Delete">
+            <button
             onClick={() => handleDeleteClick(user)}
-            variant="danger"
-            className="text-sm"
+              className={`p-2 rounded-lg transition-colors ${
+                deleting 
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                  : "hover:bg-red-100 text-red-700"
+              }`}
+              aria-label="Delete user"
             disabled={deleting}
           >
-            Delete
-          </Button>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </Tooltip>
         </div>
       ),
     },
@@ -471,6 +538,11 @@ export default function UserManagement() {
           }}
         >
           <div className="space-y-4">
+            {formMessage && (
+              <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+                {formMessage}
+              </div>
+            )}
             <FormField
               label="Name"
               name="name"
@@ -521,6 +593,30 @@ export default function UserManagement() {
                 <option value="incubator">Incubator</option>
               </select>
             </FormField>
+
+            {formData.role === "incubator" && (
+              <FormField
+                label="Team"
+                name="teamId"
+                error={errors.teamId?.[0]}
+                required
+              >
+                <select
+                  name="teamId"
+                  value={formData.teamId || ""}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2.5 sm:py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder:text-gray-400 text-sm sm:text-base shadow-sm hover:shadow-md"
+                  disabled={loadingTeams}
+                >
+                  <option value="">{loadingTeams ? "Loading teams..." : "Select team"}</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.team_name || t.teamName || "Unnamed Team"}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            )}
 
             {/* ValidationErrors component removed - inline errors in FormField provide better UX */}
 

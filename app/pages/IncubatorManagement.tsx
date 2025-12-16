@@ -30,7 +30,7 @@ interface TeamMember {
 interface Team {
   id: number;
   teamName: string;
-  credentials: { email: string; password: string };
+  credentials: { name: string; email: string };
   teamLeader: { name: string; email: string; role: string };
   members: TeamMember[];
   mentor: string;
@@ -40,7 +40,7 @@ interface Team {
 const defaultForm: Team = {
   id: 0,
   teamName: "",
-  credentials: { email: "", password: "Team123" },
+  credentials: { name: "", email: "" },
   teamLeader: { name: "", email: "", role: "Team Leader" }, // will be set by team after login
   members: [],
   mentor: "",
@@ -167,10 +167,10 @@ const IncubatorManagement = () => {
   const openEditModal = (team: any) => {
     setForm({
       id: team.id,
-      teamName: team.team_name,
-      company_name: team.company_name,
+      teamName: team.team_name || team.company_name, // Use team_name, fallback to company_name if needed
+      company_name: team.company_name, // Keep for backward compatibility but won't be displayed
       status: team.status,
-      credentials: { email: "", password: "" },
+      credentials: { name: "", email: "" },
       teamLeader: { name: "", email: "", role: "Team Leader" },
       members: [],
       mentor: ""
@@ -181,10 +181,10 @@ const IncubatorManagement = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === "credentialsEmail") {
+    if (name === "credentialsName") {
+      setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, name: value } }));
+    } else if (name === "credentialsEmail") {
       setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, email: value } }));
-    } else if (name === "credentialsPassword") {
-      setForm((prev: any) => ({ ...prev, credentials: { ...prev.credentials, password: value } }));
     } else {
       setForm((prev: any) => ({ ...prev, [name]: value }));
     }
@@ -211,7 +211,7 @@ const IncubatorManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.teamName || (!isEdit && (!form.credentials.email || !form.credentials.password))) {
+    if (!form.teamName || (!isEdit && (!form.credentials.name || !form.credentials.email))) {
       showToast("Please fill all required fields.", "error");
       return;
     }
@@ -223,22 +223,22 @@ const IncubatorManagement = () => {
       if (isEdit) {
         await updateIncubator(form.id, {
           team_name: form.teamName,
-          company_name: form.company_name || '',
+          company_name: form.teamName, // Use same value for both
           status: form.status
         });
         setIncubators((prev) =>
           prev.map((team) =>
-            team.id === form.id ? { ...team, team_name: form.teamName, company_name: form.company_name, status: form.status } : team
+            team.id === form.id ? { ...team, team_name: form.teamName, company_name: form.teamName, status: form.status } : team
           )
         );
         showToast("Team updated successfully!", "success");
       } else {
         const result = await createIncubator({
           team_name: form.teamName,
-          company_name: form.company_name || '',
+          company_name: form.teamName, // Use same value for both
           credentials: {
-            email: form.credentials.email,
-            password: form.credentials.password
+            name: form.credentials.name,
+            email: form.credentials.email
           }
         });
         if (result.success && result.data?.team) {
@@ -451,20 +451,55 @@ const IncubatorManagement = () => {
         </div>
 
         {loading ? (
-          <PageSkeleton count={6} layout="card" />
+          <PageSkeleton count={6} layout="table" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-blue-900">Team Name</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-blue-900">Company</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-blue-900">Status</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-blue-900">Mentor</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-blue-900">Created</th>
+                    {canModify && (
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-blue-900">Actions</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
             {incubators.length === 0 ? (
-              <div className="col-span-full text-center text-blue-400 py-12">No teams found.</div>
+                    <tr>
+                      <td colSpan={canModify ? 6 : 5} className="px-4 py-12 text-center text-blue-400">
+                        No teams found.
+                      </td>
+                    </tr>
             ) : (
               incubators
                 .filter(team => team.team_name.toLowerCase().includes(search.toLowerCase()))
                 .map((team: any) => (
-                  <div key={team.id} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow border border-blue-100">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xl font-bold text-blue-900">{team.team_name}</h3>
+                        <tr key={team.id} className="hover:bg-blue-50 transition-colors">
+                          <td className="px-4 py-3 text-blue-900 font-semibold">{team.team_name}</td>
+                          <td className="px-4 py-3 text-blue-700">{team.company_name || 'N/A'}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={team.status === "active" ? "success" : team.status === "pending" ? "warning" : "default"}>
+                              {team.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-blue-700">
+                            {team.mentor_assignments && team.mentor_assignments.length > 0 ? (
+                              <Badge variant="default" className="bg-purple-100 text-purple-800">
+                                {team.mentor_assignments[0].mentor?.user?.name || 'Unknown'}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-500">No mentor assigned</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-blue-700">{new Date(team.created_at).toLocaleDateString()}</td>
                       {canModify && (
-                        <div className="flex gap-2">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
                           <Tooltip label="Edit Team">
                             <button
                               className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
@@ -487,49 +522,26 @@ const IncubatorManagement = () => {
                               </svg>
                             </button>
                           </Tooltip>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-3">
-                      <div className="text-blue-700">
-                        <span className="font-semibold">Company:</span> {team.company_name || 'N/A'}
-                      </div>
-                      <div className="text-blue-700">
-                        <span className="font-semibold">Status:</span>
-                        <Badge variant={team.status === "active" ? "success" : team.status === "pending" ? "warning" : "default"} className="ml-2">
-                          {team.status}
-                        </Badge>
-                      </div>
-                      <div className="text-blue-700">
-                        <span className="font-semibold">Mentor:</span>
-                        {team.mentor_assignments && team.mentor_assignments.length > 0 ? (
-                          <Badge variant="default" className="bg-purple-100 text-purple-800 ml-2">
-                            {team.mentor_assignments[0].mentor?.user?.name || 'Unknown'}
-                          </Badge>
-                        ) : (
-                          <span className="text-gray-500 ml-2">No mentor assigned</span>
-                        )}
-                      </div>
-                      <div className="text-blue-700">
-                        <span className="font-semibold">Created:</span> {new Date(team.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    {canModify && (
-                      <div className="mt-4 pt-4 border-t border-blue-100">
+                                <Tooltip label="Assign Mentor">
                         <button
-                          className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg font-semibold shadow hover:from-purple-700 hover:to-purple-600 transition flex items-center justify-center gap-2"
+                                    className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition"
                           onClick={() => openMentorModal(team)}
+                                    aria-label="Assign Mentor"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                           </svg>
-                          Assign Mentor
                         </button>
+                                </Tooltip>
                       </div>
+                            </td>
                     )}
-                  </div>
+                        </tr>
                 ))
             )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -550,7 +562,7 @@ const IncubatorManagement = () => {
           />
           
           <FormField
-            label="Team Name"
+            label="Company Name"
             name="team_name"
             error={getFieldError('team_name')}
             touched={touchedFields.has('team_name')}
@@ -566,29 +578,33 @@ const IncubatorManagement = () => {
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
               required
               disabled={submitting}
-            />
-          </FormField>
-          
-          <FormField
-            label="Company Name"
-            name="company_name"
-            error={getFieldError('company_name')}
-            touched={touchedFields.has('company_name')}
-            autoFocus={focusedField === 'company_name'}
-          >
-            <input
-              id="company_name"
-              name="company_name"
-              value={form.company_name || ''}
-              onChange={handleChange}
-              onBlur={() => handleFieldBlur('company_name')}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-              disabled={submitting}
+              placeholder="Enter company name"
             />
           </FormField>
           
           {!isEdit && (
             <>
+              <FormField
+                label="Team Leader Name"
+                name="credentials_name"
+                error={getFieldError('credentials.name')}
+                touched={touchedFields.has('credentials.name')}
+                required
+                autoFocus={focusedField === 'credentials.name'}
+              >
+                <input
+                  id="credentials_name"
+                  name="credentialsName"
+                  type="text"
+                  value={form.credentials.name}
+                  onChange={handleChange}
+                  onBlur={() => handleFieldBlur('credentials.name')}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
+                  required
+                  disabled={submitting}
+                />
+              </FormField>
+
               <FormField
                 label="Team Leader Email"
                 name="email"
@@ -604,28 +620,6 @@ const IncubatorManagement = () => {
                   value={form.credentials.email}
                   onChange={handleChange}
                   onBlur={() => handleFieldBlur('email')}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
-                  required
-                  disabled={submitting}
-                />
-              </FormField>
-              
-              <FormField
-                label="Team Leader Password"
-                name="password"
-                error={getFieldError('password')}
-                touched={touchedFields.has('password')}
-                required
-                autoFocus={focusedField === 'password'}
-                helperText="Minimum 6 characters"
-              >
-                <input
-                  id="password"
-                  name="credentialsPassword"
-                  type="password"
-                  value={form.credentials.password}
-                  onChange={handleChange}
-                  onBlur={() => handleFieldBlur('password')}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50"
                   required
                   disabled={submitting}

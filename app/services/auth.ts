@@ -23,6 +23,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  password_status?: 'needs_change' | 'ok';
   teamId?: string;
   teamLeader?: any;
   teamName?: string;
@@ -32,6 +33,21 @@ export interface User {
 }
 
 let currentUser: User | null = null;
+
+const mapApiUser = (apiUser: any): User => ({
+  id: apiUser.id,
+  name: apiUser.name,
+  email: apiUser.email,
+  role: apiUser.role,
+  password_status: apiUser.password_status,
+  // Normalize possible API shapes for team info
+  teamId: apiUser.teamId || apiUser.team_id || apiUser.team?.id,
+  teamLeader: apiUser.teamLeader,
+  teamName: apiUser.teamName || apiUser.team_name,
+  members: apiUser.members,
+  mentor: apiUser.mentor,
+  status: apiUser.status,
+});
 
 export async function login(email: string, password: string): Promise<User> {
   const loginUrl = `${API_BASE_URL}/auth/login`;
@@ -47,25 +63,17 @@ export async function login(email: string, password: string): Promise<User> {
       password
     });
 
-  if (response.data.success) {
-    const { token, user } = response.data.data;
+    if (response.data.success) {
+      const { token, user } = response.data.data;
 
-    // Store token in localStorage
-    localStorage.setItem('token', token);
+      // Store token in localStorage
+      localStorage.setItem('token', token);
 
-    // Set current user
-    currentUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      teamId: user.team_id,
-      // For incubator role, we might need to fetch additional team data
-      // But for now, keep it simple
-    };
+      // Set current user
+      currentUser = mapApiUser(user);
 
-    return currentUser;
-  }
+      return currentUser;
+    }
 
     // If response is not successful, throw error
     throw new Error(response.data.message || 'Login failed');
@@ -112,7 +120,8 @@ export async function getCurrentUser(): Promise<User | null> {
     });
 
     if (response.data.success) {
-      currentUser = response.data.data.user;
+      const apiUser = response.data.data.user;
+      currentUser = mapApiUser(apiUser);
       return currentUser;
     }
 
@@ -121,6 +130,32 @@ export async function getCurrentUser(): Promise<User | null> {
     console.error('Get current user error:', error);
     localStorage.removeItem('token');
     return null;
+  }
+}
+
+export async function changePassword(payload: { currentPassword?: string; newPassword: string }): Promise<void> {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('Not authenticated');
+  }
+
+  const requestBody: { current_password?: string; new_password: string } = {
+    new_password: payload.newPassword
+  };
+
+  // Only include current_password if provided (for regular password changes)
+  if (payload.currentPassword) {
+    requestBody.current_password = payload.currentPassword;
+  }
+
+  await axios.post(`${API_BASE_URL}/auth/change-password`, requestBody, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (currentUser) {
+    currentUser = { ...currentUser, password_status: 'ok' };
   }
 }
 

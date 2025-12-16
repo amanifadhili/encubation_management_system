@@ -1,0 +1,298 @@
+/**
+ * Print styles for professional reports
+ * Ensures reports print correctly with proper formatting
+ */
+
+@media print {
+  /* Page setup */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* Hide non-printable elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Hide common UI elements */
+  header,
+  nav,
+  .navbar,
+  .sidebar,
+  .main-header,
+  .page-header,
+  .topbar,
+  .app-header,
+  .app-navbar,
+  .app-sidebar,
+  .sidebar-wrapper,
+  .navbar-header,
+  .layout-wrapper,
+  .main-sidebar,
+  button:not(.print-keep),
+  .no-print-button {
+    display: none !important;
+  }
+
+  /* Ensure report container takes full width */
+  [id*="export"],
+  [id*="report"],
+  .report-container {
+    page-break-inside: avoid;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Body styling */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Color preservation - ensure colors print correctly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Table styling for print */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    page-break-inside: auto;
+  }
+
+  /* Table headers */
+  thead {
+    display: table-header-group;
+    background-color: #e7f0ff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Table rows */
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Table cells */
+  th,
+  td {
+    border: 1px solid #999 !important;
+    padding: 6px !important;
+    font-size: 12px !important;
+    vertical-align: top;
+  }
+
+  /* Table headers specific styling */
+  th {
+    background-color: #e7f0ff !important;
+    font-weight: 700 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Table footer */
+  tfoot {
+    display: table-footer-group;
+    background-color: #e5e7eb !important;
+    font-weight: 600 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Report header styling */
+  .export-header {
+    font-weight: 700 !important;
+    border: 1px solid #999 !important;
+    padding: 12px !important;
+    background-color: #f9fafb !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .export-date {
+    text-align: right !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
+  /* Hide specific columns in print */
+  .print-hide,
+  .sale-loss-column {
+    display: none !important;
+  }
+
+  /* Show only print-specific columns */
+  .print-only {
+    display: table-cell !important;
+  }
+
+  /* Warning/error indicators - ensure amber colors print */
+  .bg-amber-50,
+  [class*="bg-amber"] {
+    background-color: #fffbeb !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .text-amber-700,
+  [class*="text-amber"] {
+    color: #b45309 !important;
+  }
+
+  /* Missing data indicators */
+  .text-amber-700 {
+    color: #b45309 !important;
+    font-weight: 500 !important;
+  }
+
+  /* Ensure borders are visible */
+  .border,
+  [class*="border"] {
+    border-color: #999 !important;
+  }
+
+  /* Text alignment */
+  .text-right {
+    text-align: right !important;
+  }
+
+  .text-left {
+    text-align: left !important;
+  }
+
+  .text-center {
+    text-align: center !important;
+  }
+
+  /* Font weights */
+  .font-semibold,
+  .font-bold {
+    font-weight: 600 !important;
+  }
+
+  /* Ensure backgrounds print */
+  .bg-blue-50,
+  [class*="bg-blue"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bg-gray-200,
+  [class*="bg-gray"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure consistent font rendering in print */
+  * {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+  }
+
+  /* Prevent text from being too small */
+  body {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Ensure report header prints properly */
+  .export-header {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure tables don't break awkwardly */
+  .overflow-x-auto {
+    page-break-inside: avoid;
+  }
+
+  /* Optimize table cell padding for print */
+  table th,
+  table td {
+    padding: 6px 8px !important;
+  }
+
+  /* Ensure signature sections don't break */
+  .report-signatures {
+    page-break-before: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Signature sections */
+  .report-signatures {
+    margin-top: 48px !important;
+  }
+
+  .signature-line {
+    border-bottom: 1px solid #999 !important;
+    width: 256px !important;
+    min-height: 24px !important;
+  }
+
+  /* Responsive table handling in print */
+  .overflow-x-auto {
+    overflow-x: visible !important;
+  }
+
+  /* Ensure table responsiveness doesn't break print layout */
+  @media print {
+    table {
+      min-width: 100% !important;
+    }
+  }
+
+  /* Page break handling for tables */
+  table thead tr {
+    page-break-after: avoid;
+  }
+
+  table tbody tr {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure proper spacing in print */
+  .space-y-4 > * + * {
+    margin-top: 1rem !important;
+  }
+
+  .space-y-2 > * + * {
+    margin-top: 0.5rem !important;
+  }
+}
+
+/* Portrait orientation option */
+@media print and (orientation: portrait) {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}
+
+/* Landscape orientation (default for reports) */
+@media print and (orientation: landscape) {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+}
+

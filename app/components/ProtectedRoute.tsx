@@ -1,10 +1,12 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute() {
   const { user, loading } = useAuth();
-  
+  const location = useLocation();
+  const forcePath = '/force-password-change';
+
   // Wait for auth check to complete before redirecting
   if (loading) {
     return (
@@ -20,5 +22,12 @@ export default function ProtectedRoute() {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  // Force password change redirect for any user flagged as needs_change
+  if (user.password_status === 'needs_change' && location.pathname !== forcePath) {
+    return <Navigate to={forcePath} replace />;
+  }
+
+  // Allow access to the force password page itself
   return <Outlet />;
-} 
+}

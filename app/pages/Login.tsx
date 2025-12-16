@@ -26,7 +26,12 @@ const Login = () => {
     );
   }
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) {
+    if (user.password_status === "needs_change") {
+      return <Navigate to="/force-password-change" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +39,12 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate("/dashboard");
+      const loggedIn = await login(email, password);
+      if (loggedIn.password_status === "needs_change") {
+        navigate("/force-password-change");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       // Use comprehensive error handler for all status codes
       const errorDetails = ErrorHandler.handleError(
