@@ -59,7 +59,7 @@ const MentorManagement = () => {
   const [form, setForm] = useState({ ...defaultForm });
   const [isEdit, setIsEdit] = useState(false);
   const [assignMentorId, setAssignMentorId] = useState<string | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const showToast = useToast();
@@ -146,9 +146,9 @@ const MentorManagement = () => {
 
   const openAssignModal = (mentor: any) => {
     setAssignMentorId(mentor.id);
-    // Get current team assignment (only one team per mentor)
-    const currentTeam = mentor.mentor_assignments?.[0]?.team_id || null;
-    setSelectedTeam(currentTeam);
+    // Get all current team assignments for this mentor (one-to-many relationship)
+    const currentTeamIds = mentor.mentor_assignments?.map((assignment: any) => assignment.team_id) || [];
+    setSelectedTeams(currentTeamIds);
     setShowAssignModal(true);
   };
 
@@ -330,10 +330,14 @@ const MentorManagement = () => {
     }
   }, [showInactive]);
 
-  // Assign Team Modal logic (one-to-one relationship)
+  // Assign Team Modal logic (one-to-many relationship)
   const handleTeamSelect = (teamId: string) => {
-    // Allow deselecting by clicking the same radio button
-    setSelectedTeam(prev => prev === teamId ? null : teamId);
+    // Toggle team selection (add if not selected, remove if selected)
+    setSelectedTeams(prev => 
+      prev.includes(teamId) 
+        ? prev.filter(id => id !== teamId)
+        : [...prev, teamId]
+    );
   };
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
@@ -342,42 +346,38 @@ const MentorManagement = () => {
 
     setAssigning(true);
     try {
-      // Get current mentor to find existing assignment
+      // Get current mentor to find existing assignments
       const currentMentor = mentors.find(m => m.id === assignMentorId);
-      const existingTeam = currentMentor?.mentor_assignments?.[0]?.team_id || null;
+      const existingTeamIds = currentMentor?.mentor_assignments?.map((assignment: any) => assignment.team_id) || [];
 
-      console.log('=== ASSIGNING TEAM TO MENTOR DEBUG ===');
-      console.log('Mentor ID:', assignMentorId);
-      console.log('Selected Team ID:', selectedTeam);
-      console.log('Existing Team ID:', existingTeam);
-      console.log('Mentor ID type:', typeof assignMentorId);
-      console.log('Selected Team type:', typeof selectedTeam);
+      // Find teams to add (selected but not currently assigned)
+      const teamsToAdd = selectedTeams.filter(teamId => !existingTeamIds.includes(teamId));
+      
+      // Find teams to remove (currently assigned but not selected)
+      const teamsToRemove = existingTeamIds.filter((teamId: string) => !selectedTeams.includes(teamId));
 
-      // If there's an existing assignment and it's different from the selected one, remove it
-      if (existingTeam && existingTeam !== selectedTeam) {
-        console.log('Removing existing assignment...');
-        await removeMentorFromTeam(assignMentorId, existingTeam);
+      // Remove unselected teams
+      for (const teamId of teamsToRemove) {
+        await removeMentorFromTeam(assignMentorId, teamId);
       }
 
-      // If a team is selected and it's different from the existing one, add it
-      if (selectedTeam && selectedTeam !== existingTeam) {
-        console.log('Adding new assignment...');
-        console.log('Request payload:', { team_id: selectedTeam });
-        await assignMentorToTeam(assignMentorId, { team_id: selectedTeam });
+      // Add newly selected teams
+      for (const teamId of teamsToAdd) {
+        await assignMentorToTeam(assignMentorId, { team_id: teamId });
       }
 
       // Reload mentors to get updated assignments
       await loadMentors();
       
       setShowAssignModal(false);
-      showToast("Team assigned successfully!", "success");
+      showToast("Team assignments updated successfully!", "success");
     } catch (error: any) {
       console.error('=== ASSIGNMENT FAILED ===');
       console.error('Full error object:', error);
       console.error('Error response:', error.response);
       console.error('Error response data:', error.response?.data);
       console.error('Validation errors:', error.response?.data?.errors);
-      ErrorHandler.handleError(error, showToast, 'assigning team');
+      ErrorHandler.handleError(error, showToast, 'assigning teams');
     } finally {
       setAssigning(false);
     }
@@ -391,17 +391,20 @@ const MentorManagement = () => {
     { key: "phone", label: "Phone", className: "text-blue-700" },
     {
       key: "mentor_assignments",
-      label: "Assigned Team",
+      label: "Assigned Teams",
       render: row => {
         if (row.mentor_assignments && row.mentor_assignments.length > 0) {
-          const assignment = row.mentor_assignments[0];
           return (
-            <Badge variant="default" className="bg-green-100 text-green-800">
-              {assignment.team?.team_name || "Unknown"}
-            </Badge>
+            <div className="flex flex-wrap gap-1">
+              {row.mentor_assignments.map((assignment: any, index: number) => (
+                <Badge key={assignment.id || index} variant="default" className="bg-green-100 text-green-800">
+                  {assignment.team?.team_name || "Unknown"}
+                </Badge>
+              ))}
+            </div>
           );
         }
-        return <span className="text-gray-500">No team assigned</span>;
+        return <span className="text-gray-500">No teams assigned</span>;
       },
       className: "text-blue-700"
     },
@@ -715,7 +718,7 @@ const MentorManagement = () => {
         <form id="assign-form" onSubmit={handleAssignSubmit}>
           <div className="mb-4">
             <p className="text-sm text-gray-600 mb-4">
-              Select a team to assign to this mentor. Each mentor can only be assigned to one team. Click the selected team again to unassign.
+              Select one or more teams to assign to this mentor. Mentors can be assigned to multiple teams. Click a selected team again to unassign.
             </p>
             {teams.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -725,46 +728,32 @@ const MentorManagement = () => {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {teams.map((team: any) => {
-                  const isSelected = selectedTeam === team.id;
-                  const isAssignedToOtherMentor = team.mentor_assignments && 
-                    team.mentor_assignments.length > 0 && 
-                    team.mentor_assignments[0].mentor_id !== assignMentorId;
-                  const assignedMentorName = isAssignedToOtherMentor ? team.mentor_assignments[0].mentor?.user?.name : null;
+                  const isSelected = selectedTeams.includes(team.id);
                   
                   return (
                     <label
                       key={team.id}
                       className={`flex items-center gap-3 p-3 rounded-lg transition border-2 ${
-                        isAssignedToOtherMentor
-                          ? 'bg-gray-100 border-gray-300 opacity-60 cursor-not-allowed'
-                          : isSelected
+                        isSelected
                           ? 'bg-blue-50 border-blue-500 shadow-md cursor-pointer'
                           : 'bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-300 cursor-pointer'
                       }`}
                     >
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="team"
                         checked={isSelected}
-                        onChange={() => !isAssignedToOtherMentor && !assigning && handleTeamSelect(team.id)}
-                        disabled={isAssignedToOtherMentor || assigning}
+                        onChange={() => !assigning && handleTeamSelect(team.id)}
+                        disabled={assigning}
                         className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <div className="flex-1">
-                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : isAssignedToOtherMentor ? 'text-gray-500' : 'text-gray-900'}`}>
-                          {team.team_name}
+                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                          {team.team_name || 'Unknown'}
                         </div>
-                        <div className="text-sm text-gray-600">{team.company_name || 'No company name'}</div>
-                        {isAssignedToOtherMentor && (
-                          <div className="text-xs text-orange-600 font-semibold mt-1 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                            </svg>
-                            Already assigned to mentor "{assignedMentorName}"
-                          </div>
-                        )}
+                        <div className="text-sm text-gray-600">{team.company_name || 'No company listed'}</div>
                       </div>
-                      {isSelected && !isAssignedToOtherMentor && (
+                      {isSelected && (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-600">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                         </svg>

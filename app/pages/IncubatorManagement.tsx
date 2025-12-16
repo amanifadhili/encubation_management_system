@@ -101,7 +101,7 @@ const IncubatorManagement = () => {
   // Mentor assignment state
   const [showMentorModal, setShowMentorModal] = useState(false);
   const [assignTeamId, setAssignTeamId] = useState<string | null>(null);
-  const [selectedMentor, setSelectedMentor] = useState<string | null>(null);
+  const [selectedMentors, setSelectedMentors] = useState<string[]>([]);
 
   // Load data on mount
   useEffect(() => {
@@ -384,15 +384,19 @@ const IncubatorManagement = () => {
   // Mentor assignment handlers
   const openMentorModal = (team: any) => {
     setAssignTeamId(team.id);
-    // Get current mentor assignment for this team (only one mentor per team)
-    const currentMentor = team.mentor_assignments?.[0]?.mentor_id || null;
-    setSelectedMentor(currentMentor);
+    // Get all current mentor assignments for this team (one-to-many relationship)
+    const currentMentorIds = team.mentor_assignments?.map((assignment: any) => assignment.mentor_id) || [];
+    setSelectedMentors(currentMentorIds);
     setShowMentorModal(true);
   };
 
   const handleMentorSelect = (mentorId: string) => {
-    // Allow deselecting by clicking the same radio button
-    setSelectedMentor(prev => prev === mentorId ? null : mentorId);
+    // Toggle mentor selection (add if not selected, remove if selected)
+    setSelectedMentors(prev => 
+      prev.includes(mentorId) 
+        ? prev.filter(id => id !== mentorId)
+        : [...prev, mentorId]
+    );
   };
 
   const handleMentorAssignSubmit = async (e: React.FormEvent) => {
@@ -401,42 +405,38 @@ const IncubatorManagement = () => {
 
     setAssigningMentor(true);
     try {
-      // Get current team to find existing assignment
+      // Get current team to find existing assignments
       const currentTeam = incubators.find(t => t.id === assignTeamId);
-      const existingMentor = currentTeam?.mentor_assignments?.[0]?.mentor_id || null;
+      const existingMentorIds = currentTeam?.mentor_assignments?.map((assignment: any) => assignment.mentor_id) || [];
 
-      console.log('=== ASSIGNING MENTOR TO TEAM DEBUG ===');
-      console.log('Team ID:', assignTeamId);
-      console.log('Selected Mentor ID:', selectedMentor);
-      console.log('Existing Mentor ID:', existingMentor);
-      console.log('Team ID type:', typeof assignTeamId);
-      console.log('Selected Mentor type:', typeof selectedMentor);
+      // Find mentors to add (selected but not currently assigned)
+      const mentorsToAdd = selectedMentors.filter(mentorId => !existingMentorIds.includes(mentorId));
+      
+      // Find mentors to remove (currently assigned but not selected)
+      const mentorsToRemove = existingMentorIds.filter((mentorId: string) => !selectedMentors.includes(mentorId));
 
-      // If there's an existing mentor and it's different from the selected one, remove it
-      if (existingMentor && existingMentor !== selectedMentor) {
-        console.log('Removing existing mentor...');
-        await removeMentorFromTeam(existingMentor, assignTeamId);
+      // Remove unselected mentors
+      for (const mentorId of mentorsToRemove) {
+        await removeMentorFromTeam(mentorId, assignTeamId);
       }
 
-      // If a mentor is selected and it's different from the existing one, add it
-      if (selectedMentor && selectedMentor !== existingMentor) {
-        console.log('Adding new mentor...');
-        console.log('Request payload:', { team_id: assignTeamId });
-        await assignMentorToTeam(selectedMentor, { team_id: assignTeamId });
+      // Add newly selected mentors
+      for (const mentorId of mentorsToAdd) {
+        await assignMentorToTeam(mentorId, { team_id: assignTeamId });
       }
 
       // Reload teams to get updated assignments
       await loadIncubators();
       
       setShowMentorModal(false);
-      showToast("Mentor assigned successfully!", "success");
+      showToast("Mentor assignments updated successfully!", "success");
     } catch (error: any) {
       console.error('=== ASSIGNMENT FAILED ===');
       console.error('Full error object:', error);
       console.error('Error response:', error.response);
       console.error('Error response data:', error.response?.data);
       console.error('Validation errors:', error.response?.data?.errors);
-      ErrorHandler.handleError(error, showToast, 'assigning mentor');
+      ErrorHandler.handleError(error, showToast, 'assigning mentors');
     } finally {
       setAssigningMentor(false);
     }
@@ -625,11 +625,15 @@ const IncubatorManagement = () => {
                           </td>
                           <td className="px-4 py-3 text-blue-700">
                             {team.mentor_assignments && team.mentor_assignments.length > 0 ? (
-                              <Badge variant="default" className="bg-purple-100 text-purple-800">
-                                {team.mentor_assignments[0].mentor?.user?.name || 'Unknown'}
-                              </Badge>
+                              <div className="flex flex-wrap gap-1">
+                                {team.mentor_assignments.map((assignment: any, index: number) => (
+                                  <Badge key={assignment.id || index} variant="default" className="bg-purple-100 text-purple-800">
+                                    {assignment.mentor?.user?.name || 'Unknown'}
+                                  </Badge>
+                                ))}
+                              </div>
                             ) : (
-                              <span className="text-gray-500">No mentor assigned</span>
+                              <span className="text-gray-500">No mentors assigned</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-blue-700">{new Date(team.created_at).toLocaleDateString()}</td>
@@ -835,7 +839,7 @@ const IncubatorManagement = () => {
         <form id="mentor-assign-form" onSubmit={handleMentorAssignSubmit}>
           <div className="mb-4">
             <p className="text-sm text-gray-600 mb-4">
-              Select a mentor to assign to this team. Each team can only have one mentor. Click the selected mentor again to unassign.
+              Select one or more mentors to assign to this team. Mentors can be assigned to multiple teams. Click a selected mentor again to unassign.
             </p>
             {mentors.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -848,47 +852,33 @@ const IncubatorManagement = () => {
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {mentors.map((mentor: any) => {
-                  const isSelected = selectedMentor === mentor.id;
-                  const isAssignedToOtherTeam = mentor.mentor_assignments && 
-                    mentor.mentor_assignments.length > 0 && 
-                    mentor.mentor_assignments[0].team_id !== assignTeamId;
-                  const assignedTeamName = isAssignedToOtherTeam ? mentor.mentor_assignments[0].team?.team_name : null;
+                  const isSelected = selectedMentors.includes(mentor.id);
                   
                   return (
                     <label
                       key={mentor.id}
                       className={`flex items-center gap-3 p-3 rounded-lg transition border-2 ${
-                        isAssignedToOtherTeam
-                          ? 'bg-gray-100 border-gray-300 opacity-60 cursor-not-allowed'
-                          : isSelected
+                        isSelected
                           ? 'bg-blue-50 border-blue-500 shadow-md cursor-pointer'
                           : 'bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-300 cursor-pointer'
                       }`}
                     >
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="mentor"
                         checked={isSelected}
-                        onChange={() => !isAssignedToOtherTeam && !assigningMentor && handleMentorSelect(mentor.id)}
-                        disabled={isAssignedToOtherTeam || assigningMentor}
+                        onChange={() => !assigningMentor && handleMentorSelect(mentor.id)}
+                        disabled={assigningMentor}
                         className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <div className="flex-1">
-                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : isAssignedToOtherTeam ? 'text-gray-500' : 'text-gray-900'}`}>
+                        <div className={`font-semibold ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
                           {mentor.user?.name || 'Unknown'}
                         </div>
                         <div className="text-sm text-gray-600">{mentor.expertise || 'No expertise listed'}</div>
                         <div className="text-xs text-gray-500">{mentor.user?.email || ''}</div>
-                        {isAssignedToOtherTeam && (
-                          <div className="text-xs text-orange-600 font-semibold mt-1 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                            </svg>
-                            Already assigned to "{assignedTeamName}"
-                          </div>
-                        )}
                       </div>
-                      {isSelected && !isAssignedToOtherTeam && (
+                      {isSelected && (
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-blue-600">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                         </svg>
