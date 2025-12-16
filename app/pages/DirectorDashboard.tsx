@@ -205,7 +205,7 @@ const DirectorDashboard = () => {
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (
       !confirm(
-        `Are you sure you want to delete ${userName}? This action cannot be undone.`
+        `Are you sure you want to deactivate ${userName}? You can restore this user later from the inactive users list.`
       )
     ) {
       return;
@@ -213,7 +213,7 @@ const DirectorDashboard = () => {
 
     try {
       await deleteUser(userId);
-      showToast("User deleted successfully", "success");
+      showToast("User deactivated successfully", "success");
       loadUsers(true);
     } catch (error: any) {
       console.error("Failed to delete user:", error);

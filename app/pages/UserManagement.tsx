@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useToast } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
-import { getUsers, createUser, updateUser, deleteUser, getIncubators } from "../services/api";
+import { getUsers, createUser, updateUser, deleteUser, getIncubators, getInactiveUsers, restoreUser } from "../services/api";
 import Table, { type TableColumn } from "../components/Table";
 import Button from "../components/Button";
 import Modal from "../components/Modal";
@@ -18,6 +18,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  status?: string;
   created_at: string;
   updated_at?: string;
 }
@@ -75,6 +76,9 @@ export default function UserManagement() {
   const [teams, setTeams] = useState<any[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveUsers, setInactiveUsers] = useState<User[]>([]);
+  const [loadingInactive, setLoadingInactive] = useState(false);
   const showToast = useToast();
 
   // Debounce search input
@@ -88,8 +92,16 @@ export default function UserManagement() {
 
   // Load users on component mount and when filters change
   useEffect(() => {
-    loadUsers();
-  }, [page, debouncedSearch, roleFilter, sortBy, sortOrder]);
+    if (!showInactive) {
+      loadUsers();
+    }
+  }, [page, debouncedSearch, roleFilter, sortBy, sortOrder, showInactive]);
+
+  useEffect(() => {
+    if (showInactive) {
+      loadInactiveUsers();
+    }
+  }, [showInactive]);
 
   useEffect(() => {
     if (isModalOpen) {
@@ -197,6 +209,33 @@ export default function UserManagement() {
     }
   };
 
+  const loadInactiveUsers = async () => {
+    try {
+      setLoadingInactive(true);
+      const response = await getInactiveUsers();
+
+      let users: User[] = [];
+      if (Array.isArray(response)) {
+        users = response as User[];
+      } else if (response?.data) {
+        users = Array.isArray(response.data) ? response.data : response.data.users || [];
+      }
+
+      setInactiveUsers(users);
+    } catch (error: any) {
+      console.error("Failed to load inactive users:", error);
+      showToast(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to load inactive users",
+        "error"
+      );
+      setInactiveUsers([]);
+    } finally {
+      setLoadingInactive(false);
+    }
+  };
+
   const handleCreateUser = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -280,6 +319,41 @@ export default function UserManagement() {
     setDeleteModalOpen(true);
   };
 
+  const handleRestoreUser = async (user: User) => {
+    if (
+      !confirm(
+        `Restore ${user.name}? This will reactivate their account and allow them to log in again.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setDeletingUserId(user.id);
+      const response = await restoreUser(user.id);
+      if (response.success) {
+        showToast("User restored successfully", "success");
+        // Refresh inactive and active lists
+        await loadInactiveUsers();
+        await loadUsers();
+      } else {
+        showToast(response.message || "Failed to restore user", "error");
+      }
+    } catch (error: any) {
+      console.error("Failed to restore user:", error);
+      showToast(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to restore user",
+        "error"
+      );
+    } finally {
+      setDeleting(false);
+      setDeletingUserId(null);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!userToDelete) return;
 
@@ -288,11 +362,17 @@ export default function UserManagement() {
     try {
       const response = await deleteUser(userToDelete.id);
       if (response.success) {
-        showToast("User deleted successfully", "success");
+        showToast("User deactivated successfully", "success");
         setDeleteModalOpen(false);
         setUserToDelete(null);
-        // Reload to refresh pagination
-        loadUsers();
+        // Reload to refresh lists
+        if (showInactive) {
+          loadInactiveUsers();
+        } else {
+          loadUsers();
+        }
+      } else {
+        showToast(response.message || "Failed to deactivate user", "error");
       }
     } catch (error) {
       showToast("Failed to delete user", "error");
@@ -410,6 +490,16 @@ export default function UserManagement() {
       ),
     },
     {
+      key: "status",
+      label: "Status",
+      sortable: false,
+      render: (user: User) => (
+        <span className={`text-sm font-medium ${user.status === "inactive" ? "text-red-600" : "text-green-600"}`}>
+          {user.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : "Active"}
+        </span>
+      ),
+    },
+    {
       key: "actions",
       label: "Actions",
       render: (user: User) => (
@@ -428,7 +518,7 @@ export default function UserManagement() {
           </Tooltip>
           <Tooltip label="Edit">
             <button
-            onClick={() => handleOpenEditModal(user)}
+              onClick={() => handleOpenEditModal(user)}
               className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
               aria-label="Edit user"
             >
@@ -437,22 +527,55 @@ export default function UserManagement() {
               </svg>
             </button>
           </Tooltip>
-          <Tooltip label="Delete">
-            <button
-            onClick={() => handleDeleteClick(user)}
-              className={`p-2 rounded-lg transition-colors ${
-                deleting 
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                  : "hover:bg-red-100 text-red-700"
-              }`}
-              aria-label="Delete user"
-            disabled={deleting}
-          >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </Tooltip>
+          {showInactive ? (
+            <Tooltip label="Restore">
+              <button
+                onClick={() => handleRestoreUser(user)}
+                className={`p-2 rounded-lg transition-colors ${
+                  deleting && deletingUserId === user.id
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "hover:bg-green-100 text-green-700"
+                }`}
+                aria-label="Restore user"
+                disabled={deleting && deletingUserId === user.id}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path d="M4.5 2.75a.75.75 0 0 1 .75.75v2.69A6.5 6.5 0 1 1 3.06 9.22a.75.75 0 1 1 1.44.34A5 5 0 1 0 10 5.5H7.25a.75.75 0 0 1-.75-.75V3.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V4a.75.75 0 0 1-1.5 0v-.25H8v.44A6.5 6.5 0 1 1 4.5 3.5v-.75z" />
+                </svg>
+              </button>
+            </Tooltip>
+          ) : (
+            <Tooltip label="Deactivate">
+              <button
+                onClick={() => handleDeleteClick(user)}
+                className={`p-2 rounded-lg transition-colors ${
+                  deleting && deletingUserId === user.id
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "hover:bg-red-100 text-red-700"
+                }`}
+                aria-label="Deactivate user"
+                disabled={deleting && deletingUserId === user.id}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </Tooltip>
+          )}
         </div>
       ),
     },
@@ -462,9 +585,17 @@ export default function UserManagement() {
     <div className="p-6">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-        <Button onClick={handleOpenCreateModal} variant="primary">
-          Create New User
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            variant={showInactive ? "secondary" : "outline"}
+            onClick={() => setShowInactive(!showInactive)}
+          >
+            {showInactive ? "Show Active Users" : "Show Inactive Users"}
+          </Button>
+          <Button onClick={handleOpenCreateModal} variant="primary">
+            Create New User
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filter Bar */}
@@ -495,18 +626,23 @@ export default function UserManagement() {
       </div>
 
       {/* Results count */}
-      {!loading && (
+      {!loading && !showInactive && (
         <div className="mb-4 text-sm text-gray-600">
           Showing {users.length} of {total} users
+        </div>
+      )}
+      {showInactive && !loadingInactive && (
+        <div className="mb-4 text-sm text-gray-600">
+          Showing {inactiveUsers.length} inactive users
         </div>
       )}
 
       <div className="bg-white rounded-lg shadow">
         <Table
-          data={users}
+          data={showInactive ? inactiveUsers : users}
           columns={columns}
-          loading={loading}
-          emptyMessage="No users found"
+          loading={showInactive ? loadingInactive : loading}
+          emptyMessage={showInactive ? "No inactive users found" : "No users found"}
           onSort={(key, order) => {
             setSortBy(key);
             setSortOrder(order);
@@ -518,7 +654,7 @@ export default function UserManagement() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!showInactive && totalPages > 1 && (
         <Pagination
           page={page}
           totalPages={totalPages}
@@ -717,7 +853,7 @@ export default function UserManagement() {
         )}
       </Modal>
       
-      {/* Delete Confirmation Modal */}
+      {/* Delete (Deactivate) Confirmation Modal */}
       <DeleteConfirmationModal
         open={deleteModalOpen}
         onClose={() => {
@@ -728,7 +864,7 @@ export default function UserManagement() {
         itemName={userToDelete?.name}
         itemType="user"
         loading={deleting}
-        description="This will permanently delete the user account and all associated data. This action cannot be undone."
+        description="This will deactivate the user account. The user will no longer be able to access the system, but you can restore the account later from the inactive users view."
       />
     </div>
   );

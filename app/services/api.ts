@@ -510,7 +510,18 @@ export async function updateUser(id: string, data: any) {
 }
 
 export async function deleteUser(id: string) {
+  // Soft delete (deactivate) user – backend marks user as inactive
   return handleDelete(`/users/${id}`);
+}
+
+export async function getInactiveUsers() {
+  const response = await api.get('/users/inactive');
+  return response.data;
+}
+
+export async function restoreUser(id: string) {
+  const response = await api.patch(`/users/${id}/restore`);
+  return response.data;
 }
 
 // Profile API
