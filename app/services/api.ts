@@ -257,62 +257,179 @@ export async function removeMentorFromTeam(mentorId: string, teamId: string) {
   return handleDelete(`/mentors/${mentorId}/assign/${teamId}`);
 }
 
-// Inventory API
-export async function getInventory(params?: any) {
+// Inventory API (Enhanced with new fields and filtering)
+export async function getInventory(params?: {
+  category?: string;
+  item_type?: string;
+  location_id?: string;
+  status?: string;
+  supplier_id?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+  [key: string]: any; // Allow other params for backward compatibility
+}) {
   const response = await api.get('/inventory', { params });
-  return response.data.success ? response.data.data.items : response.data;
+  return response.data.success ? response.data.data.items || response.data.data : response.data;
 }
 
-export async function getInventoryItem(id: number) {
+export async function getInventoryItem(id: string | number) {
   const response = await api.get(`/inventory/${id}`);
-  return response.data;
+  return response.data.success ? response.data.data : response.data;
 }
 
-export async function createInventoryItem(data: any) {
+export async function createInventoryItem(data: {
+  name: string;
+  description?: string;
+  category?: string;
+  item_type?: string;
+  sku?: string;
+  barcode?: string;
+  serial_number?: string;
+  total_quantity?: number;
+  min_stock_level?: number;
+  reorder_quantity?: number;
+  condition?: string;
+  status?: string;
+  location_id?: string;
+  supplier_id?: string;
+  warranty_start?: string;
+  warranty_end?: string;
+  warranty_provider?: string;
+  maintenance_interval?: number;
+  purchase_date?: string;
+  expiration_date?: string;
+  batch_number?: string;
+  is_frequently_distributed?: boolean;
+  distribution_unit?: string;
+  typical_consumption_rate?: number;
+  tags?: string[];
+  custom_fields?: any;
+  notes?: string;
+  [key: string]: any; // Allow other fields for backward compatibility
+}) {
   const response = await api.post('/inventory', data);
   return response.data;
 }
 
-export async function updateInventoryItem(id: number, data: any) {
+export async function updateInventoryItem(id: string | number, data: {
+  name?: string;
+  description?: string;
+  category?: string;
+  item_type?: string;
+  sku?: string;
+  barcode?: string;
+  serial_number?: string;
+  total_quantity?: number;
+  available_quantity?: number;
+  min_stock_level?: number;
+  reorder_quantity?: number;
+  condition?: string;
+  status?: string;
+  location_id?: string;
+  supplier_id?: string;
+  warranty_start?: string;
+  warranty_end?: string;
+  warranty_provider?: string;
+  maintenance_interval?: number;
+  last_maintenance?: string;
+  next_maintenance?: string;
+  purchase_date?: string;
+  expiration_date?: string;
+  batch_number?: string;
+  is_frequently_distributed?: boolean;
+  distribution_unit?: string;
+  typical_consumption_rate?: number;
+  tags?: string[];
+  custom_fields?: any;
+  notes?: string;
+  [key: string]: any; // Allow other fields for backward compatibility
+}) {
   const response = await api.put(`/inventory/${id}`, data);
   return response.data;
 }
 
-export async function deleteInventoryItem(id: number) {
+export async function deleteInventoryItem(id: string | number) {
   return handleDelete(`/inventory/${id}`);
 }
 
-export async function assignInventoryToTeam(id: number, data: any) {
-  const response = await api.post(`/inventory/${id}/assign`, data);
+export async function assignInventoryToTeam(itemId: string | number, data: {
+  team_id: string;
+  quantity: number;
+  expected_return?: string;
+  notes?: string;
+  [key: string]: any; // Allow other fields for backward compatibility
+}) {
+  const response = await api.post(`/inventory/${itemId}/assign`, data);
   return response.data;
 }
 
-export async function unassignInventoryFromTeam(id: number, teamId: number) {
-  return handleDelete(`/inventory/${id}/assign/${teamId}`);
+export async function unassignInventoryFromTeam(itemId: string | number, teamId: string | number) {
+  return handleDelete(`/inventory/${itemId}/assign/${teamId}`);
 }
 
-// Material Requests API
-export async function getRequests(params?: any) {
+// Material Requests API (Enhanced with new features)
+export async function getRequests(params?: {
+  status?: string;
+  priority?: string;
+  team_id?: string;
+  requested_by?: string;
+  delivery_status?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  [key: string]: any; // Allow other params for backward compatibility
+}) {
   const response = await api.get('/requests', { params });
+  return response.data.success ? response.data.data.requests || response.data.data : response.data;
+}
+
+export async function getRequest(id: string | number) {
+  const response = await api.get(`/requests/${id}`);
   return response.data.success ? response.data.data : response.data;
 }
 
-export async function getRequest(id: number) {
-  const response = await api.get(`/requests/${id}`);
-  return response.data;
-}
-
-export async function createRequest(data: any) {
+export async function createRequest(data: {
+  title: string;
+  description?: string;
+  team_id?: string;
+  project_id?: string;
+  priority?: string;
+  urgency_reason?: string;
+  required_by?: string;
+  is_consumable_request?: boolean;
+  requires_quick_approval?: boolean;
+  delivery_address?: string;
+  delivery_notes?: string;
+  expected_delivery?: string;
+  notes?: string;
+  approval_chain?: string[];
+  items: Array<{
+    inventory_item_id?: string;
+    item_name?: string;
+    quantity: number;
+    unit?: string;
+    is_consumable?: boolean;
+    notes?: string;
+  }>;
+  [key: string]: any; // Allow other fields for backward compatibility
+}) {
   const response = await api.post('/requests', data);
   return response.data;
 }
 
-export async function updateRequestStatus(id: string | number, data: any) {
+export async function updateRequestStatus(id: string | number, data: {
+  status: string;
+  notes?: string;
+  [key: string]: any; // Allow other fields for backward compatibility
+}) {
   const response = await api.put(`/requests/${id}/status`, data);
   return response.data;
 }
 
-export async function deleteRequest(id: number) {
+export async function deleteRequest(id: string | number) {
   return handleDelete(`/requests/${id}`);
 }
 
@@ -654,3 +771,903 @@ export async function exportGeneralReportCsv(params?: any) {
     responseType: "blob",
   });
 }
+
+// ============================================================================
+// PHASE 1: Enhanced Inventory & Material Request System API Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1.1 Enhanced Inventory API Functions
+// ----------------------------------------------------------------------------
+
+// Enhanced inventory helper functions (aliases for clarity)
+/**
+ * Get single inventory item by ID with all relations (alias for getInventoryItem)
+ */
+export const getInventoryItemById = getInventoryItem;
+
+/**
+ * Get inventory items by category
+ */
+export async function getInventoryByCategory(category: string, params?: any) {
+  const response = await api.get('/inventory', { params: { category, ...params } });
+  return response.data.success ? response.data.data.items || response.data.data : response.data;
+}
+
+/**
+ * Get inventory items by location
+ */
+export async function getInventoryByLocation(locationId: string, params?: any) {
+  const response = await api.get('/inventory', { params: { location_id: locationId, ...params } });
+  return response.data.success ? response.data.data.items || response.data.data : response.data;
+}
+
+/**
+ * Get inventory items by status
+ */
+export async function getInventoryByStatus(status: string, params?: any) {
+  const response = await api.get('/inventory', { params: { status, ...params } });
+  return response.data.success ? response.data.data.items || response.data.data : response.data;
+}
+
+/**
+ * Search inventory items (across name, description, SKU, barcode, serial number)
+ */
+export async function searchInventory(query: string, params?: any) {
+  const response = await api.get('/inventory', { params: { search: query, ...params } });
+  return response.data.success ? response.data.data.items || response.data.data : response.data;
+}
+
+/**
+ * Get inventory item assignments
+ */
+export async function getInventoryItemAssignments(id: string | number) {
+  const response = await api.get(`/inventory/${id}/assignments`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+// ----------------------------------------------------------------------------
+// 1.2 Location API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get all storage locations
+ */
+export async function getAllLocations(params?: any) {
+  const response = await api.get('/locations', { params });
+  return response.data.success ? response.data.data.locations || response.data.data : response.data;
+}
+
+/**
+ * Get location hierarchy (tree structure)
+ */
+export async function getLocationHierarchy() {
+  const response = await api.get('/locations/hierarchy');
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get location by ID with hierarchy information
+ */
+export async function getLocationById(id: string | number) {
+  const response = await api.get(`/locations/${id}`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Create new storage location
+ */
+export async function createLocation(data: {
+  name: string;
+  building?: string;
+  floor?: string;
+  room?: string;
+  shelf?: string;
+  bin?: string;
+  parent_location_id?: string;
+}) {
+  const response = await api.post('/locations', data);
+  return response.data;
+}
+
+/**
+ * Update storage location
+ */
+export async function updateLocation(id: string | number, data: Partial<{
+  name: string;
+  building: string;
+  floor: string;
+  room: string;
+  shelf: string;
+  bin: string;
+  parent_location_id: string;
+}>) {
+  const response = await api.put(`/locations/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Delete storage location (with validation)
+ */
+export async function deleteLocation(id: string | number) {
+  return handleDelete(`/locations/${id}`);
+}
+
+// ----------------------------------------------------------------------------
+// 1.3 Supplier API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get all suppliers
+ */
+export async function getAllSuppliers(params?: any) {
+  const response = await api.get('/suppliers', { params });
+  return response.data.success ? response.data.data.suppliers || response.data.data : response.data;
+}
+
+/**
+ * Get supplier by ID
+ */
+export async function getSupplierById(id: string | number) {
+  const response = await api.get(`/suppliers/${id}`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Create new supplier
+ */
+export async function createSupplier(data: {
+  name: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  rating?: number;
+  notes?: string;
+}) {
+  const response = await api.post('/suppliers', data);
+  return response.data;
+}
+
+/**
+ * Update supplier
+ */
+export async function updateSupplier(id: string | number, data: Partial<{
+  name: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address: string;
+  rating: number;
+  notes: string;
+}>) {
+  const response = await api.put(`/suppliers/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Delete supplier (with validation)
+ */
+export async function deleteSupplier(id: string | number) {
+  return handleDelete(`/suppliers/${id}`);
+}
+
+// ----------------------------------------------------------------------------
+// 1.4 Reservation API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get all reservations with filters
+ */
+export async function getAllReservations(params?: {
+  item_id?: string;
+  team_id?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const response = await api.get('/reservations', { params });
+  return response.data.success ? response.data.data.reservations || response.data.data : response.data;
+}
+
+/**
+ * Get reservation by ID
+ */
+export async function getReservationById(id: string | number) {
+  const response = await api.get(`/reservations/${id}`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Create new reservation
+ */
+export async function createReservation(data: {
+  item_id: string;
+  team_id: string;
+  quantity: number;
+  reserved_until: string;
+  notes?: string;
+}) {
+  const response = await api.post('/reservations', data);
+  return response.data;
+}
+
+/**
+ * Update reservation
+ */
+export async function updateReservation(id: string | number, data: Partial<{
+  item_id: string;
+  team_id: string;
+  quantity: number;
+  reserved_until: string;
+  status: string;
+  notes: string;
+}>) {
+  const response = await api.put(`/reservations/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Cancel reservation
+ */
+export async function cancelReservation(id: string | number, reason?: string) {
+  const response = await api.patch(`/reservations/${id}/cancel`, { reason });
+  return response.data;
+}
+
+/**
+ * Confirm reservation (convert to assignment)
+ */
+export async function confirmReservation(id: string | number) {
+  const response = await api.patch(`/reservations/${id}/confirm`);
+  return response.data;
+}
+
+/**
+ * Delete reservation
+ */
+export async function deleteReservation(id: string | number) {
+  return handleDelete(`/reservations/${id}`);
+}
+
+// ----------------------------------------------------------------------------
+// 1.5 Maintenance API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get all maintenance logs
+ */
+export async function getAllMaintenanceLogs(params?: {
+  item_id?: string;
+  maintenance_type?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const response = await api.get('/maintenance', { params });
+  return response.data.success ? response.data.data.logs || response.data.data : response.data;
+}
+
+/**
+ * Get upcoming maintenance (items needing maintenance soon)
+ */
+export async function getUpcomingMaintenance(params?: {
+  days_ahead?: number;
+  page?: number;
+  limit?: number;
+}) {
+  const response = await api.get('/maintenance/upcoming', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get items due for maintenance
+ */
+export async function getItemsDueForMaintenance(params?: {
+  overdue_only?: boolean;
+  days_ahead?: number;
+}) {
+  const response = await api.get('/maintenance/due', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get maintenance log by ID
+ */
+export async function getMaintenanceLogById(id: string | number) {
+  const response = await api.get(`/maintenance/${id}`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Create maintenance log
+ */
+export async function createMaintenanceLog(data: {
+  item_id: string;
+  maintenance_type: string;
+  performed_by?: string;
+  performed_at: string;
+  notes?: string;
+  next_maintenance?: string;
+}) {
+  const response = await api.post('/maintenance', data);
+  return response.data;
+}
+
+/**
+ * Update maintenance log
+ */
+export async function updateMaintenanceLog(id: string | number, data: Partial<{
+  item_id: string;
+  maintenance_type: string;
+  performed_by: string;
+  performed_at: string;
+  notes: string;
+  next_maintenance: string;
+}>) {
+  const response = await api.put(`/maintenance/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Delete maintenance log
+ */
+export async function deleteMaintenanceLog(id: string | number) {
+  return handleDelete(`/maintenance/${id}`);
+}
+
+/**
+ * Auto-schedule next maintenance for items with maintenance intervals
+ */
+export async function autoScheduleMaintenance(data?: {
+  item_ids?: string[];
+  force_update?: boolean;
+}) {
+  const response = await api.post('/maintenance/auto-schedule', data || {});
+  return response.data;
+}
+
+// ----------------------------------------------------------------------------
+// 1.6 Barcode/QR Code API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Generate barcode for an item
+ */
+export async function generateBarcode(itemId: string | number) {
+  const response = await api.post(`/barcode/item/${itemId}/generate`);
+  return response.data;
+}
+
+/**
+ * Scan barcode/QR code to lookup item
+ */
+export async function scanBarcode(barcode: string) {
+  const response = await api.post('/barcode/scan', { barcode });
+  return response.data;
+}
+
+/**
+ * Get QR code data for an item
+ */
+export async function getQRCodeData(itemId: string | number) {
+  const response = await api.get(`/barcode/item/${itemId}/qr`);
+  return response.data;
+}
+
+/**
+ * Bulk generate barcodes for items without barcodes
+ */
+export async function bulkGenerateBarcodes(data?: {
+  item_ids?: string[];
+  generate_for_all?: boolean;
+}) {
+  const response = await api.post('/barcode/bulk-generate', data || {});
+  return response.data;
+}
+
+// ----------------------------------------------------------------------------
+// 1.7 Consumption API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get all consumption logs with filters
+ */
+export async function getAllConsumptionLogs(params?: {
+  item_id?: string;
+  team_id?: string;
+  distributed_by?: string;
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const response = await api.get('/consumption', { params });
+  return response.data.success ? response.data.data.logs || response.data.data : response.data;
+}
+
+/**
+ * Get consumption log by ID
+ */
+export async function getConsumptionLogById(id: string | number) {
+  const response = await api.get(`/consumption/${id}`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Create consumption log (log consumption/distribution)
+ */
+export async function createConsumptionLog(data: {
+  item_id: string;
+  quantity: number;
+  consumption_type: string;
+  consumption_date: string;
+  distributed_to?: string;
+  team_id?: string;
+  distributed_by?: string;
+  event_type?: string;
+  notes?: string;
+}) {
+  const response = await api.post('/consumption', data);
+  return response.data;
+}
+
+/**
+ * Update consumption log
+ */
+export async function updateConsumptionLog(id: string | number, data: Partial<{
+  item_id: string;
+  quantity: number;
+  consumption_type: string;
+  consumption_date: string;
+  distributed_to: string;
+  team_id: string;
+  distributed_by: string;
+  event_type: string;
+  notes: string;
+}>) {
+  const response = await api.put(`/consumption/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Delete consumption log
+ */
+export async function deleteConsumptionLog(id: string | number) {
+  return handleDelete(`/consumption/${id}`);
+}
+
+/**
+ * Get consumption statistics for an item
+ */
+export async function getItemConsumptionStats(itemId: string | number, params?: {
+  start_date?: string;
+  end_date?: string;
+  period?: string;
+}) {
+  const response = await api.get(`/consumption/stats/${itemId}`, { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+// ----------------------------------------------------------------------------
+// 1.8 Assignment API Functions (Enhanced)
+// ----------------------------------------------------------------------------
+
+/**
+ * Get item assignments for a specific item
+ */
+export async function getItemAssignments(itemId: string | number) {
+  const response = await api.get(`/inventory/${itemId}/assignments`);
+  return response.data.success ? response.data.data.assignments || response.data.data : response.data;
+}
+
+/**
+ * Get team assignments for a specific team (if endpoint exists)
+ */
+export async function getTeamAssignments(teamId: string | number, params?: any) {
+  // This endpoint may need to be added to backend or use existing inventory endpoint with team filter
+  const response = await api.get('/inventory', { params: { assigned_to_team: teamId, ...params } });
+  return response.data.success ? response.data.data.items || response.data.data : response.data;
+}
+
+// ----------------------------------------------------------------------------
+// 1.9 Enhanced Material Request API Functions
+// ----------------------------------------------------------------------------
+
+// Enhanced request helper functions (aliases for clarity)
+/**
+ * Get request by ID with all relations (alias for getRequest)
+ */
+export const getRequestById = getRequest;
+
+/**
+ * Get all requests with enhanced filters (alias for getRequests)
+ */
+export const getAllRequests = getRequests;
+
+/**
+ * Get requests for a specific team
+ */
+export async function getTeamRequests(teamId: string | number, params?: any) {
+  const response = await api.get(`/requests/team/${teamId}`, { params });
+  return response.data.success ? response.data.data.requests || response.data.data : response.data;
+}
+
+/**
+ * Update request
+ */
+export async function updateRequest(id: string | number, data: Partial<{
+  title: string;
+  description: string;
+  priority: string;
+  urgency_reason: string;
+  required_by: string;
+  delivery_address: string;
+  delivery_notes: string;
+  expected_delivery: string;
+  notes: string;
+  items: any[];
+}>) {
+  // Note: Backend may need an update endpoint or use status update
+  const response = await api.put(`/requests/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Submit draft request (change status to submitted/pending_review)
+ */
+export async function submitRequest(id: string | number, data?: {
+  notes?: string;
+}) {
+  const response = await api.post(`/requests/${id}/submit`, data || {});
+  return response.data;
+}
+
+/**
+ * Cancel request
+ */
+export async function cancelRequest(id: string | number, data: {
+  reason?: string;
+  notes?: string;
+}) {
+  const response = await api.post(`/requests/${id}/cancel`, data);
+  return response.data;
+}
+
+/**
+ * Approve request at a specific approval level
+ */
+export async function approveRequest(id: string | number, data: {
+  approval_level?: number;
+  comments?: string;
+  is_internal?: boolean;
+}) {
+  const response = await api.post(`/requests/${id}/approve`, data);
+  return response.data;
+}
+
+/**
+ * Decline request at a specific approval level
+ */
+export async function declineRequest(id: string | number, data: {
+  approval_level?: number;
+  comments?: string;
+  reason?: string;
+  is_internal?: boolean;
+}) {
+  const response = await api.post(`/requests/${id}/decline`, data);
+  return response.data;
+}
+
+/**
+ * Delegate approval to another user
+ */
+export async function delegateApproval(id: string | number, data: {
+  approval_level?: number;
+  delegate_to: string;
+  comments?: string;
+  is_internal?: boolean;
+}) {
+  const response = await api.post(`/requests/${id}/delegate`, data);
+  return response.data;
+}
+
+/**
+ * Update delivery status and confirm delivery
+ */
+export async function updateDeliveryStatus(id: string | number, data: {
+  delivery_status: string;
+  delivery_notes?: string;
+  expected_delivery?: string;
+}) {
+  const response = await api.put(`/requests/${id}/delivery`, data);
+  return response.data;
+}
+
+/**
+ * Get request comments
+ */
+export async function getRequestComments(id: string | number) {
+  const response = await api.get(`/requests/${id}/comments`);
+  return response.data.success ? response.data.data.comments || response.data.data : response.data;
+}
+
+/**
+ * Add comment to request
+ */
+export async function addRequestComment(id: string | number, data: {
+  comment: string;
+  is_internal?: boolean;
+}) {
+  const response = await api.post(`/requests/${id}/comments`, data);
+  return response.data;
+}
+
+/**
+ * Update request comment
+ */
+export async function updateRequestComment(id: string | number, commentId: string | number, data: {
+  comment: string;
+}) {
+  const response = await api.put(`/requests/${id}/comments/${commentId}`, data);
+  return response.data;
+}
+
+/**
+ * Delete request comment
+ */
+export async function deleteRequestComment(id: string | number, commentId: string | number) {
+  return handleDelete(`/requests/${id}/comments/${commentId}`);
+}
+
+/**
+ * Get request history/audit trail (via request detail endpoint includes history)
+ */
+export async function getRequestHistory(id: string | number) {
+  // History is typically included in getRequestById, but if separate endpoint exists:
+  const response = await api.get(`/requests/${id}`);
+  return response.data.success ? response.data.data.history || [] : [];
+}
+
+// ----------------------------------------------------------------------------
+// 1.10 Request Template API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get all request templates
+ */
+export async function getAllRequestTemplates(params?: {
+  category?: string;
+  is_public?: boolean;
+  created_by?: string;
+}) {
+  const response = await api.get('/request-templates', { params });
+  return response.data.success ? response.data.data.templates || response.data.data : response.data;
+}
+
+/**
+ * Get request template by ID
+ */
+export async function getRequestTemplateById(id: string | number) {
+  const response = await api.get(`/request-templates/${id}`);
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Create request template
+ */
+export async function createRequestTemplate(data: {
+  name: string;
+  description?: string;
+  category?: string;
+  is_public?: boolean;
+  items: Array<{
+    inventory_item_id?: string;
+    item_name: string;
+    quantity: number;
+    unit?: string;
+    is_consumable?: boolean;
+  }>;
+}) {
+  const response = await api.post('/request-templates', data);
+  return response.data;
+}
+
+/**
+ * Update request template
+ */
+export async function updateRequestTemplate(id: string | number, data: Partial<{
+  name: string;
+  description: string;
+  category: string;
+  is_public: boolean;
+  items: any[];
+}>) {
+  const response = await api.put(`/request-templates/${id}`, data);
+  return response.data;
+}
+
+/**
+ * Delete request template
+ */
+export async function deleteRequestTemplate(id: string | number) {
+  return handleDelete(`/request-templates/${id}`);
+}
+
+/**
+ * Create request from template
+ */
+export async function createRequestFromTemplate(templateId: string | number, data?: {
+  team_id?: string;
+  project_id?: string;
+  priority?: string;
+  required_by?: string;
+  delivery_address?: string;
+  delivery_notes?: string;
+  notes?: string;
+  override_items?: any[];
+}) {
+  const response = await api.post(`/request-templates/${templateId}/create-request`, data || {});
+  return response.data;
+}
+
+// ----------------------------------------------------------------------------
+// 1.11 Enhanced Reporting & Analytics API Functions
+// ----------------------------------------------------------------------------
+
+/**
+ * Get usage analytics: Most used items, utilization rates
+ */
+export async function getUsageAnalytics(params?: {
+  period?: string;
+  start_date?: string;
+  end_date?: string;
+  category?: string;
+}) {
+  const response = await api.get('/reports/usage-analytics', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get assignment trends: Assignment patterns over time
+ */
+export async function getAssignmentTrends(params?: {
+  period?: string;
+  start_date?: string;
+  end_date?: string;
+  item_id?: string;
+  team_id?: string;
+}) {
+  const response = await api.get('/reports/assignment-trends', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get low stock alerts
+ */
+export async function getLowStockAlerts(params?: {
+  category?: string;
+  supplier_id?: string;
+  include_out_of_stock?: boolean;
+}) {
+  const response = await api.get('/reports/low-stock-alerts', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get utilization reports: Item usage efficiency
+ */
+export async function getUtilizationReports(params?: {
+  category?: string;
+  utilization_rate_min?: number;
+  utilization_rate_max?: number;
+  period?: string;
+}) {
+  const response = await api.get('/reports/utilization', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get consumption reports: Track refreshments and consumables usage
+ */
+export async function getConsumptionReports(params?: {
+  item_id?: string;
+  team_id?: string;
+  start_date?: string;
+  end_date?: string;
+  period?: string;
+  event_type?: string;
+}) {
+  const response = await api.get('/reports/consumption', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get distribution reports: Who received what and when
+ */
+export async function getDistributionReports(params?: {
+  item_id?: string;
+  team_id?: string;
+  distributed_by?: string;
+  start_date?: string;
+  end_date?: string;
+  event_type?: string;
+}) {
+  const response = await api.get('/reports/distribution', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get replenishment forecasting: Predict when to reorder based on consumption patterns
+ */
+export async function getReplenishmentForecasting(params?: {
+  item_id?: string;
+  category?: string;
+  lookback_days?: number;
+  forecast_days?: number;
+}) {
+  const response = await api.get('/reports/replenishment-forecasting', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get usage pattern analysis: Time-series consumption patterns
+ */
+export async function getUsagePatternAnalysis(params?: {
+  item_id?: string;
+  team_id?: string;
+  period?: string;
+  start_date?: string;
+  end_date?: string;
+  aggregation?: string;
+}) {
+  const response = await api.get('/reports/usage-patterns', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Auto-create replenishment requests for low stock items
+ */
+export async function autoCreateReplenishmentRequests(data?: {
+  dry_run?: boolean;
+  team_id?: string;
+  category?: string;
+  min_stock_threshold?: number;
+}) {
+  const response = await api.post('/reports/auto-replenishment', data || {});
+  return response.data;
+}
+
+/**
+ * Get request analytics: Request patterns, approval times, status breakdown
+ */
+export async function getRequestAnalytics(params?: {
+  period?: string;
+  start_date?: string;
+  end_date?: string;
+  team_id?: string;
+  priority?: string;
+  status?: string;
+}) {
+  const response = await api.get('/reports/request-analytics', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+/**
+ * Get comprehensive usage analytics combining inventory, requests, and consumption
+ */
+export async function getComprehensiveUsageAnalytics(params?: {
+  period?: string;
+  start_date?: string;
+  end_date?: string;
+  category?: string;
+  team_id?: string;
+}) {
+  const response = await api.get('/reports/comprehensive-usage', { params });
+  return response.data.success ? response.data.data : response.data;
+}
+
+// ----------------------------------------------------------------------------
+// Note: Legacy functions (getInventory, getInventoryItem, etc.) are maintained
+// above for backward compatibility. New enhanced functions (getInventoryItems,
+// getInventoryItemById, etc.) provide additional features and better typing.
+// ----------------------------------------------------------------------------
