@@ -72,7 +72,7 @@ const sidebarLinksByRole: Record<string, NavItem[]> = {
       children: [
         { name: "All Requests", to: "/requests" },
         { name: "Request Templates", to: "/requests/templates" },
-        { name: "Create Request", to: "/requests/new" },
+        { name: "Create Request", to: "/requests/create" },
       ],
     },
     {
@@ -82,6 +82,7 @@ const sidebarLinksByRole: Record<string, NavItem[]> = {
         { name: "Locations", to: "/inventory/locations" },
         { name: "Suppliers", to: "/inventory/suppliers" },
         { name: "Reservations", to: "/inventory/reservations" },
+        { name: "Assignments", to: "/inventory/assignments" },
         { name: "Maintenance", to: "/inventory/maintenance" },
         { name: "Barcode Scanner", to: "/inventory/barcode" },
         { name: "Consumables", to: "/inventory/consumables" },

@@ -257,7 +257,12 @@ export async function removeMentorFromTeam(mentorId: string, teamId: string) {
   return handleDelete(`/mentors/${mentorId}/assign/${teamId}`);
 }
 
-// Inventory API (Enhanced with new fields and filtering)
+/**
+ * Get inventory items with enhanced filtering, pagination, and search
+ * Supports filtering by: category, item_type, location_id, status, supplier_id
+ * Supports search across: name, description, SKU, barcode, serial_number
+ * Supports pagination with page and limit parameters
+ */
 export async function getInventory(params?: {
   category?: string;
   item_type?: string;
@@ -273,11 +278,24 @@ export async function getInventory(params?: {
   return response.data.success ? response.data.data.items || response.data.data : response.data;
 }
 
-export async function getInventoryItem(id: string | number) {
-  const response = await api.get(`/inventory/${id}`);
+/**
+ * Get single inventory item by ID with all relations
+ * Includes: location, supplier, assignments, maintenance_logs, consumption_logs, reservations
+ */
+export async function getInventoryItem(id: string | number, params?: {
+  include?: string[]; // Optional: specify relations to include (defaults to all)
+}) {
+  const response = await api.get(`/inventory/${id}`, { 
+    params: params?.include ? { include: params.include.join(',') } : {} 
+  });
   return response.data.success ? response.data.data : response.data;
 }
 
+/**
+ * Create new inventory item with all new fields
+ * Supports: category, item_type, location, supplier, barcode, SKU, serial_number,
+ * warranty info, maintenance intervals, consumable fields, etc.
+ */
 export async function createInventoryItem(data: {
   name: string;
   description?: string;
@@ -312,6 +330,11 @@ export async function createInventoryItem(data: {
   return response.data;
 }
 
+/**
+ * Update inventory item with all new fields
+ * Supports updating all fields including: category, item_type, location, supplier,
+ * barcode, quantities, status, warranty, maintenance, etc.
+ */
 export async function updateInventoryItem(id: string | number, data: {
   name?: string;
   description?: string;
@@ -349,6 +372,10 @@ export async function updateInventoryItem(id: string | number, data: {
   return response.data;
 }
 
+/**
+ * Delete inventory item with validation
+ * Backend validates that item can be safely deleted (no active assignments, etc.)
+ */
 export async function deleteInventoryItem(id: string | number) {
   return handleDelete(`/inventory/${id}`);
 }
