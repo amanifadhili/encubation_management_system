@@ -337,7 +337,7 @@ const RequestAnalyticsPage = () => {
             <select
               value={periodFilter}
               onChange={(e) => setPeriodFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="week">Last Week</option>
               <option value="month">Last Month</option>
@@ -351,7 +351,7 @@ const RequestAnalyticsPage = () => {
             <select
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="">All Teams</option>
               {teams.map((team) => (
@@ -366,7 +366,7 @@ const RequestAnalyticsPage = () => {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="">All Priorities</option>
               <option value="low">Low</option>
@@ -380,7 +380,7 @@ const RequestAnalyticsPage = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="">All Statuses</option>
               <option value="draft">Draft</option>
@@ -397,7 +397,7 @@ const RequestAnalyticsPage = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             />
           </div>
           <div>
@@ -406,7 +406,7 @@ const RequestAnalyticsPage = () => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             />
           </div>
         </div>
@@ -481,7 +481,7 @@ const RequestAnalyticsPage = () => {
             />
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">No status breakdown data available</div>
+          <div className="text-center text-gray-600 py-8">No status breakdown data available</div>
         )}
       </div>
 
@@ -504,7 +504,7 @@ const RequestAnalyticsPage = () => {
             />
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">No priority breakdown data available</div>
+          <div className="text-center text-gray-600 py-8">No priority breakdown data available</div>
         )}
       </div>
 
@@ -529,7 +529,7 @@ const RequestAnalyticsPage = () => {
             }}
           />
         ) : (
-          <div className="text-center text-gray-500 py-8">No time series data available</div>
+          <div className="text-center text-gray-600 py-8">No time series data available</div>
         )}
       </div>
 

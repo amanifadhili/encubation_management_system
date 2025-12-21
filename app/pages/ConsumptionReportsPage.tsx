@@ -300,7 +300,7 @@ const ConsumptionReportsPage = () => {
             <select
               value={periodFilter}
               onChange={(e) => setPeriodFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="week">Last Week</option>
               <option value="month">Last Month</option>
@@ -314,7 +314,7 @@ const ConsumptionReportsPage = () => {
             <select
               value={itemFilter}
               onChange={(e) => setItemFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="">All Items</option>
               {inventoryItems.map((item) => (
@@ -329,7 +329,7 @@ const ConsumptionReportsPage = () => {
             <select
               value={teamFilter}
               onChange={(e) => setTeamFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="">All Teams</option>
               {teams.map((team) => (
@@ -356,7 +356,7 @@ const ConsumptionReportsPage = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             />
           </div>
           <div>
@@ -365,7 +365,7 @@ const ConsumptionReportsPage = () => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             />
           </div>
           <div>
@@ -375,7 +375,7 @@ const ConsumptionReportsPage = () => {
               value={eventTypeFilter}
               onChange={(e) => setEventTypeFilter(e.target.value)}
               placeholder="Filter by event type"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white placeholder:text-gray-400"
             />
           </div>
         </div>
@@ -444,7 +444,7 @@ const ConsumptionReportsPage = () => {
             />
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">No consumption data by item available</div>
+          <div className="text-center text-gray-600 py-8">No consumption data by item available</div>
         )}
       </div>
 
@@ -487,7 +487,7 @@ const ConsumptionReportsPage = () => {
             />
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">No consumption data by team available</div>
+          <div className="text-center text-gray-600 py-8">No consumption data by team available</div>
         )}
       </div>
 
@@ -512,7 +512,7 @@ const ConsumptionReportsPage = () => {
             emptyMessage="No distribution data available"
           />
         ) : (
-          <div className="text-center text-gray-500 py-8">No distribution data available</div>
+          <div className="text-center text-gray-600 py-8">No distribution data available</div>
         )}
       </div>
 
@@ -573,7 +573,7 @@ const ConsumptionReportsPage = () => {
             )}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">No usage pattern data available</div>
+          <div className="text-center text-gray-600 py-8">No usage pattern data available</div>
         )}
       </div>
     </div>

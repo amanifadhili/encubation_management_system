@@ -311,7 +311,7 @@ const ReplenishmentForecastingPage = () => {
             <select
               value={itemFilter}
               onChange={(e) => setItemFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="">All Items</option>
               {inventoryItems.map((item) => (
@@ -328,7 +328,7 @@ const ReplenishmentForecastingPage = () => {
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               placeholder="Filter by category"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white placeholder:text-gray-400"
             />
           </div>
           <div>
@@ -341,7 +341,7 @@ const ReplenishmentForecastingPage = () => {
               onChange={(e) => setLookbackDays(e.target.value)}
               min="1"
               max="365"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             />
           </div>
           <div>
@@ -354,7 +354,7 @@ const ReplenishmentForecastingPage = () => {
               onChange={(e) => setForecastDays(e.target.value)}
               min="1"
               max="365"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white placeholder:text-gray-400"
             />
           </div>
           <div className="flex items-end">

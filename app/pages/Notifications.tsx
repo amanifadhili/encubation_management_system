@@ -213,7 +213,7 @@ const Notifications = () => {
           {loading ? (
             <PageSkeleton count={5} layout="list" />
           ) : notifications.length === 0 ? (
-            <div className="text-center text-blue-400 py-12">No notifications.</div>
+            <div className="text-center text-gray-600 py-12">No notifications.</div>
           ) : (
             notifications.map((n, idx) => (
               <div key={n.id} className={`bg-white rounded shadow p-4 flex flex-col gap-2 relative border-l-4 ${n.read_status ? 'border-blue-200' : 'border-blue-600'}`}>

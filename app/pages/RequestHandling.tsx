@@ -91,6 +91,12 @@ const MaterialPage = () => {
   const [declining, setDeclining] = useState<string | number | null>(null);
   const [addingMaterial, setAddingMaterial] = useState(false);
 
+  // Batch operations state
+  const [selectedRequests, setSelectedRequests] = useState<Set<string>>(new Set());
+  const [showBatchApproveModal, setShowBatchApproveModal] = useState(false);
+  const [batchApproveComment, setBatchApproveComment] = useState("");
+  const [batchApproving, setBatchApproving] = useState(false);
+
   // Team context
   const teamId = user.role === "incubator" ? (user as any).teamId : undefined;
   const isManagerOrDirector =
@@ -455,6 +461,76 @@ const MaterialPage = () => {
     }
   };
 
+  // Batch selection handlers
+  const handleSelectRequest = (requestId: string, checked: boolean) => {
+    setSelectedRequests((prev) => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(requestId);
+      } else {
+        newSet.delete(requestId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    if (checked) {
+      const pendingRequestIds = filteredRequests
+        .filter((r) => r.status === "pending_review" || r.status === "pending")
+        .map((r) => String(r.id));
+      setSelectedRequests(new Set(pendingRequestIds));
+    } else {
+      setSelectedRequests(new Set());
+    }
+  };
+
+  // Batch approve handler
+  const handleBatchApprove = async () => {
+    if (selectedRequests.size === 0) return;
+    
+    setBatchApproving(true);
+    try {
+      const requestIds = Array.from(selectedRequests);
+      const results = await Promise.allSettled(
+        requestIds.map((id) =>
+          withRetry(
+            () => approveRequest(id, {
+              comments: batchApproveComment || undefined,
+            }),
+            {
+              maxRetries: 3,
+              initialDelay: 1000,
+            }
+          )
+        )
+      );
+
+      const successful = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+
+      if (failed === 0) {
+        showToast(`Successfully approved ${successful} request(s)!`, "success");
+      } else {
+        showToast(
+          `Approved ${successful} request(s), ${failed} failed.`,
+          "warning"
+        );
+      }
+
+      // Reload requests and close modal
+      await loadRequests();
+      setShowBatchApproveModal(false);
+      setBatchApproveComment("");
+      setSelectedRequests(new Set());
+    } catch (error: any) {
+      ErrorHandler.handleError(error, showToast, "approving requests");
+    } finally {
+      setBatchApproving(false);
+    }
+  };
+
   // Manager/Director: approve/decline
   const handleAction = async (
     id: string | number,
@@ -535,13 +611,28 @@ const MaterialPage = () => {
     <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
       <div className="max-w-5xl mx-auto">
         <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-6 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Material Requests
-          </h1>
-          <div className="text-white opacity-90 mb-2">
-            {isManagerOrDirector
-              ? "Review and approve material requests from teams."
-              : "Request materials for your team and track their status."}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                Requests
+              </h1>
+              <div className="text-white opacity-90 mb-2">
+                {isManagerOrDirector
+                  ? "Review and approve material requests from teams."
+                  : "Request materials for your team and track their status."}
+              </div>
+            </div>
+            {user.role === "incubator" && (
+              <a
+                href="/requests/create"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Request
+              </a>
+            )}
           </div>
         </div>
         {/* Table */}
@@ -793,15 +884,15 @@ const MaterialPage = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={columns.length} className="p-4">
+                    <td colSpan={columns.length + (isManagerOrDirector ? 1 : 0)} className="p-4">
                       <PageSkeleton count={3} layout="table" />
                     </td>
                   </tr>
                 ) : filteredRequests.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={columns.length}
-                      className="text-center py-8 text-blue-400"
+                      colSpan={columns.length + (isManagerOrDirector ? 1 : 0)}
+                      className="text-center py-8 text-gray-600"
                     >
                       {isManagerOrDirector
                         ? "No material requests found."
@@ -837,6 +928,22 @@ const MaterialPage = () => {
                           navigate(`/requests/${requestId}`);
                         }}
                       >
+                        {isManagerOrDirector && isPending && (
+                          <td
+                            className="px-4 py-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedRequests.has(String(requestId))}
+                              onChange={(e) =>
+                                handleSelectRequest(String(requestId), e.target.checked)
+                              }
+                              className="rounded"
+                            />
+                          </td>
+                        )}
+                        {isManagerOrDirector && !isPending && <td className="px-4 py-2"></td>}
                         <td className="px-4 py-2 text-blue-900 font-mono text-sm">
                           {requestNumber}
                         </td>
@@ -1369,6 +1476,56 @@ const MaterialPage = () => {
               />
             </div>
           </form>
+        </Modal>
+
+        {/* Batch Approve Modal */}
+        <Modal
+          title={`Approve ${selectedRequests.size} Request(s)`}
+          open={showBatchApproveModal}
+          onClose={() => {
+            setShowBatchApproveModal(false);
+            setBatchApproveComment("");
+          }}
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowBatchApproveModal(false);
+                  setBatchApproveComment("");
+                }}
+                disabled={batchApproving}
+              >
+                Cancel
+              </Button>
+              <ButtonLoader
+                loading={batchApproving}
+                onClick={handleBatchApprove}
+                label="Approve Selected"
+                variant="primary"
+                className="bg-green-600 hover:bg-green-700"
+              />
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-gray-700">
+              You are about to approve {selectedRequests.size} request(s). This action cannot be undone.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Optional Comment (applies to all requests)
+              </label>
+              <textarea
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-200"
+                value={batchApproveComment}
+                onChange={(e) => setBatchApproveComment(e.target.value)}
+                rows={3}
+                placeholder="Add a comment for these approvals..."
+                disabled={batchApproving}
+              />
+            </div>
+          </div>
         </Modal>
       </div>
     </div>

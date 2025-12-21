@@ -373,7 +373,7 @@ const InventoryAnalyticsPage = () => {
             <select
               value={periodFilter}
               onChange={(e) => setPeriodFilter(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
               onBlur={loadUsageAnalytics}
             >
               <option value="week">Last Week</option>
@@ -433,7 +433,7 @@ const InventoryAnalyticsPage = () => {
             )}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">No usage analytics data available</div>
+          <div className="text-center text-gray-600 py-8">No usage analytics data available</div>
         )}
       </div>
 
@@ -448,7 +448,7 @@ const InventoryAnalyticsPage = () => {
             <select
               value={trendPeriod}
               onChange={(e) => setTrendPeriod(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
@@ -483,7 +483,7 @@ const InventoryAnalyticsPage = () => {
             }}
           />
         ) : (
-          <div className="text-center text-gray-500 py-8">No assignment trends data available</div>
+          <div className="text-center text-gray-600 py-8">No assignment trends data available</div>
         )}
       </div>
 
@@ -526,7 +526,7 @@ const InventoryAnalyticsPage = () => {
             emptyMessage="No low stock items"
           />
         ) : (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-gray-600 py-8">
             No low stock items. All items are well stocked!
           </div>
         )}
@@ -580,7 +580,7 @@ const InventoryAnalyticsPage = () => {
             )}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-gray-600 py-8">
             No utilization reports data available
           </div>
         )}
@@ -588,7 +588,7 @@ const InventoryAnalyticsPage = () => {
 
       {/* Replenishment Modal */}
       <Modal
-        isOpen={showReplenishmentModal}
+        open={showReplenishmentModal}
         onClose={() => setShowReplenishmentModal(false)}
         title="Create Replenishment Requests"
       >

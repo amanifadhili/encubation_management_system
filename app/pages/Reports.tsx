@@ -16,9 +16,6 @@ import { useReportExport } from "../hooks/useReportExport";
 import { formatDate, formatCurrency } from "../utils/formatters";
 import {
   ChartBarIcon,
-  CubeIcon,
-  ClipboardDocumentListIcon,
-  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 
 const COMPANY_NAME = "INCUBATION MANAGEMENT SYSTEM";
@@ -251,58 +248,18 @@ const Reports = () => {
   return (
     <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
       <div className="max-w-7xl mx-auto space-y-5">
-        {/* Analytics Pages Links */}
-        <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-5 sm:p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Analytics & Reports</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button
-              onClick={() => navigate("/reports/inventory")}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-all text-left group"
-            >
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200">
-                <CubeIcon className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Inventory Analytics</p>
-                <p className="text-sm text-gray-600">Usage, trends, low stock</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate("/reports/requests")}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-all text-left group"
-            >
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200">
-                <ClipboardDocumentListIcon className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Request Analytics</p>
-                <p className="text-sm text-gray-600">Approval rates, trends</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate("/reports/consumption")}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-all text-left group"
-            >
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200">
-                <ChartBarIcon className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Consumption Reports</p>
-                <p className="text-sm text-gray-600">Usage patterns, distribution</p>
-              </div>
-            </button>
-            <button
-              onClick={() => navigate("/reports/replenishment")}
-              className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-all text-left group"
-            >
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200">
-                <ArrowPathIcon className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Replenishment Forecast</p>
-                <p className="text-sm text-gray-600">Forecasting, auto-reorder</p>
-              </div>
-            </button>
+        {/* Info Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <ChartBarIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-900">
+                Looking for analytics and insights?
+              </p>
+              <p className="text-sm text-blue-700 mt-1">
+                Visit the <button onClick={() => navigate("/analytics")} className="underline font-semibold hover:text-blue-900">Analytics Hub</button> for inventory, request, consumption, and replenishment analytics.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -554,7 +511,7 @@ const Reports = () => {
           {loading ? (
             <PageSkeleton count={2} layout="table" />
           ) : groupedRows.length === 0 ? (
-            <div className="text-center text-gray-500 py-10">
+            <div className="text-center text-gray-600 py-10">
               No data. Adjust filters and try again.
             </div>
           ) : (
