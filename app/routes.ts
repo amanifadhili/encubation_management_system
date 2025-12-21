@@ -30,6 +30,10 @@ export default [
       route("/inventory/barcode-scanner", "pages/BarcodeScannerPage.tsx"),
       route("/inventory/consumables", "pages/ConsumablesPage.tsx"),
       route("/reports", "pages/Reports.tsx"),
+      route("/reports/inventory", "pages/InventoryAnalyticsPage.tsx"),
+      route("/reports/requests", "pages/RequestAnalyticsPage.tsx"),
+      route("/reports/consumption", "pages/ConsumptionReportsPage.tsx"),
+      route("/reports/replenishment", "pages/ReplenishmentForecastingPage.tsx"),
       route("/company-report/:id", "pages/CompanyReport.tsx"),
       route("/projects", "pages/Projects.tsx"),
       route("/projects/:id", "pages/ProjectDetails.tsx"),
@@ -41,6 +45,8 @@ export default [
       route("/director-dashboard", "pages/DirectorDashboard.tsx"),
       route("/email-preferences", "pages/EmailPreferences.tsx"),
       route("/profile", "pages/Profile.tsx"),
+      // Temporary test page for ScanningScreen component
+      route("/scanning-screen-test", "pages/ScanningScreenTest.tsx"),
     ]),
   ]),
 ] satisfies RouteConfig;
