@@ -394,7 +394,7 @@ const SuppliersPage = () => {
             sortBy={sortBy}
             sortOrder={sortOrder}
             actions={(supplier: Supplier) => (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-nowrap">
                 <button
                   onClick={() => openDetailModal(supplier)}
                   className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"

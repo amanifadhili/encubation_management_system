@@ -382,7 +382,7 @@ const InventoryAssignmentPage = () => {
             sortBy={sortBy}
             sortOrder={sortOrder}
             actions={isManager ? (assignment: any) => (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-nowrap">
                 {assignment.status === "active" && (
                   <button
                     onClick={() => handleOpenReturn(assignment)}

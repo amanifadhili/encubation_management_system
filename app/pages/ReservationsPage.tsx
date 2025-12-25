@@ -547,7 +547,7 @@ const ReservationsPage = () => {
             sortBy={sortBy}
             sortOrder={sortOrder}
             actions={(reservation: Reservation) => (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-nowrap">
                 {reservation.status === "pending" && isManager && (
                   <button
                     onClick={() => handleConfirm(reservation.id)}

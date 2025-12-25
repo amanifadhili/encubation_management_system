@@ -1166,7 +1166,7 @@ const StockManagement = () => {
             sortBy={sortBy}
             sortOrder={sortOrder}
             actions={isManager ? (item: any) => (
-              <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1 flex-nowrap">
                 {/* View Details */}
                 <button
                   onClick={() => handleViewDetails(item)}

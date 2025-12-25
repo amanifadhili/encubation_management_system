@@ -548,7 +548,7 @@ const ConsumablesPage = () => {
             sortBy={sortBy}
             sortOrder={sortOrder}
             actions={(log: ConsumptionLog) => (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-nowrap">
                 <button
                   onClick={() => openEditModal(log)}
                   className="p-2 rounded-lg hover:bg-orange-100 text-orange-700 transition-colors"

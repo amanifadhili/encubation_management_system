@@ -564,7 +564,7 @@ const MaintenancePage = () => {
             sortBy={sortBy}
             sortOrder={sortOrder}
             actions={(log: MaintenanceLog) => (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-nowrap">
                 {isManager && (
                   <>
                     <button

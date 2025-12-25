@@ -989,7 +989,7 @@ const MaterialPage = () => {
                         </td>
                         <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                           {isManagerOrDirector && isPending && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 flex-nowrap">
                               <Tooltip label={isApproving ? "Approving..." : "Approve"}>
                                 <button
                                   onClick={() => handleAction(requestId, "approved")}
