@@ -93,7 +93,7 @@ export default function UserManagement() {
   // Load users on component mount and when filters change
   useEffect(() => {
     if (!showInactive) {
-      loadUsers();
+    loadUsers();
     }
   }, [page, debouncedSearch, roleFilter, sortBy, sortOrder, showInactive]);
 
@@ -368,7 +368,7 @@ export default function UserManagement() {
         if (showInactive) {
           loadInactiveUsers();
         } else {
-          loadUsers();
+        loadUsers();
         }
       } else {
         showToast(response.message || "Failed to deactivate user", "error");
@@ -517,7 +517,7 @@ export default function UserManagement() {
           </Tooltip>
           <Tooltip label="Edit">
             <button
-              onClick={() => handleOpenEditModal(user)}
+            onClick={() => handleOpenEditModal(user)}
               className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
               aria-label="Edit user"
             >
@@ -550,16 +550,16 @@ export default function UserManagement() {
             </Tooltip>
           ) : (
             <Tooltip label="Deactivate">
-              <button
-                onClick={() => handleDeleteClick(user)}
-                className={`p-2 rounded-lg transition-colors ${
+            <button
+            onClick={() => handleDeleteClick(user)}
+              className={`p-2 rounded-lg transition-colors ${
                   deleting && deletingUserId === user.id
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "hover:bg-red-100 text-red-700"
-                }`}
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
+                  : "hover:bg-red-100 text-red-700"
+              }`}
                 aria-label="Deactivate user"
                 disabled={deleting && deletingUserId === user.id}
-              >
+          >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
@@ -571,9 +571,9 @@ export default function UserManagement() {
                     d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
                     clipRule="evenodd"
                   />
-                </svg>
-              </button>
-            </Tooltip>
+              </svg>
+            </button>
+          </Tooltip>
           )}
         </div>
       ),
@@ -591,9 +591,9 @@ export default function UserManagement() {
           >
             {showInactive ? "Show Active Users" : "Show Inactive Users"}
           </Button>
-          <Button onClick={handleOpenCreateModal} variant="primary">
-            Create New User
-          </Button>
+        <Button onClick={handleOpenCreateModal} variant="primary">
+          Create New User
+        </Button>
         </div>
       </div>
 

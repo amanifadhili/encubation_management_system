@@ -171,7 +171,7 @@ function Table<T extends { id: number | string }>({
                   ))}
                   {actions && (
                     <td className="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center gap-2">{actions(row)}</div>
+                      <div className="flex items-center gap-1 flex-nowrap">{actions(row)}</div>
                     </td>
                   )}
                 </tr>

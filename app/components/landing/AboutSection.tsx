@@ -10,7 +10,7 @@ const highlights = [
   },
   {
     icon: AcademicCapIcon,
-    title: "Expert Mentorship",
+    title: "Expert Mtorship",
     description: "Access to experienced business mentors, industry experts, and academic advisors throughout your journey."
   },
   {
