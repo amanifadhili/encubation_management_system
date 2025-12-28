@@ -608,8 +608,9 @@ const MaterialPage = () => {
   };
 
   return (
-    <div className="p-4 sm:p-8 min-h-screen bg-gray-100">
-      <div className="max-w-5xl mx-auto">
+    <div className="h-full flex flex-col bg-gray-100">
+      <div className="flex-shrink-0 p-4 sm:p-8 pb-4">
+        <div className="max-w-5xl mx-auto">
         <div className="bg-gradient-to-br from-blue-600 to-blue-400 rounded shadow p-6 mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -635,9 +636,13 @@ const MaterialPage = () => {
             )}
           </div>
         </div>
-        {/* Table */}
-        <div className="bg-white rounded shadow p-4">
-          <div className="flex justify-between items-center mb-4">
+        </div>
+      </div>
+      {/* Table */}
+      <div className="flex-1 min-h-0 p-4 sm:p-8 pt-0">
+        <div className="max-w-5xl mx-auto h-full">
+          <div className="bg-white rounded shadow p-4 flex flex-col h-full">
+          <div className="flex justify-between items-center mb-4 flex-shrink-0">
             <h2 className="text-xl font-semibold text-blue-900">
               {user.role === "manager" || user.role === "director"
                 ? "All Material Requests"
@@ -673,7 +678,7 @@ const MaterialPage = () => {
           </div>
 
           {/* Filters */}
-          <div className="mb-4 space-y-3">
+          <div className="mb-4 space-y-3 flex-shrink-0">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Search */}
               <div>
@@ -829,7 +834,7 @@ const MaterialPage = () => {
 
         {/* Batch Actions */}
         {isManagerOrDirector && selectedRequests.size > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4 flex items-center justify-between">
+          <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4 flex items-center justify-between flex-shrink-0">
             <span className="text-blue-900 font-medium">
               {selectedRequests.size} request(s) selected
             </span>
@@ -849,8 +854,8 @@ const MaterialPage = () => {
               </button>
             </div>
           </div>
-        )}
-          <div className="overflow-x-auto">
+          )}
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="min-w-full bg-white border rounded">
               <thead className="bg-blue-100">
                 <tr>
@@ -1050,9 +1055,11 @@ const MaterialPage = () => {
               </tbody>
             </table>
           </div>
+          </div>
         </div>
-        {/* Request Material Modal */}
-        <Modal
+      </div>
+      {/* Request Material Modal */}
+      <Modal
           title="Request New Material"
           open={showModal}
           onClose={() => setShowModal(false)}
@@ -1527,7 +1534,6 @@ const MaterialPage = () => {
             </div>
           </div>
         </Modal>
-      </div>
     </div>
   );
 };
