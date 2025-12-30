@@ -33,7 +33,7 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.552.0",
     "nodemailer": "^7.0.10",
-    "nodemailer-express-handlebars": "^7.0.0",
+    "nodemailer-express-handlebars": "^6.1.2",
     "nodemon": "^3.1.10",
     "prisma": "^6.18.0",
     "react": "^19.1.0",
@@ -76,5 +76,8 @@
   "bugs": {
     "url": "https://github.com/amanifadhili/encubation_management_system/issues"
   },
-  "homepage": "https://github.com/amanifadhili/encubation_management_system#readme"
+  "homepage": "https://github.com/amanifadhili/encubation_management_system#readme",
+  "overrides": {
+    "express-handlebars": "7.1.3"
+  }
 }
